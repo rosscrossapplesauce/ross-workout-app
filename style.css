@@ -13,6 +13,7 @@ h1{font-size:28px;margin:0;line-height:1.08}
 .ghost{background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-weight:800;min-height:44px}
 .selector{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
 select{width:100%;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px 10px;font-size:17px;font-weight:800;min-height:48px}
+button,select,input,textarea{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .progressWrap{margin-bottom:10px}
 .progressText{display:flex;justify-content:space-between;color:var(--muted);font-weight:700;font-size:14px;margin-bottom:6px}
 .progress{height:10px;background:#0b1220;border-radius:999px;overflow:hidden;border:1px solid var(--line)}
@@ -37,7 +38,7 @@ textarea{font-size:17px;min-height:54px;font-weight:600;resize:none}
 .smallTitle{font-size:23px;font-weight:950;margin-bottom:8px}
 .smallDetail{font-size:20px;color:var(--muted);font-weight:750;line-height:1.25}
 .nav{position:fixed;left:50%;bottom:0;z-index:10;width:min(520px,100%);transform:translateX(-50%);display:grid;grid-template-columns:72px 1fr 72px;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(5,7,11,.94);border-top:1px solid var(--line);backdrop-filter:blur(14px)}
-button{border:0;border-radius:14px;padding:15px 10px;font-size:17px;font-weight:950;background:#1f2937;color:var(--text);min-height:54px}
+button{border:0;border-radius:14px;padding:15px 10px;font-size:17px;font-weight:950;background:#1f2937;color:var(--text);min-height:54px;user-select:none;-webkit-user-select:none}
 button:active{transform:translateY(1px)}
 .primary{background:var(--green);color:#052e16;font-size:20px}
 .stepBtn{font-size:30px;line-height:1;padding:0}
