@@ -14,15 +14,19 @@ async function init(){
 }
 function buildSelectors(){
   $("weekSelect").innerHTML = data.weeks.map((w,i)=>`<option value="${i}">Week ${w.week}</option>`).join("");
-  $("daySelect").innerHTML = data.weeks[0].days.map((d,i)=>`<option value="${i}">${d.day}</option>`).join("");
+  buildDaySelector();
   $("weekSelect").value = weekIndex;
   $("daySelect").value = dayIndex;
-  $("weekSelect").onchange = e => { weekIndex=Number(e.target.value); itemIndex=0; saveNav(); render(); };
+  $("weekSelect").onchange = e => { weekIndex=Number(e.target.value); dayIndex=Math.min(dayIndex, data.weeks[weekIndex].days.length-1); itemIndex=0; buildDaySelector(); saveNav(); render(); };
   $("daySelect").onchange = e => { dayIndex=Number(e.target.value); itemIndex=0; saveNav(); render(); };
   $("prevBtn").onclick = prevItem;
   $("nextBtn").onclick = nextItem;
   $("doneBtn").onclick = markDone;
   $("resetBtn").onclick = resetDay;
+}
+function buildDaySelector(){
+  $("daySelect").innerHTML = data.weeks[weekIndex].days.map((d,i)=>`<option value="${i}">${d.day}</option>`).join("");
+  $("daySelect").value = dayIndex;
 }
 function saveNav(){
   localStorage.setItem("weekIndex", weekIndex);
@@ -67,7 +71,7 @@ function render(){
   const state = getState();
   const completedCount = items.filter((_,i)=>state.completed[itemId(items[i], i)]).length;
   const total = items.length;
-  $("progressText").innerText = `${completedCount} of ${total} complete`;
+  $("progressText").innerText = total ? `${itemIndex+1} of ${total} · ${completedCount} done` : "Rest day";
   $("scoreText").innerText = total ? `${Math.round(completedCount/total*100)}%` : "";
   $("progressBar").style.width = total ? `${completedCount/total*100}%` : "0%";
 
@@ -93,9 +97,11 @@ function render(){
         <div>
           <label>Completed weight</label>
           <div class="inputRow">
-            <input id="weightInput" type="number" inputmode="decimal" placeholder="${item.suggestedWeight}" value="${completedWeight}">
-            <button onclick="useSuggested()">Use ${item.suggestedWeight}</button>
+            <button class="stepBtn" onclick="adjustWeight(-5)" aria-label="Decrease weight">−</button>
+            <input id="weightInput" type="number" inputmode="decimal" enterkeyhint="done" placeholder="${item.suggestedWeight}" value="${completedWeight}">
+            <button class="stepBtn" onclick="adjustWeight(5)" aria-label="Increase weight">+</button>
           </div>
+          <button class="suggestedBtn" onclick="useSuggested()">Use suggested ${item.suggestedWeight} ${item.unit}</button>
           <div style="height:10px"></div>
           <label>Notes</label>
           <textarea id="noteInput" placeholder="Optional">${notes}</textarea>
@@ -148,6 +154,14 @@ function useSuggested(){
   $("weightInput").value = item.suggestedWeight;
   saveInputs();
 }
+function adjustWeight(delta){
+  const item = getItems(getDay())[itemIndex];
+  const input = $("weightInput");
+  const current = input.value === "" ? Number(item.suggestedWeight) : Number(input.value);
+  if(Number.isNaN(current)) return;
+  input.value = Math.max(0, current + delta);
+  saveInputs();
+}
 function markDone(){
   saveInputs();
   const items = getItems(getDay());
@@ -158,15 +172,18 @@ function markDone(){
   setState(s);
   if(s.completed[id] && itemIndex < items.length-1){ itemIndex++; }
   render();
+  $("screen").focus({preventScroll:true});
 }
 function nextItem(){
   const items = getItems(getDay());
   itemIndex = Math.min(items.length-1, itemIndex+1);
   render();
+  $("screen").focus({preventScroll:true});
 }
 function prevItem(){
   itemIndex = Math.max(0, itemIndex-1);
   render();
+  $("screen").focus({preventScroll:true});
 }
 function resetDay(){
   if(confirm("Clear completed weights and checkmarks for this day?")){
