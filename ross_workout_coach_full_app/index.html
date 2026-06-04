@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#05070b">
+  <title>Ross Workout Coach</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow" id="weekLabel">Week 1</div>
+        <h1 id="dayTitle">Monday</h1>
+      </div>
+      <button id="resetBtn" class="ghost">Reset Day</button>
+    </header>
+
+    <section class="selector">
+      <select id="weekSelect"></select>
+      <select id="daySelect"></select>
+    </section>
+
+    <section class="progressWrap">
+      <div class="progressText"><span id="progressText">0 of 0 complete</span><span id="scoreText"></span></div>
+      <div class="progress"><div id="progressBar"></div></div>
+    </section>
+
+    <main id="screen"></main>
+
+    <footer class="nav">
+      <button id="prevBtn">← Previous</button>
+      <button id="doneBtn" class="primary">Done ✓</button>
+      <button id="nextBtn">Next →</button>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
