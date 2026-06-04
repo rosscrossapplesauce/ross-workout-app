@@ -57,7 +57,7 @@ function getItems(day){
   return arr;
 }
 function getState(){
-  return JSON.parse(localStorage.getItem(key()) || '{"completed":{},"weights":{},"notes":{}}');
+  return JSON.parse(localStorage.getItem(key()) || '{"completed":{},"weights":{},"setWeights":{},"notes":{}}');
 }
 function setState(s){
   localStorage.setItem(key(), JSON.stringify(s));
@@ -92,11 +92,12 @@ function getLastHistory(exName, currentContext){
 function historySummary(item, id){
   const last = getLastHistory(item.name, getContextId(id));
   if(!last) return "";
-  const lastWeight = Number(last.completedWeight);
+  const lastDisplay = last.setWeights || last.completedWeight;
+  const lastWeight = finalWeight(lastDisplay);
   const currentTarget = Number(item.suggestedWeight);
   const change = Number.isFinite(lastWeight) && Number.isFinite(currentTarget) ? currentTarget - lastWeight : null;
   const changeText = change === null ? "" : ` · ${change >= 0 ? "+" : ""}${change} ${item.unit}`;
-  return `<div class="lastWeek">Last completed: ${escapeHtml(last.completedWeight)} ${escapeHtml(item.unit)} · ${formatDate(last.timestamp)}${changeText}</div>`;
+  return `<div class="lastWeek">Last completed: ${escapeHtml(lastDisplay)} ${escapeHtml(item.unit)} · ${formatDate(last.timestamp)}${changeText}</div>`;
 }
 function render(){
   const day = getDay();
@@ -132,7 +133,7 @@ function render(){
 
   if(item.kind === "exercise"){
     const history = historySummary(item, id);
-    const completedWeight = state.weights[id] || "";
+    const setWeights = getSetWeights(state, id, item);
     const notes = state.notes[id] || "";
     $("screen").innerHTML = `
       <section class="card ${done ? "completed":""}">
@@ -144,20 +145,18 @@ function render(){
           ${history}
         </div>
         <div>
-          <label>Completed weight</label>
-          <div class="inputRow">
-            <button class="stepBtn" onclick="adjustWeight(-5)" aria-label="Decrease weight">−</button>
-            <input id="weightInput" type="number" inputmode="decimal" enterkeyhint="done" placeholder="${item.suggestedWeight}" value="${completedWeight}">
-            <button class="stepBtn" onclick="adjustWeight(5)" aria-label="Increase weight">+</button>
+          <label>Completed weight by set</label>
+          <div class="setGrid">
+            ${setWeights.map((weight,setIndex)=>setWeightRow(item, setIndex, weight)).join("")}
           </div>
-          <button class="suggestedBtn" onclick="useSuggested()">Use suggested ${item.suggestedWeight} ${item.unit}</button>
+          <button class="suggestedBtn" onclick="useSuggested()">Use suggested for all sets</button>
           <div style="height:10px"></div>
           <label>Notes</label>
           <textarea id="noteInput" placeholder="Optional">${notes}</textarea>
         </div>
       </section>`;
     setTimeout(()=>{
-      $("weightInput").oninput = saveInputs;
+      document.querySelectorAll(".setWeightInput").forEach(input => input.oninput = saveInputs);
       $("noteInput").oninput = saveInputs;
     },0);
   } else if(item.kind === "row"){
@@ -222,8 +221,9 @@ function renderOverview(day, items){
 function overviewRow(item, index, done, state){
   const id = itemId(item, index);
   const title = item.kind === "exercise" ? item.name : (item.type || "Rest");
+  const setWeights = item.kind === "exercise" ? compactSetWeights(getSetWeights(state, id, item)) : [];
   const detail = item.kind === "exercise"
-    ? `${item.sets} × ${item.reps} · suggested ${item.suggestedWeight} ${item.unit}${state.weights[id] ? ` · completed ${state.weights[id]} ${item.unit}` : ""}`
+    ? `${item.sets} × ${item.reps} · suggested ${item.suggestedWeight} ${item.unit}${setWeights.length ? ` · sets ${setWeights.join(" / ")} ${item.unit}` : ""}`
     : item.kind === "row"
       ? `${item.duration} · ${item.intensity}${item.pace ? ` · ${item.pace}` : ""}`
       : item.kind === "run"
@@ -253,22 +253,57 @@ function itemId(item, i){
   if(item.kind === "exercise") return `exercise-${item.idx}`;
   return `${item.kind}-${i}`;
 }
+function getSetCount(item){
+  const count = Number(item.sets);
+  return Number.isFinite(count) && count > 0 ? count : 1;
+}
+function getSetWeights(state, id, item){
+  const count = getSetCount(item);
+  const saved = Array.isArray(state.setWeights && state.setWeights[id]) ? state.setWeights[id] : [];
+  const legacy = state.weights && state.weights[id] ? [state.weights[id]] : [];
+  return Array.from({length:count}, (_,index)=> String(saved[index] ?? legacy[index] ?? ""));
+}
+function compactSetWeights(weights){
+  return weights.map(weight => String(weight).trim()).filter(Boolean);
+}
+function setWeightRow(item, setIndex, weight){
+  return `
+    <div class="setWeightRow">
+      <div class="setLabel">Set ${setIndex + 1}</div>
+      <button class="stepBtn" onclick="adjustSetWeight(${setIndex}, -5)" aria-label="Decrease set ${setIndex + 1} weight">−</button>
+      <input class="setWeightInput" data-set-index="${setIndex}" type="number" inputmode="decimal" enterkeyhint="done" placeholder="${item.suggestedWeight}" value="${escapeHtml(weight)}">
+      <button class="stepBtn" onclick="adjustSetWeight(${setIndex}, 5)" aria-label="Increase set ${setIndex + 1} weight">+</button>
+    </div>`;
+}
+function finalWeight(value){
+  if(Array.isArray(value)) return Number(compactSetWeights(value).slice(-1)[0]);
+  const parts = String(value || "").split(/[,/]/).map(part => part.trim()).filter(Boolean);
+  return Number(parts.slice(-1)[0]);
+}
 function saveInputs(){
   const item = getItems(getDay())[itemIndex];
   const id = itemId(item,itemIndex);
   const s = getState();
-  if($("weightInput")) s.weights[id] = $("weightInput").value;
-  if($("noteInput")) s.notes[id] = $("noteInput").value;
+  if(document.querySelector(".setWeightInput")){
+    if(!s.weights) s.weights = {};
+    if(!s.setWeights) s.setWeights = {};
+    s.setWeights[id] = Array.from(document.querySelectorAll(".setWeightInput")).map(input => input.value);
+    s.weights[id] = compactSetWeights(s.setWeights[id]).join(" / ");
+  }
+  if($("noteInput")){
+    if(!s.notes) s.notes = {};
+    s.notes[id] = $("noteInput").value;
+  }
   setState(s);
 }
 function useSuggested(){
   const item = getItems(getDay())[itemIndex];
-  $("weightInput").value = item.suggestedWeight;
+  document.querySelectorAll(".setWeightInput").forEach(input => input.value = item.suggestedWeight);
   saveInputs();
 }
-function adjustWeight(delta){
+function adjustSetWeight(setIndex, delta){
   const item = getItems(getDay())[itemIndex];
-  const input = $("weightInput");
+  const input = document.querySelector(`.setWeightInput[data-set-index="${setIndex}"]`);
   const current = input.value === "" ? Number(item.suggestedWeight) : Number(input.value);
   if(Number.isNaN(current)) return;
   input.value = Math.max(0, current + delta);
@@ -289,7 +324,8 @@ function makeLogRecord(item, id, completed){
     itemType: item.kind,
     suggestedWeight: isExercise ? item.suggestedWeight : "",
     unit: isExercise ? item.unit : "",
-    completedWeight: isExercise ? (state.weights[id] || "") : "",
+    completedWeight: isExercise ? compactSetWeights(getSetWeights(state, id, item)).join(" / ") : "",
+    setWeights: isExercise ? compactSetWeights(getSetWeights(state, id, item)).join(" / ") : "",
     notes: isExercise ? (state.notes[id] || "") : "",
     completed
   };
@@ -414,7 +450,16 @@ function markDone(){
   const item = items[itemIndex];
   const id = itemId(item,itemIndex);
   const s = getState();
-  s.completed[id] = !s.completed[id];
+  const willComplete = !s.completed[id];
+  if(item.kind === "exercise" && willComplete){
+    const setWeights = compactSetWeights(getSetWeights(s, id, item));
+    if(setWeights.length < getSetCount(item)){
+      alert("Enter a weight for every set before marking this exercise done.");
+      render();
+      return;
+    }
+  }
+  s.completed[id] = willComplete;
   setState(s);
   saveLogRecord(makeLogRecord(item, id, !!s.completed[id]));
   if(s.completed[id] && itemIndex < items.length-1){ itemIndex++; }

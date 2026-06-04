@@ -45,6 +45,9 @@ main{flex:1;display:flex;flex-direction:column;justify-content:center;min-height
 .overviewDone .overviewCheck{background:var(--green);border-color:var(--green);color:#052e16}
 .overviewDone .overviewName{text-decoration:line-through;color:#bbf7d0}
 .overviewDone .overviewDetail{color:#86efac}
+.setGrid{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.setWeightRow{display:grid;grid-template-columns:54px 46px 1fr 46px;gap:8px;align-items:center}
+.setLabel{color:var(--muted);font-weight:950;font-size:14px}
 .inputRow{display:grid;grid-template-columns:58px 1fr 58px;gap:8px;align-items:stretch;margin-top:8px}
 label{color:var(--muted);font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:0}
 input,textarea{width:100%;background:#030712;color:var(--text);border:1px solid var(--line);border-radius:14px;padding:14px;font-size:28px;font-weight:900}
@@ -72,4 +75,5 @@ button:active{transform:translateY(1px)}
   .bigWeight{font-size:76px}
   .prescription{font-size:22px}
   input{font-size:24px;padding:10px}
+  .setWeightRow{grid-template-columns:50px 42px 1fr 42px}
 }
