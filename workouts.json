@@ -1,0 +1,1278 @@
+{
+  "generatedAt": "2026-06-02",
+  "units": "lb unless noted",
+  "weeks": [
+    {
+      "week": 1,
+      "days": [
+        {
+          "day": "Monday",
+          "title": "Upper Body A",
+          "row": {
+            "type": "Steady State Row",
+            "duration": "45 minutes",
+            "intensity": "Zone 2",
+            "pace": "Conversational"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Chest Press Machine",
+              "sets": 3,
+              "reps": "8",
+              "suggestedWeight": 90,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Row Machine",
+              "sets": 3,
+              "reps": "8",
+              "suggestedWeight": 85,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Lat Pulldown Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 125,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Machine Shoulder Press",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 90,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Dumbbell Lateral Raise",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 10,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Tricep Extension Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 100,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Hammer Curl",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 20,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Tuesday",
+          "title": "Leg Day A",
+          "row": {
+            "type": "Steady State Row",
+            "duration": "30 minutes",
+            "intensity": "Zone 2",
+            "pace": "Conversational"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Leg Press",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 300,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Leg Curl",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 90,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Leg Extension",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 80,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Calf Raise",
+              "sets": 4,
+              "reps": "15",
+              "suggestedWeight": 150,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Wednesday",
+          "title": "Upper Body B + Intervals",
+          "row": {
+            "type": "Row Intervals",
+            "duration": "6 \u00d7 500 meters",
+            "intensity": "Hard effort",
+            "pace": "Rest 1:30\u20132:00 between intervals"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Incline Chest Press Machine",
+              "sets": 3,
+              "reps": "8",
+              "suggestedWeight": 90,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Row Machine",
+              "sets": 3,
+              "reps": "8",
+              "suggestedWeight": 85,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Lat Pulldown Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 125,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Reverse Pec Deck / Rear Delt Fly Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 85,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Dumbbell Lateral Raise",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 10,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Tricep Extension Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 100,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Hammer Curl",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 20,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Thursday",
+          "title": "Shoulder Focus + Snatches",
+          "row": {
+            "type": "Steady State Row",
+            "duration": "45 minutes",
+            "intensity": "Zone 2",
+            "pace": "Conversational"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Machine Shoulder Press",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 90,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Dumbbell Lateral Raise",
+              "sets": 4,
+              "reps": "15",
+              "suggestedWeight": 10,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Reverse Pec Deck / Rear Delt Fly Machine",
+              "sets": 3,
+              "reps": "15",
+              "suggestedWeight": 85,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Kettlebell Snatch",
+              "sets": 5,
+              "reps": "5 per side",
+              "suggestedWeight": 35,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Chest Press Machine (Optional)",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 90,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Friday",
+          "title": "Leg Day B",
+          "row": {
+            "type": "Steady State Row",
+            "duration": "30\u201345 minutes",
+            "intensity": "Zone 2",
+            "pace": "Conversational"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Goblet Squat",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 50.0,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Romanian Deadlift",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 50.0,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Leg Press",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 300,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Leg Curl",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 90,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Calf Raise",
+              "sets": 4,
+              "reps": "15",
+              "suggestedWeight": 150,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Saturday",
+          "title": "Easy Run + Recovery Row",
+          "row": {
+            "type": "Recovery Row",
+            "duration": "20\u201330 minutes",
+            "intensity": "Zone 1\u20132",
+            "pace": "Very easy"
+          },
+          "run": {
+            "type": "Easy Run",
+            "distance": "2 miles",
+            "pace": "Easy conversational pace"
+          },
+          "exercises": []
+        },
+        {
+          "day": "Sunday",
+          "title": "Rest Day",
+          "row": null,
+          "run": null,
+          "exercises": [],
+          "recovery": "Full rest. Focus on sleep, food, hydration."
+        }
+      ]
+    },
+    {
+      "week": 2,
+      "days": [
+        {
+          "day": "Monday",
+          "title": "Upper Body A",
+          "row": {
+            "type": "Steady State Row",
+            "duration": "45 minutes",
+            "intensity": "Zone 2",
+            "pace": "Conversational"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Chest Press Machine",
+              "sets": 3,
+              "reps": "8",
+              "suggestedWeight": 95,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Row Machine",
+              "sets": 3,
+              "reps": "8",
+              "suggestedWeight": 90,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Lat Pulldown Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 130,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Machine Shoulder Press",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 95,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Dumbbell Lateral Raise",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 12.5,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Tricep Extension Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 105,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Hammer Curl",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 22.5,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Tuesday",
+          "title": "Leg Day A",
+          "row": {
+            "type": "Steady State Row",
+            "duration": "30 minutes",
+            "intensity": "Zone 2",
+            "pace": "Conversational"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Leg Press",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 305,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Leg Curl",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 95,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Leg Extension",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 85,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Calf Raise",
+              "sets": 4,
+              "reps": "15",
+              "suggestedWeight": 155,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Wednesday",
+          "title": "Upper Body B + Intervals",
+          "row": {
+            "type": "Row Intervals",
+            "duration": "6 \u00d7 500 meters",
+            "intensity": "Hard effort",
+            "pace": "Rest 1:30\u20132:00 between intervals"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Incline Chest Press Machine",
+              "sets": 3,
+              "reps": "8",
+              "suggestedWeight": 95,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Row Machine",
+              "sets": 3,
+              "reps": "8",
+              "suggestedWeight": 90,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Lat Pulldown Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 130,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Reverse Pec Deck / Rear Delt Fly Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 90,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Dumbbell Lateral Raise",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 12.5,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Tricep Extension Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 105,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Hammer Curl",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 22.5,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Thursday",
+          "title": "Shoulder Focus + Snatches",
+          "row": {
+            "type": "Steady State Row",
+            "duration": "45 minutes",
+            "intensity": "Zone 2",
+            "pace": "Conversational"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Machine Shoulder Press",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 95,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Dumbbell Lateral Raise",
+              "sets": 4,
+              "reps": "15",
+              "suggestedWeight": 12.5,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Reverse Pec Deck / Rear Delt Fly Machine",
+              "sets": 3,
+              "reps": "15",
+              "suggestedWeight": 90,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Kettlebell Snatch",
+              "sets": 5,
+              "reps": "5 per side",
+              "suggestedWeight": 35,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Chest Press Machine (Optional)",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 95,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Friday",
+          "title": "Leg Day B",
+          "row": {
+            "type": "Steady State Row",
+            "duration": "30\u201345 minutes",
+            "intensity": "Zone 2",
+            "pace": "Conversational"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Goblet Squat",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 52.5,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Romanian Deadlift",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 52.5,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Leg Press",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 305,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Leg Curl",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 95,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Calf Raise",
+              "sets": 4,
+              "reps": "15",
+              "suggestedWeight": 155,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Saturday",
+          "title": "Easy Run + Recovery Row",
+          "row": {
+            "type": "Recovery Row",
+            "duration": "20\u201330 minutes",
+            "intensity": "Zone 1\u20132",
+            "pace": "Very easy"
+          },
+          "run": {
+            "type": "Easy Run",
+            "distance": "3 miles",
+            "pace": "Easy conversational pace"
+          },
+          "exercises": []
+        },
+        {
+          "day": "Sunday",
+          "title": "Rest Day",
+          "row": null,
+          "run": null,
+          "exercises": [],
+          "recovery": "Full rest. Focus on sleep, food, hydration."
+        }
+      ]
+    },
+    {
+      "week": 3,
+      "days": [
+        {
+          "day": "Monday",
+          "title": "Upper Body A",
+          "row": {
+            "type": "Steady State Row",
+            "duration": "45 minutes",
+            "intensity": "Zone 2",
+            "pace": "Conversational"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Chest Press Machine",
+              "sets": 3,
+              "reps": "8",
+              "suggestedWeight": 100,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Row Machine",
+              "sets": 3,
+              "reps": "8",
+              "suggestedWeight": 95,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Lat Pulldown Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 135,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Machine Shoulder Press",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 100,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Dumbbell Lateral Raise",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 12.5,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Tricep Extension Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 110,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Hammer Curl",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 22.5,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Tuesday",
+          "title": "Leg Day A",
+          "row": {
+            "type": "Steady State Row",
+            "duration": "30 minutes",
+            "intensity": "Zone 2",
+            "pace": "Conversational"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Leg Press",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 310,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Leg Curl",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 100,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Leg Extension",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 90,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Calf Raise",
+              "sets": 4,
+              "reps": "15",
+              "suggestedWeight": 160,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Wednesday",
+          "title": "Upper Body B + Intervals",
+          "row": {
+            "type": "Row Intervals",
+            "duration": "6 \u00d7 500 meters",
+            "intensity": "Hard effort",
+            "pace": "Rest 1:30\u20132:00 between intervals"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Incline Chest Press Machine",
+              "sets": 3,
+              "reps": "8",
+              "suggestedWeight": 100,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Row Machine",
+              "sets": 3,
+              "reps": "8",
+              "suggestedWeight": 95,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Lat Pulldown Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 135,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Reverse Pec Deck / Rear Delt Fly Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 95,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Dumbbell Lateral Raise",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 12.5,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Tricep Extension Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 110,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Hammer Curl",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 22.5,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Thursday",
+          "title": "Shoulder Focus + Snatches",
+          "row": {
+            "type": "Steady State Row",
+            "duration": "45 minutes",
+            "intensity": "Zone 2",
+            "pace": "Conversational"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Machine Shoulder Press",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 100,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Dumbbell Lateral Raise",
+              "sets": 4,
+              "reps": "15",
+              "suggestedWeight": 12.5,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Reverse Pec Deck / Rear Delt Fly Machine",
+              "sets": 3,
+              "reps": "15",
+              "suggestedWeight": 95,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Kettlebell Snatch",
+              "sets": 5,
+              "reps": "5 per side",
+              "suggestedWeight": 40,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Chest Press Machine (Optional)",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 100,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Friday",
+          "title": "Leg Day B",
+          "row": {
+            "type": "Steady State Row",
+            "duration": "30\u201345 minutes",
+            "intensity": "Zone 2",
+            "pace": "Conversational"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Goblet Squat",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 55.0,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Romanian Deadlift",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 55.0,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Leg Press",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 310,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Leg Curl",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 100,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Calf Raise",
+              "sets": 4,
+              "reps": "15",
+              "suggestedWeight": 160,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Saturday",
+          "title": "Easy Run + Recovery Row",
+          "row": {
+            "type": "Recovery Row",
+            "duration": "20\u201330 minutes",
+            "intensity": "Zone 1\u20132",
+            "pace": "Very easy"
+          },
+          "run": {
+            "type": "Easy Run",
+            "distance": "4 miles",
+            "pace": "Easy conversational pace"
+          },
+          "exercises": []
+        },
+        {
+          "day": "Sunday",
+          "title": "Rest Day",
+          "row": null,
+          "run": null,
+          "exercises": [],
+          "recovery": "Full rest. Focus on sleep, food, hydration."
+        }
+      ]
+    },
+    {
+      "week": 4,
+      "days": [
+        {
+          "day": "Monday",
+          "title": "Upper Body A",
+          "row": {
+            "type": "Steady State Row",
+            "duration": "45 minutes",
+            "intensity": "Zone 2",
+            "pace": "Conversational"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Chest Press Machine",
+              "sets": 3,
+              "reps": "8",
+              "suggestedWeight": 105,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Row Machine",
+              "sets": 3,
+              "reps": "8",
+              "suggestedWeight": 100,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Lat Pulldown Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 140,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Machine Shoulder Press",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 105,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Dumbbell Lateral Raise",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 15,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Tricep Extension Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 115,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Hammer Curl",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 25,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Tuesday",
+          "title": "Leg Day A",
+          "row": {
+            "type": "Steady State Row",
+            "duration": "30 minutes",
+            "intensity": "Zone 2",
+            "pace": "Conversational"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Leg Press",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 315,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Leg Curl",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 105,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Leg Extension",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 95,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Calf Raise",
+              "sets": 4,
+              "reps": "15",
+              "suggestedWeight": 165,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Wednesday",
+          "title": "Upper Body B + Intervals",
+          "row": {
+            "type": "Row Intervals",
+            "duration": "6 \u00d7 600 meters",
+            "intensity": "Hard effort",
+            "pace": "Rest 1:30\u20132:00 between intervals"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Incline Chest Press Machine",
+              "sets": 3,
+              "reps": "8",
+              "suggestedWeight": 105,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Row Machine",
+              "sets": 3,
+              "reps": "8",
+              "suggestedWeight": 100,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Lat Pulldown Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 140,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Reverse Pec Deck / Rear Delt Fly Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 100,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Dumbbell Lateral Raise",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 15,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Tricep Extension Machine",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 115,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Hammer Curl",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 25,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Thursday",
+          "title": "Shoulder Focus + Snatches",
+          "row": {
+            "type": "Steady State Row",
+            "duration": "45 minutes",
+            "intensity": "Zone 2",
+            "pace": "Conversational"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Machine Shoulder Press",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 105,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Dumbbell Lateral Raise",
+              "sets": 4,
+              "reps": "15",
+              "suggestedWeight": 15,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Reverse Pec Deck / Rear Delt Fly Machine",
+              "sets": 3,
+              "reps": "15",
+              "suggestedWeight": 100,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Kettlebell Snatch",
+              "sets": 5,
+              "reps": "5 per side",
+              "suggestedWeight": 40,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Chest Press Machine (Optional)",
+              "sets": 3,
+              "reps": "10",
+              "suggestedWeight": 105,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Friday",
+          "title": "Leg Day B",
+          "row": {
+            "type": "Steady State Row",
+            "duration": "30\u201345 minutes",
+            "intensity": "Zone 2",
+            "pace": "Conversational"
+          },
+          "run": null,
+          "exercises": [
+            {
+              "name": "Goblet Squat",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 57.5,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Romanian Deadlift",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 57.5,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Leg Press",
+              "sets": 4,
+              "reps": "10",
+              "suggestedWeight": 315,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Leg Curl",
+              "sets": 3,
+              "reps": "12",
+              "suggestedWeight": 105,
+              "unit": "lb",
+              "notes": ""
+            },
+            {
+              "name": "Seated Calf Raise",
+              "sets": 4,
+              "reps": "15",
+              "suggestedWeight": 165,
+              "unit": "lb",
+              "notes": ""
+            }
+          ]
+        },
+        {
+          "day": "Saturday",
+          "title": "Easy Run + Recovery Row",
+          "row": {
+            "type": "Recovery Row",
+            "duration": "20\u201330 minutes",
+            "intensity": "Zone 1\u20132",
+            "pace": "Very easy"
+          },
+          "run": {
+            "type": "Easy Run",
+            "distance": "5 miles",
+            "pace": "Easy conversational pace"
+          },
+          "exercises": []
+        },
+        {
+          "day": "Sunday",
+          "title": "Rest Day",
+          "row": null,
+          "run": null,
+          "exercises": [],
+          "recovery": "Full rest. Focus on sleep, food, hydration."
+        }
+      ]
+    }
+  ]
+}

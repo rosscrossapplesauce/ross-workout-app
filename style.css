@@ -1,0 +1,50 @@
+:root{
+  --bg:#05070b; --card:#111827; --card2:#172033; --text:#f8fafc; --muted:#94a3b8;
+  --green:#22c55e; --blue:#38bdf8; --orange:#fb923c; --purple:#a78bfa; --line:#253149;
+  --danger:#f87171; --yellow:#facc15;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif}
+body{min-height:100vh;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.app{max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;padding:14px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.eyebrow{text-transform:uppercase;letter-spacing:.12em;color:var(--blue);font-size:12px;font-weight:800}
+h1{font-size:30px;margin:0;line-height:1.05}
+.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:8px 12px;font-weight:700}
+.selector{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+select{width:100%;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:17px;font-weight:700}
+.progressWrap{margin-bottom:10px}
+.progressText{display:flex;justify-content:space-between;color:var(--muted);font-weight:700;font-size:14px;margin-bottom:6px}
+.progress{height:10px;background:#0b1220;border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+#progressBar{height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--green));transition:.25s}
+main{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0}
+.card{background:linear-gradient(180deg,var(--card),#0b1220);border:1px solid var(--line);box-shadow:0 18px 60px rgba(0,0,0,.35);border-radius:28px;padding:20px;min-height:62vh;display:flex;flex-direction:column;justify-content:space-between}
+.kicker{display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+.exerciseName{font-size:38px;line-height:1.02;font-weight:900;margin:16px 0 8px}
+.prescription{font-size:26px;color:var(--muted);font-weight:800;margin-bottom:12px}
+.bigWeight{font-size:92px;line-height:.9;font-weight:950;color:var(--green);letter-spacing:-.06em;text-align:center;margin:18px 0}
+.unit{font-size:30px;color:var(--muted);letter-spacing:0}
+.lastWeek{background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);border-radius:18px;padding:12px;font-size:17px;color:#dbeafe;font-weight:800;margin:8px 0}
+.inputRow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-top:8px}
+label{color:var(--muted);font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:.06em}
+input,textarea{width:100%;background:#030712;color:var(--text);border:1px solid var(--line);border-radius:16px;padding:14px;font-size:28px;font-weight:900}
+textarea{font-size:17px;min-height:54px;font-weight:600}
+.completed{border-color:rgba(34,197,94,.6);background:linear-gradient(180deg,#0b2517,#07140d)}
+.completed .bigWeight{color:#86efac}
+.doneBadge{color:#86efac;font-weight:950}
+.smallCard{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:18px;margin-bottom:10px}
+.smallTitle{font-size:23px;font-weight:950;margin-bottom:8px}
+.smallDetail{font-size:20px;color:var(--muted);font-weight:750;line-height:1.25}
+.nav{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:8px;margin-top:12px}
+button{border:0;border-radius:16px;padding:15px 10px;font-size:17px;font-weight:950;background:#1f2937;color:var(--text)}
+.primary{background:var(--green);color:#052e16;font-size:20px}
+.rest{align-items:center;text-align:center}
+.rest .exerciseName{font-size:46px}
+.hint{color:var(--muted);font-size:16px;line-height:1.35;margin-top:8px}
+@media (max-height:740px){
+  .card{min-height:58vh;padding:16px}
+  .exerciseName{font-size:32px}
+  .bigWeight{font-size:76px}
+  .prescription{font-size:22px}
+  input{font-size:24px;padding:10px}
+}
