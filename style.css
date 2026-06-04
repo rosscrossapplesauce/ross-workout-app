@@ -31,6 +31,20 @@ main{flex:1;display:flex;flex-direction:column;justify-content:center;min-height
 .bigWeight{font-size:92px;line-height:.9;font-weight:950;color:var(--green);letter-spacing:0;text-align:center;margin:18px 0}
 .unit{font-size:30px;color:var(--muted);letter-spacing:0}
 .lastWeek{background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);border-radius:14px;padding:12px;font-size:16px;color:#dbeafe;font-weight:800;margin:8px 0}
+.overviewCard{background:linear-gradient(180deg,var(--card),#0b1220);border:1px solid var(--line);box-shadow:0 18px 60px rgba(0,0,0,.35);border-radius:20px;padding:16px;min-height:58svh;display:flex;flex-direction:column;gap:14px}
+.overviewHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.overviewTitle{font-size:28px;line-height:1.08;font-weight:950;margin-top:6px}
+.overviewCount{min-width:62px;text-align:center;background:#030712;border:1px solid var(--line);border-radius:14px;padding:10px;font-size:20px;font-weight:950;color:var(--green)}
+.overviewList{display:flex;flex-direction:column;gap:8px}
+.overviewItem{width:100%;display:grid;grid-template-columns:38px 1fr;gap:10px;align-items:center;text-align:left;background:#111827;border:1px solid var(--line);border-radius:14px;padding:10px;min-height:58px}
+.overviewCheck{width:32px;height:32px;border-radius:999px;display:grid;place-items:center;background:#030712;border:1px solid var(--line);color:var(--muted);font-size:15px;font-weight:950}
+.overviewBody{display:flex;flex-direction:column;gap:3px;min-width:0}
+.overviewName{font-size:17px;font-weight:950;color:var(--text);line-height:1.15}
+.overviewDetail{font-size:14px;font-weight:750;color:var(--muted);line-height:1.25}
+.overviewDone{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.36)}
+.overviewDone .overviewCheck{background:var(--green);border-color:var(--green);color:#052e16}
+.overviewDone .overviewName{text-decoration:line-through;color:#bbf7d0}
+.overviewDone .overviewDetail{color:#86efac}
 .inputRow{display:grid;grid-template-columns:58px 1fr 58px;gap:8px;align-items:stretch;margin-top:8px}
 label{color:var(--muted);font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:0}
 input,textarea{width:100%;background:#030712;color:var(--text);border:1px solid var(--line);border-radius:14px;padding:14px;font-size:28px;font-weight:900}
