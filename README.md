@@ -8,7 +8,7 @@ Live site: https://rosscrossapplesauce.github.io/ross-workout-app/
 
 - Shows one exercise or cardio item per screen.
 - Keeps the suggested weight giant and easy to read from a bench or machine.
-- Lets you save completed weight, notes, and completed status locally on your phone.
+- Lets you save completed weight for every set, notes, and completed status locally on your phone.
 - Supports swipe navigation plus large bottom buttons for gym use.
 - Auto-advances after marking an item done.
 - Shows last completed weight, previous completion date, and weight change when an exercise appears again.
@@ -66,6 +66,8 @@ The script automatically creates these sheets the first time it runs:
 - `Workout Log`
 - `PRs`
 - `Settings`
+
+Workout rows include both a `completedWeight` summary and a `setWeights` value for per-set logging.
 
 ### 3. Deploy as a Web App
 

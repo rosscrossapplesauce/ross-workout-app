@@ -15,6 +15,7 @@ const WORKOUT_HEADERS = [
   "suggestedWeight",
   "unit",
   "completedWeight",
+  "setWeights",
   "notes",
   "completed",
   "context"
@@ -59,9 +60,9 @@ function doPost(e) {
     ? payload.records || []
     : [payload.record || payload];
 
-  appendWorkoutRecords(spreadsheet, records);
+  const saved = appendWorkoutRecords(spreadsheet, records);
 
-  return respond({ok: true, saved: records.length});
+  return respond({ok: true, saved});
 }
 
 function ensureSheets(spreadsheet) {
@@ -76,8 +77,18 @@ function ensureSheet(spreadsheet, name, headers) {
     sheet.appendRow(headers);
     sheet.setFrozenRows(1);
     sheet.autoResizeColumns(1, headers.length);
+  } else {
+    ensureHeaders(sheet, headers);
   }
   return sheet;
+}
+
+function ensureHeaders(sheet, headers) {
+  const current = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  const missing = headers.filter(header => !current.includes(header));
+  if (!missing.length) return;
+  sheet.getRange(1, current.length + 1, 1, missing.length).setValues([missing]);
+  sheet.autoResizeColumns(1, current.length + missing.length);
 }
 
 function parsePayload(e) {
@@ -99,21 +110,26 @@ function parseRecordParameter(value) {
 }
 
 function appendWorkoutRecords(spreadsheet, records) {
+  const sheet = ensureSheet(spreadsheet, SHEETS.workoutLog, WORKOUT_HEADERS);
+  const headers = getHeaders(sheet);
   const cleaned = records
     .filter(record => record && record.timestamp && record.exercise)
-    .map(record => WORKOUT_HEADERS.map(header => normalizeValue(record[header])));
+    .map(record => headers.map(header => normalizeValue(record[header])));
 
   if (!cleaned.length) return 0;
 
   const lock = LockService.getDocumentLock();
   lock.waitLock(10000);
   try {
-    const sheet = ensureSheet(spreadsheet, SHEETS.workoutLog, WORKOUT_HEADERS);
-    sheet.getRange(sheet.getLastRow() + 1, 1, cleaned.length, WORKOUT_HEADERS.length).setValues(cleaned);
+    sheet.getRange(sheet.getLastRow() + 1, 1, cleaned.length, headers.length).setValues(cleaned);
   } finally {
     lock.releaseLock();
   }
   return cleaned.length;
+}
+
+function getHeaders(sheet) {
+  return sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
 }
 
 function readWorkoutHistory(spreadsheet) {
