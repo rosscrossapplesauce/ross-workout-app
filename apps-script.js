@@ -36,9 +36,16 @@ function doGet(e) {
   ensureSheets(spreadsheet);
 
   const action = String(e.parameter.action || "setup");
-  const payload = action === "history"
-    ? {ok: true, records: readWorkoutHistory(spreadsheet)}
-    : {ok: true, message: "Workout sheets are ready."};
+  let payload;
+  if (action === "history") {
+    payload = {ok: true, records: readWorkoutHistory(spreadsheet)};
+  } else if (action === "log") {
+    const record = parseRecordParameter(e.parameter.record);
+    const saved = appendWorkoutRecords(spreadsheet, [record]);
+    payload = {ok: true, saved};
+  } else {
+    payload = {ok: true, message: "Workout sheets are ready."};
+  }
 
   return respond(payload, e.parameter.callback);
 }
@@ -82,12 +89,21 @@ function parsePayload(e) {
   }
 }
 
+function parseRecordParameter(value) {
+  if (!value) return {};
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    return {};
+  }
+}
+
 function appendWorkoutRecords(spreadsheet, records) {
   const cleaned = records
     .filter(record => record && record.timestamp && record.exercise)
     .map(record => WORKOUT_HEADERS.map(header => normalizeValue(record[header])));
 
-  if (!cleaned.length) return;
+  if (!cleaned.length) return 0;
 
   const lock = LockService.getDocumentLock();
   lock.waitLock(10000);
@@ -97,6 +113,7 @@ function appendWorkoutRecords(spreadsheet, records) {
   } finally {
     lock.releaseLock();
   }
+  return cleaned.length;
 }
 
 function readWorkoutHistory(spreadsheet) {

@@ -255,7 +255,7 @@ function updateSyncStatus(){
     status.innerText = "Offline";
     status.classList.add("offline");
   } else if(pending || !getSyncUrl()){
-    status.innerText = "Pending Sync";
+    status.innerText = pending ? `Pending Sync (${pending})` : "Pending Sync";
     status.classList.add("pending");
   } else {
     status.innerText = "Synced";
@@ -274,19 +274,37 @@ async function syncPending(){
   }
   syncInFlight = true;
   try {
-    await fetch(getSyncUrl(), {
-      method: "POST",
-      mode: "no-cors",
-      headers: {"Content-Type":"text/plain;charset=utf-8"},
-      body: JSON.stringify({action:"logBatch", records:pending})
-    });
-    writeList(PENDING_KEY, []);
-  } catch {
-    // Keep the queue for the next online attempt.
+    const remaining = [...pending];
+    while(remaining.length && navigator.onLine){
+      const saved = await syncRecord(remaining[0]);
+      if(!saved) break;
+      remaining.shift();
+      writeList(PENDING_KEY, remaining);
+      updateSyncStatus();
+    }
+    if(!remaining.length) loadRemoteHistory();
   } finally {
     syncInFlight = false;
   }
   updateSyncStatus();
+}
+function syncRecord(record){
+  return new Promise(resolve => {
+    const callback = `rossWorkoutLog${Date.now()}${Math.round(Math.random()*1000)}`;
+    const script = document.createElement("script");
+    const timeout = setTimeout(() => cleanup(false), 12000);
+    const cleanup = result => {
+      clearTimeout(timeout);
+      delete window[callback];
+      script.remove();
+      resolve(result);
+    };
+    window[callback] = payload => cleanup(!!(payload && payload.ok && payload.saved));
+    const separator = getSyncUrl().includes("?") ? "&" : "?";
+    script.src = `${getSyncUrl()}${separator}action=log&callback=${callback}&record=${encodeURIComponent(JSON.stringify(record))}`;
+    script.onerror = () => cleanup(false);
+    document.body.appendChild(script);
+  });
 }
 function loadRemoteHistory(){
   if(!getSyncUrl() || !navigator.onLine) return;
