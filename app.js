@@ -2,15 +2,20 @@ let data;
 let weekIndex = Number(localStorage.getItem("weekIndex") || 0);
 let dayIndex = Number(localStorage.getItem("dayIndex") || 0);
 let itemIndex = Number(localStorage.getItem("itemIndex") || 0);
+let syncInFlight = false;
 
 const $ = id => document.getElementById(id);
 const key = () => `rossWorkout.v1.w${weekIndex}.d${dayIndex}`;
+const HISTORY_KEY = "rossWorkout.v1.history";
+const PENDING_KEY = "rossWorkout.v1.pendingSync";
+const SYNC_URL_KEY = "rossWorkout.v1.syncUrl";
 
 async function init(){
   const res = await fetch("workouts.json");
   data = await res.json();
   buildSelectors();
   render();
+  loadRemoteHistory();
 }
 function buildSelectors(){
   $("weekSelect").innerHTML = data.weeks.map((w,i)=>`<option value="${i}">Week ${w.week}</option>`).join("");
@@ -23,6 +28,11 @@ function buildSelectors(){
   $("nextBtn").onclick = nextItem;
   $("doneBtn").onclick = markDone;
   $("resetBtn").onclick = resetDay;
+  $("syncStatus").onclick = configureSync;
+  window.addEventListener("online", syncPending);
+  window.addEventListener("offline", updateSyncStatus);
+  updateSyncStatus();
+  syncPending();
 }
 function buildDaySelector(){
   $("daySelect").innerHTML = data.weeks[weekIndex].days.map((d,i)=>`<option value="${i}">${d.day}</option>`).join("");
@@ -50,13 +60,41 @@ function getState(){
 function setState(s){
   localStorage.setItem(key(), JSON.stringify(s));
 }
-function previousWeekWeight(exName){
-  if(weekIndex === 0) return null;
-  const prevDay = data.weeks[weekIndex-1].days[dayIndex];
-  const matchIndex = prevDay.exercises.findIndex(e => e.name === exName);
-  if(matchIndex < 0) return null;
-  const prevState = JSON.parse(localStorage.getItem(`rossWorkout.v1.w${weekIndex-1}.d${dayIndex}`) || '{"weights":{}}');
-  return prevState.weights[`exercise-${matchIndex}`] || null;
+function readList(storageKey){
+  try {
+    return JSON.parse(localStorage.getItem(storageKey) || "[]");
+  } catch {
+    return [];
+  }
+}
+function writeList(storageKey, value){
+  localStorage.setItem(storageKey, JSON.stringify(value));
+}
+function escapeHtml(value){
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+  }[char]));
+}
+function formatDate(value){
+  if(!value) return "";
+  return new Date(value).toLocaleDateString(undefined, {month:"short", day:"numeric", year:"numeric"});
+}
+function getContextId(id){
+  return `w${weekIndex}.d${dayIndex}.${id}`;
+}
+function getLastHistory(exName, currentContext){
+  return readList(HISTORY_KEY)
+    .filter(record => record.exercise === exName && record.context !== currentContext && record.completed && record.completedWeight !== "")
+    .sort((a,b)=> new Date(b.timestamp) - new Date(a.timestamp))[0] || null;
+}
+function historySummary(item, id){
+  const last = getLastHistory(item.name, getContextId(id));
+  if(!last) return "";
+  const lastWeight = Number(last.completedWeight);
+  const currentTarget = Number(item.suggestedWeight);
+  const change = Number.isFinite(lastWeight) && Number.isFinite(currentTarget) ? currentTarget - lastWeight : null;
+  const changeText = change === null ? "" : ` · ${change >= 0 ? "+" : ""}${change} ${item.unit}`;
+  return `<div class="lastWeek">Last completed: ${escapeHtml(last.completedWeight)} ${escapeHtml(item.unit)} · ${formatDate(last.timestamp)}${changeText}</div>`;
 }
 function render(){
   const day = getDay();
@@ -82,7 +120,7 @@ function render(){
   const done = !!state.completed[id];
 
   if(item.kind === "exercise"){
-    const prev = previousWeekWeight(item.name);
+    const history = historySummary(item, id);
     const completedWeight = state.weights[id] || "";
     const notes = state.notes[id] || "";
     $("screen").innerHTML = `
@@ -92,7 +130,7 @@ function render(){
           <div class="exerciseName">${item.name}</div>
           <div class="prescription">${item.sets} × ${item.reps}</div>
           <div class="bigWeight">${item.suggestedWeight}<span class="unit"> ${item.unit}</span></div>
-          ${prev ? `<div class="lastWeek">Last week completed: ${prev} ${item.unit}</div>` : ""}
+          ${history}
         </div>
         <div>
           <label>Completed weight</label>
@@ -162,6 +200,116 @@ function adjustWeight(delta){
   input.value = Math.max(0, current + delta);
   saveInputs();
 }
+function makeLogRecord(item, id, completed){
+  const day = getDay();
+  const state = getState();
+  const isExercise = item.kind === "exercise";
+  return {
+    id: `${Date.now()}-${weekIndex}-${dayIndex}-${id}`,
+    context: getContextId(id),
+    timestamp: new Date().toISOString(),
+    week: data.weeks[weekIndex].week,
+    day: day.day,
+    dayTitle: day.title,
+    exercise: isExercise ? item.name : (item.type || item.text || item.kind),
+    itemType: item.kind,
+    suggestedWeight: isExercise ? item.suggestedWeight : "",
+    unit: isExercise ? item.unit : "",
+    completedWeight: isExercise ? (state.weights[id] || "") : "",
+    notes: isExercise ? (state.notes[id] || "") : "",
+    completed
+  };
+}
+function saveLogRecord(record){
+  const history = readList(HISTORY_KEY);
+  history.push(record);
+  writeList(HISTORY_KEY, history.slice(-500));
+  const pending = readList(PENDING_KEY);
+  pending.push(record);
+  writeList(PENDING_KEY, pending);
+  updateSyncStatus();
+  syncPending();
+}
+function getSyncUrl(){
+  return localStorage.getItem(SYNC_URL_KEY) || "";
+}
+function configureSync(){
+  const existing = getSyncUrl();
+  const next = prompt("Paste your Google Apps Script Web App URL:", existing);
+  if(next === null) return;
+  const trimmed = next.trim();
+  if(trimmed){
+    localStorage.setItem(SYNC_URL_KEY, trimmed);
+  } else {
+    localStorage.removeItem(SYNC_URL_KEY);
+  }
+  updateSyncStatus();
+  loadRemoteHistory();
+  syncPending();
+}
+function updateSyncStatus(){
+  const pending = readList(PENDING_KEY).length;
+  const status = $("syncStatus");
+  status.classList.remove("synced", "pending", "offline");
+  if(!navigator.onLine){
+    status.innerText = "Offline";
+    status.classList.add("offline");
+  } else if(pending || !getSyncUrl()){
+    status.innerText = "Pending Sync";
+    status.classList.add("pending");
+  } else {
+    status.innerText = "Synced";
+    status.classList.add("synced");
+  }
+}
+async function syncPending(){
+  if(syncInFlight || !navigator.onLine || !getSyncUrl()) {
+    updateSyncStatus();
+    return;
+  }
+  const pending = readList(PENDING_KEY);
+  if(!pending.length){
+    updateSyncStatus();
+    return;
+  }
+  syncInFlight = true;
+  try {
+    await fetch(getSyncUrl(), {
+      method: "POST",
+      mode: "no-cors",
+      headers: {"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify({action:"logBatch", records:pending})
+    });
+    writeList(PENDING_KEY, []);
+  } catch {
+    // Keep the queue for the next online attempt.
+  } finally {
+    syncInFlight = false;
+  }
+  updateSyncStatus();
+}
+function loadRemoteHistory(){
+  if(!getSyncUrl() || !navigator.onLine) return;
+  const callback = `rossWorkoutHistory${Date.now()}`;
+  const script = document.createElement("script");
+  window[callback] = payload => {
+    if(payload && Array.isArray(payload.records)){
+      const local = readList(HISTORY_KEY);
+      const byId = new Map([...local, ...payload.records].map(record => [record.id || `${record.timestamp}-${record.exercise}`, record]));
+      writeList(HISTORY_KEY, Array.from(byId.values()).slice(-500));
+      render();
+    }
+    delete window[callback];
+    script.remove();
+  };
+  const separator = getSyncUrl().includes("?") ? "&" : "?";
+  script.src = `${getSyncUrl()}${separator}action=history&callback=${callback}`;
+  script.onerror = () => {
+    delete window[callback];
+    script.remove();
+  };
+  document.body.appendChild(script);
+}
 function markDone(){
   saveInputs();
   const items = getItems(getDay());
@@ -170,6 +318,7 @@ function markDone(){
   const s = getState();
   s.completed[id] = !s.completed[id];
   setState(s);
+  saveLogRecord(makeLogRecord(item, id, !!s.completed[id]));
   if(s.completed[id] && itemIndex < items.length-1){ itemIndex++; }
   render();
   $("screen").focus({preventScroll:true});
