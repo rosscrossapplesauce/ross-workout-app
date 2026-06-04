@@ -3,6 +3,7 @@ let weekIndex = Number(localStorage.getItem("weekIndex") || 0);
 let dayIndex = Number(localStorage.getItem("dayIndex") || 0);
 let itemIndex = Number(localStorage.getItem("itemIndex") || 0);
 let syncInFlight = false;
+let overviewOpen = false;
 
 const $ = id => document.getElementById(id);
 const key = () => `rossWorkout.v1.w${weekIndex}.d${dayIndex}`;
@@ -29,6 +30,7 @@ function buildSelectors(){
   $("doneBtn").onclick = markDone;
   $("resetBtn").onclick = resetDay;
   $("syncStatus").onclick = configureSync;
+  $("overviewBtn").onclick = showOverview;
   window.addEventListener("online", syncPending);
   window.addEventListener("offline", updateSyncStatus);
   updateSyncStatus();
@@ -105,6 +107,15 @@ function render(){
   $("weekSelect").value = weekIndex;
   $("daySelect").value = dayIndex;
   $("doneBtn").style.display = items.length ? "block" : "none";
+  $("doneBtn").innerText = "Done ✓";
+  $("prevBtn").style.display = "block";
+  $("nextBtn").style.display = "block";
+  $("overviewBtn").innerText = "Overview";
+
+  if(overviewOpen){
+    renderOverview(day, items);
+    return;
+  }
 
   const state = getState();
   const completedCount = items.filter((_,i)=>state.completed[itemId(items[i], i)]).length;
@@ -174,6 +185,69 @@ function render(){
     $("screen").innerHTML = `<section class="card rest ${done ? "completed":""}"><div><div class="exerciseName">Rest Day</div><div class="hint">${item.text}</div></div></section>`;
   }
   saveNav();
+}
+function renderOverview(day, items){
+  const state = getState();
+  const completedCount = items.filter((item,i)=>state.completed[itemId(item, i)]).length;
+  $("progressText").innerText = items.length ? `${completedCount} of ${items.length} done` : "Rest day";
+  $("scoreText").innerText = items.length ? `${Math.round(completedCount/items.length*100)}%` : "";
+  $("progressBar").style.width = items.length ? `${completedCount/items.length*100}%` : "0%";
+  $("prevBtn").style.display = "none";
+  $("nextBtn").style.display = "none";
+  $("doneBtn").style.display = "block";
+  $("doneBtn").innerText = "Back to Exercise";
+  $("overviewBtn").innerText = "Exercise";
+
+  if(!items.length){
+    $("screen").innerHTML = `<section class="overviewCard rest"><div class="exerciseName">Rest Day</div><div class="hint">${escapeHtml(day.recovery || "No workout today.")}</div></section>`;
+    saveNav();
+    return;
+  }
+
+  $("screen").innerHTML = `
+    <section class="overviewCard">
+      <div class="overviewHeader">
+        <div>
+          <div class="kicker">Today's Workout</div>
+          <div class="overviewTitle">${escapeHtml(day.day)}: ${escapeHtml(day.title)}</div>
+        </div>
+        <div class="overviewCount">${completedCount}/${items.length}</div>
+      </div>
+      <div class="overviewList">
+        ${items.map((item,i)=>overviewRow(item, i, !!state.completed[itemId(item, i)], state)).join("")}
+      </div>
+    </section>`;
+  saveNav();
+}
+function overviewRow(item, index, done, state){
+  const id = itemId(item, index);
+  const title = item.kind === "exercise" ? item.name : (item.type || "Rest");
+  const detail = item.kind === "exercise"
+    ? `${item.sets} × ${item.reps} · suggested ${item.suggestedWeight} ${item.unit}${state.weights[id] ? ` · completed ${state.weights[id]} ${item.unit}` : ""}`
+    : item.kind === "row"
+      ? `${item.duration} · ${item.intensity}${item.pace ? ` · ${item.pace}` : ""}`
+      : item.kind === "run"
+        ? `${item.distance} · ${item.pace}`
+        : item.text;
+  return `
+    <button class="overviewItem ${done ? "overviewDone" : ""}" onclick="jumpToItem(${index})">
+      <span class="overviewCheck">${done ? "✓" : index + 1}</span>
+      <span class="overviewBody">
+        <span class="overviewName">${escapeHtml(title)}</span>
+        <span class="overviewDetail">${escapeHtml(detail)}</span>
+      </span>
+    </button>`;
+}
+function showOverview(){
+  overviewOpen = !overviewOpen;
+  render();
+  $("screen").focus({preventScroll:true});
+}
+function jumpToItem(index){
+  itemIndex = index;
+  overviewOpen = false;
+  render();
+  $("screen").focus({preventScroll:true});
 }
 function itemId(item, i){
   if(item.kind === "exercise") return `exercise-${item.idx}`;
@@ -329,6 +403,12 @@ function loadRemoteHistory(){
   document.body.appendChild(script);
 }
 function markDone(){
+  if(overviewOpen){
+    overviewOpen = false;
+    render();
+    $("screen").focus({preventScroll:true});
+    return;
+  }
   saveInputs();
   const items = getItems(getDay());
   const item = items[itemIndex];
@@ -343,11 +423,13 @@ function markDone(){
 }
 function nextItem(){
   const items = getItems(getDay());
+  overviewOpen = false;
   itemIndex = Math.min(items.length-1, itemIndex+1);
   render();
   $("screen").focus({preventScroll:true});
 }
 function prevItem(){
+  overviewOpen = false;
   itemIndex = Math.max(0, itemIndex-1);
   render();
   $("screen").focus({preventScroll:true});
