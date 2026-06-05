@@ -117,7 +117,9 @@ function getLastHistory(exName, currentContext){
     .sort((a,b)=> new Date(b.timestamp) - new Date(a.timestamp))[0] || null;
 }
 function historySummary(item, id){
-  const last = getLastHistory(item.name, getContextId(id));
+  const state = getState();
+  const exerciseName = displayExerciseName(item, id, state);
+  const last = getLastHistory(exerciseName, getContextId(id));
   if(!last) return "";
   const lastDisplay = last.setWeights || last.completedWeight;
   const lastWeight = finalWeight(lastDisplay);
@@ -166,11 +168,14 @@ function render(){
     const history = historySummary(item, id);
     const setWeights = getSetWeights(state, id, item);
     const notes = state.notes[id] || "";
+    const exerciseName = displayExerciseName(item, id, state);
+    const originalName = exerciseName === item.name ? "" : `<div class="altApplied">Original: ${escapeHtml(item.name)}</div>`;
     $("screen").innerHTML = `
       <section class="card ${done ? "completed":""}">
         <div>
           <div class="kicker"><span>Exercise ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
-          <div class="exerciseName">${item.name}</div>
+          <div class="exerciseName">${escapeHtml(exerciseName)}</div>
+          ${originalName}
           <div class="prescription">${item.sets} × ${item.reps}</div>
           <div class="bigWeight">${item.suggestedWeight}<span class="unit"> ${item.unit}</span></div>
           ${history}
@@ -461,7 +466,7 @@ function renderOverview(day, items){
 }
 function overviewRow(item, index, done, state){
   const id = itemId(item, index);
-  const title = item.kind === "exercise" ? item.name : (item.type || "Rest");
+  const title = item.kind === "exercise" ? displayExerciseName(item, id, state) : (item.type || "Rest");
   const setWeights = item.kind === "exercise" ? compactSetWeights(getSetWeights(state, id, item)) : [];
   const detail = item.kind === "exercise"
     ? `${item.sets} × ${item.reps} · suggested ${item.suggestedWeight} ${item.unit}${setWeights.length ? ` · sets ${setWeights.join(" / ")} ${item.unit}` : ""}`
@@ -493,6 +498,9 @@ function jumpToItem(index){
 function itemId(item, i){
   if(item.kind === "exercise") return `exercise-${item.idx}`;
   return `${item.kind}-${i}`;
+}
+function displayExerciseName(item, id, state = getState()){
+  return (state.alternatives && state.alternatives[id]) || item.name;
 }
 function getSetCount(item){
   const count = Number(item.sets);
@@ -616,10 +624,23 @@ function renderAlternativesPanel(state, alternatives){
             <div class="altName">${escapeHtml(alt.name)}</div>
             <div class="altDetail">${escapeHtml(alt.how || "")}</div>
             <div class="altReason">${escapeHtml(alt.why || "")}</div>
-            <button class="preferBtn" onclick="preferAlternative(${jsString(alt.name)})">Prefer this exercise for future workouts</button>
+            <div class="altActions">
+              <button class="justOnceBtn" onclick="useAlternativeThisTime(${jsString(alt.name)})">Just this time</button>
+              <button class="preferBtn" onclick="preferAlternative(${jsString(alt.name)})">Future workouts</button>
+            </div>
           </div>`).join("")}
       </div>
     </div>`;
+}
+function useAlternativeThisTime(name){
+  const item = getItems(getDay())[itemIndex];
+  const id = itemId(item, itemIndex);
+  const state = getState();
+  if(!state.alternatives) state.alternatives = {};
+  state.alternatives[id] = name;
+  setState(state);
+  closeAlternatives();
+  render();
 }
 function preferAlternative(name){
   const item = getItems(getDay())[itemIndex];
@@ -700,7 +721,8 @@ function makeLogRecord(item, id, completed){
     week: data.weeks[weekIndex].week,
     day: day.day,
     dayTitle: day.title,
-    exercise: isExercise ? item.name : (item.type || item.text || item.kind),
+    exercise: isExercise ? displayExerciseName(item, id, state) : (item.type || item.text || item.kind),
+    originalExercise: isExercise ? item.name : "",
     itemType: item.kind,
     suggestedWeight: isExercise ? item.suggestedWeight : "",
     unit: isExercise ? item.unit : "",
