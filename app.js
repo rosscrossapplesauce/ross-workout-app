@@ -266,19 +266,24 @@ function getSetWeights(state, id, item){
 function compactSetWeights(weights){
   return weights.map(weight => String(weight).trim()).filter(Boolean);
 }
+function isSetComplete(value){
+  return String(value).trim() !== "";
+}
 function setWeightRow(item, setIndex, weight){
+  const missed = String(weight).toUpperCase() === "DNC";
   return `
-    <div class="setWeightRow">
+    <div class="setWeightRow ${missed ? "setMissed" : ""}">
       <div class="setLabel">Set ${setIndex + 1}</div>
       <button class="stepBtn" onclick="adjustSetWeight(${setIndex}, -5)" aria-label="Decrease set ${setIndex + 1} weight">−</button>
-      <input class="setWeightInput" data-set-index="${setIndex}" type="number" inputmode="decimal" enterkeyhint="done" placeholder="${item.suggestedWeight}" value="${escapeHtml(weight)}">
+      <input class="setWeightInput" data-set-index="${setIndex}" type="number" inputmode="decimal" enterkeyhint="done" placeholder="${item.suggestedWeight}" value="${missed ? "" : escapeHtml(weight)}" ${missed ? "disabled" : ""}>
       <button class="stepBtn" onclick="adjustSetWeight(${setIndex}, 5)" aria-label="Increase set ${setIndex + 1} weight">+</button>
+      <button class="missBtn ${missed ? "missed" : ""}" onclick="toggleSetMissed(${setIndex})" aria-label="Did not complete set ${setIndex + 1}">DNC</button>
     </div>`;
 }
 function finalWeight(value){
-  if(Array.isArray(value)) return Number(compactSetWeights(value).slice(-1)[0]);
-  const parts = String(value || "").split(/[,/]/).map(part => part.trim()).filter(Boolean);
-  return Number(parts.slice(-1)[0]);
+  const parts = Array.isArray(value) ? compactSetWeights(value) : String(value || "").split(/[,/]/).map(part => part.trim()).filter(Boolean);
+  const numeric = parts.map(part => Number(part)).filter(Number.isFinite);
+  return numeric.slice(-1)[0];
 }
 function saveInputs(){
   const item = getItems(getDay())[itemIndex];
@@ -287,7 +292,7 @@ function saveInputs(){
   if(document.querySelector(".setWeightInput")){
     if(!s.weights) s.weights = {};
     if(!s.setWeights) s.setWeights = {};
-    s.setWeights[id] = Array.from(document.querySelectorAll(".setWeightInput")).map(input => input.value);
+    s.setWeights[id] = Array.from(document.querySelectorAll(".setWeightInput")).map(input => input.disabled ? "DNC" : input.value);
     s.weights[id] = compactSetWeights(s.setWeights[id]).join(" / ");
   }
   if($("noteInput")){
@@ -298,15 +303,37 @@ function saveInputs(){
 }
 function useSuggested(){
   const item = getItems(getDay())[itemIndex];
-  document.querySelectorAll(".setWeightInput").forEach(input => input.value = item.suggestedWeight);
+  document.querySelectorAll(".setWeightRow").forEach(row => {
+    row.classList.remove("setMissed");
+    row.querySelector(".missBtn").classList.remove("missed");
+    const input = row.querySelector(".setWeightInput");
+    input.disabled = false;
+    input.value = item.suggestedWeight;
+  });
   saveInputs();
 }
 function adjustSetWeight(setIndex, delta){
   const item = getItems(getDay())[itemIndex];
   const input = document.querySelector(`.setWeightInput[data-set-index="${setIndex}"]`);
+  if(input.disabled){
+    input.disabled = false;
+    input.closest(".setWeightRow").classList.remove("setMissed");
+    input.closest(".setWeightRow").querySelector(".missBtn").classList.remove("missed");
+  }
   const current = input.value === "" ? Number(item.suggestedWeight) : Number(input.value);
   if(Number.isNaN(current)) return;
   input.value = Math.max(0, current + delta);
+  saveInputs();
+}
+function toggleSetMissed(setIndex){
+  const input = document.querySelector(`.setWeightInput[data-set-index="${setIndex}"]`);
+  const row = input.closest(".setWeightRow");
+  const button = row.querySelector(".missBtn");
+  const missed = !input.disabled;
+  input.disabled = missed;
+  input.value = "";
+  row.classList.toggle("setMissed", missed);
+  button.classList.toggle("missed", missed);
   saveInputs();
 }
 function makeLogRecord(item, id, completed){
@@ -452,9 +479,9 @@ function markDone(){
   const s = getState();
   const willComplete = !s.completed[id];
   if(item.kind === "exercise" && willComplete){
-    const setWeights = compactSetWeights(getSetWeights(s, id, item));
-    if(setWeights.length < getSetCount(item)){
-      alert("Enter a weight for every set before marking this exercise done.");
+    const setWeights = getSetWeights(s, id, item);
+    if(!setWeights.every(isSetComplete)){
+      alert("Enter a weight or tap DNC for every set before marking this exercise done.");
       render();
       return;
     }
