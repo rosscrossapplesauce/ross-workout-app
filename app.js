@@ -4,6 +4,7 @@ let dayIndex = Number(localStorage.getItem("dayIndex") || 0);
 let itemIndex = Number(localStorage.getItem("itemIndex") || 0);
 let syncInFlight = false;
 let overviewOpen = false;
+let screenMode = "home";
 
 const $ = id => document.getElementById(id);
 const key = () => `rossWorkout.v1.w${weekIndex}.d${dayIndex}`;
@@ -11,13 +12,15 @@ const HISTORY_KEY = "rossWorkout.v1.history";
 const PENDING_KEY = "rossWorkout.v1.pendingSync";
 const SYNC_URL_KEY = "rossWorkout.v1.syncUrl";
 const ALTERNATIVES_KEY = "rossWorkout.v1.alternatives";
+const PLAN_SETTINGS_KEY = "rossWorkout.v1.planSettings";
+const EXERCISE_PREFS_KEY = "rossWorkout.v1.exercisePreferences";
 
 async function init(){
   lockViewportHeight();
   const res = await fetch("workouts.json");
   data = await res.json();
   buildSelectors();
-  render();
+  renderHome();
   loadRemoteHistory();
 }
 function lockViewportHeight(){
@@ -26,7 +29,7 @@ function lockViewportHeight(){
   window.addEventListener("resize", setHeight);
   window.addEventListener("orientationchange", setHeight);
   document.addEventListener("touchmove", e => {
-    if(!e.target.closest || !e.target.closest("input, textarea, select")) e.preventDefault();
+    if(!e.target.closest || (!e.target.closest("input, textarea, select") && !e.target.closest(".scrollPanel"))) e.preventDefault();
   }, {passive:false});
 }
 function buildSelectors(){
@@ -82,10 +85,23 @@ function readList(storageKey){
 function writeList(storageKey, value){
   localStorage.setItem(storageKey, JSON.stringify(value));
 }
+function readObject(storageKey, fallback = {}){
+  try {
+    return JSON.parse(localStorage.getItem(storageKey) || JSON.stringify(fallback));
+  } catch {
+    return fallback;
+  }
+}
+function writeObject(storageKey, value){
+  localStorage.setItem(storageKey, JSON.stringify(value));
+}
 function escapeHtml(value){
   return String(value ?? "").replace(/[&<>"']/g, char => ({
     "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
   }[char]));
+}
+function jsString(value){
+  return JSON.stringify(String(value ?? "")).replace(/</g, "\\u003c");
 }
 function formatDate(value){
   if(!value) return "";
@@ -110,6 +126,8 @@ function historySummary(item, id){
   return `<div class="lastWeek">Last completed: ${escapeHtml(lastDisplay)} ${escapeHtml(item.unit)} · ${formatDate(last.timestamp)}${changeText}</div>`;
 }
 function render(){
+  screenMode = "workout";
+  document.body.dataset.mode = "workout";
   const day = getDay();
   const items = getItems(day);
   if(itemIndex >= items.length) itemIndex = Math.max(0, items.length-1);
@@ -196,6 +214,207 @@ function render(){
     $("screen").innerHTML = `<section class="card rest ${done ? "completed":""}"><div><div class="exerciseName">Rest Day</div><div class="hint">${item.text}</div></div></section>`;
   }
   saveNav();
+}
+function renderHome(){
+  screenMode = "home";
+  overviewOpen = false;
+  document.body.dataset.mode = "home";
+  const settings = readObject(PLAN_SETTINGS_KEY, null);
+  $("weekLabel").innerText = "Workout";
+  $("dayTitle").innerHTML = `<span>Ross Workout</span><span>Coach</span>`;
+  $("progressText").innerText = settings ? "Custom goals saved" : "Current hybrid fat-loss plan";
+  $("scoreText").innerText = "";
+  $("progressBar").style.width = settings ? "100%" : "0%";
+  $("prevBtn").style.display = "none";
+  $("nextBtn").style.display = "none";
+  $("doneBtn").style.display = "none";
+  $("overviewBtn").innerText = "Workout";
+  $("overviewBtn").onclick = () => render();
+  $("screen").innerHTML = `
+    <section class="homePanel scrollPanel">
+      <div>
+        <div class="homeTitle">Current Plan</div>
+        <div class="homeText">Fat-loss hybrid training with rowing, conservative strength progression, upper/shoulder emphasis, lower-body work, one easy run, and Sunday rest.</div>
+      </div>
+      <div class="homeActions">
+        <button class="primary" onclick="render()">Continue current plan</button>
+        <button onclick="renderSetup('change')">Change current plan's goals</button>
+        <button onclick="renderSetup('new')">Start a new plan</button>
+        <button onclick="renderProgress()">Progress</button>
+      </div>
+      ${settings ? `<div class="planSummary">${planSummary(settings)}</div>` : ""}
+    </section>`;
+}
+function planSummary(settings){
+  return `
+    <div class="summaryTitle">Saved setup</div>
+    <div>${escapeHtml((settings.goals || []).join(" + ") || "No goals selected")}</div>
+    <div>${escapeHtml(settings.daysPerWeek || "?")} days/week · ${escapeHtml(settings.workoutLength || "?")} min · ${escapeHtml(settings.gymAccess || "gym")} access</div>
+    ${settings.crossTrainingSport ? `<div>Cross-training for ${escapeHtml(settings.crossTrainingSport)}</div>` : ""}`;
+}
+function renderSetup(mode){
+  screenMode = "setup";
+  overviewOpen = false;
+  document.body.dataset.mode = "setup";
+  const current = mode === "change" ? readObject(PLAN_SETTINGS_KEY, {}) : {};
+  $("weekLabel").innerText = mode === "new" ? "New Plan" : "Plan Goals";
+  $("dayTitle").innerHTML = `<span>${mode === "new" ? "Start" : "Update"}</span><span>Training Plan</span>`;
+  $("progressText").innerText = "Skip anything you do not know";
+  $("scoreText").innerText = "";
+  $("progressBar").style.width = "33%";
+  $("prevBtn").style.display = "none";
+  $("nextBtn").style.display = "none";
+  $("doneBtn").style.display = "none";
+  $("overviewBtn").innerText = "Home";
+  $("overviewBtn").onclick = renderHome;
+  $("screen").innerHTML = `
+    <section class="setupPanel scrollPanel">
+      <div class="setupGroup">
+        <div class="setupTitle">Goals</div>
+        <div class="checkGrid">${goalOptions().map(goal => checkOption("goal", goal, (current.goals || []).includes(goal))).join("")}</div>
+        <input id="crossTrainingSport" class="setupInput" placeholder="Sport/activity for cross training" value="${escapeHtml(current.crossTrainingSport || "")}">
+      </div>
+      <div class="setupGrid">
+        <label>Gym access<select id="gymAccess"><option>Yes</option><option>No</option></select></label>
+        <label>Equipment<input id="equipment" placeholder="Dumbbells, rower, bands..." value="${escapeHtml(current.equipment || "")}"></label>
+        <label>Hours/week<input id="hoursPerWeek" type="number" inputmode="decimal" value="${escapeHtml(current.hoursPerWeek || "")}"></label>
+        <label>Workout length<input id="workoutLength" type="number" inputmode="numeric" placeholder="45" value="${escapeHtml(current.workoutLength || "")}"></label>
+        <label>Days/week<input id="daysPerWeek" type="number" inputmode="numeric" placeholder="5" value="${escapeHtml(current.daysPerWeek || "")}"></label>
+        <label>Preferred rest days<input id="restDays" placeholder="Sunday, Thursday" value="${escapeHtml(current.restDays || "")}"></label>
+      </div>
+      <div class="setupGroup">
+        <div class="setupTitle">Optional strength starting points</div>
+        ${defaultStrengthSamples(current).map((sample,i) => strengthRow(i, sample)).join("")}
+      </div>
+      <div class="homeActions">
+        <button class="primary" onclick="savePlanSetup('${mode}')">Save plan setup</button>
+        <button onclick="renderHome()">Skip for now</button>
+      </div>
+    </section>`;
+  if(current.gymAccess) $("gymAccess").value = current.gymAccess;
+}
+function goalOptions(){
+  return ["Returning to activity", "Maintenance", "Cross training", "Build endurance", "Build muscle", "Hybrid", "Weight loss"];
+}
+function checkOption(name, value, checked){
+  return `<label class="checkOption"><input type="checkbox" name="${name}" value="${escapeHtml(value)}" ${checked ? "checked" : ""}>${escapeHtml(value)}</label>`;
+}
+function strengthRow(index, sample = {}){
+  return `
+    <div class="strengthRow">
+      <input class="strengthName" placeholder="Exercise" value="${escapeHtml(sample.name || "")}">
+      <input class="strengthWeight" type="number" inputmode="decimal" placeholder="Weight" value="${escapeHtml(sample.weight || "")}">
+      <input class="strengthReps" type="number" inputmode="numeric" placeholder="Reps" value="${escapeHtml(sample.reps || "")}">
+      <input class="strengthRpe" placeholder="RPE" value="${escapeHtml(sample.rpe || "")}">
+    </div>`;
+}
+function defaultStrengthSamples(current){
+  if(current.strengthSamples && current.strengthSamples.length) return current.strengthSamples;
+  const goals = current.goals || [];
+  const shoulderFocus = goals.includes("Hybrid") || goals.includes("Build muscle");
+  const names = shoulderFocus
+    ? ["Overhead press", "Lateral raise", "Row or pulldown"]
+    : ["Bench press or dumbbell press", "Squat, leg press, or split squat", "Row, pulldown, or pull-up"];
+  return names.map(name => ({name}));
+}
+function savePlanSetup(mode){
+  const goals = Array.from(document.querySelectorAll('input[name="goal"]:checked')).map(input => input.value);
+  const strengthSamples = Array.from(document.querySelectorAll(".strengthRow")).map(row => ({
+    name: row.querySelector(".strengthName").value.trim(),
+    weight: row.querySelector(".strengthWeight").value.trim(),
+    reps: row.querySelector(".strengthReps").value.trim(),
+    rpe: row.querySelector(".strengthRpe").value.trim()
+  })).filter(sample => sample.name || sample.weight || sample.reps);
+  const settings = {
+    mode,
+    goals,
+    crossTrainingSport: $("crossTrainingSport").value.trim(),
+    gymAccess: $("gymAccess").value,
+    equipment: $("equipment").value.trim(),
+    hoursPerWeek: $("hoursPerWeek").value.trim(),
+    workoutLength: $("workoutLength").value.trim(),
+    daysPerWeek: $("daysPerWeek").value.trim(),
+    restDays: $("restDays").value.trim(),
+    strengthSamples,
+    generatedAt: new Date().toISOString(),
+    planBias: generatePlanBias({goals, crossTrainingSport:$("crossTrainingSport").value.trim(), equipment:$("equipment").value.trim(), strengthSamples})
+  };
+  writeObject(PLAN_SETTINGS_KEY, settings);
+  renderHome();
+}
+function generatePlanBias(settings){
+  const goals = settings.goals || [];
+  return {
+    conditioning: goals.includes("Build endurance") || goals.includes("Weight loss") || goals.includes("Hybrid") ? "rowing-forward aerobic base with one hard interval day" : "moderate conditioning",
+    strength: goals.includes("Build muscle") ? "progressive hypertrophy with conservative loading" : "maintenance-friendly strength progression",
+    sport: settings.crossTrainingSport || "",
+    equipment: settings.equipment || "standard gym equipment",
+    startingWeights: estimateStartingWeights(settings.strengthSamples || [])
+  };
+}
+function estimateStartingWeights(samples){
+  return samples.map(sample => {
+    const weight = Number(sample.weight);
+    const reps = Number(sample.reps);
+    const estimate = Number.isFinite(weight) && Number.isFinite(reps) ? Math.round(weight * (1 + reps / 30) * 0.7 / 5) * 5 : "";
+    return {...sample, conservativeStart: estimate};
+  });
+}
+function renderProgress(){
+  screenMode = "progress";
+  overviewOpen = false;
+  document.body.dataset.mode = "progress";
+  $("weekLabel").innerText = "Progress";
+  $("dayTitle").innerHTML = `<span>Strength</span><span>Trends</span>`;
+  $("progressText").innerText = "Actual + projected";
+  $("scoreText").innerText = "";
+  $("progressBar").style.width = "100%";
+  $("prevBtn").style.display = "none";
+  $("nextBtn").style.display = "none";
+  $("doneBtn").style.display = "none";
+  $("overviewBtn").innerText = "Home";
+  $("overviewBtn").onclick = renderHome;
+  const series = strengthSeries().slice(0, 3);
+  $("screen").innerHTML = `
+    <section class="progressPanel scrollPanel">
+      ${series.length ? series.map(chartCard).join("") : `<div class="homeText">Log completed set weights to see strength charts here.</div>`}
+      <div class="legend"><span class="actualLine"></span>Actual <span class="planLine"></span>Current plan <span class="potentialLine"></span>Adjusted potential</div>
+    </section>`;
+}
+function strengthSeries(){
+  const byExercise = {};
+  readList(HISTORY_KEY).filter(record => record.completed && record.exercise && record.setWeights).forEach(record => {
+    const weight = finalWeight(record.setWeights);
+    if(!Number.isFinite(weight)) return;
+    if(!byExercise[record.exercise]) byExercise[record.exercise] = [];
+    byExercise[record.exercise].push({date:record.timestamp, weight});
+  });
+  return Object.entries(byExercise)
+    .map(([exercise, points]) => ({exercise, points:points.slice(-8)}))
+    .filter(item => item.points.length)
+    .sort((a,b)=>b.points.length-a.points.length);
+}
+function chartCard(series){
+  return `<div class="chartCard"><div class="chartTitle">${escapeHtml(series.exercise)}</div>${chartSvg(series.points)}</div>`;
+}
+function chartSvg(points){
+  const width = 320, height = 140, pad = 18;
+  const weights = points.map(p => p.weight);
+  const min = Math.min(...weights) - 5;
+  const max = Math.max(...weights) + 15;
+  const x = i => pad + (points.length === 1 ? 0 : i * (width - pad * 2) / (points.length - 1));
+  const y = weight => height - pad - ((weight - min) / Math.max(1, max - min)) * (height - pad * 2);
+  const actual = points.map((p,i)=>`${x(i)},${y(p.weight)}`).join(" ");
+  const last = points[points.length-1].weight;
+  const gain = points.length > 1 ? Math.max(1, (last - points[0].weight) / points.length) : 2;
+  const startX = x(points.length - 1);
+  const planEnd = `${width-pad},${y(last + gain * 4)}`;
+  const potentialEnd = `${width-pad},${y(last + gain * 7)}`;
+  return `<svg class="chart" viewBox="0 0 ${width} ${height}" role="img">
+    <polyline class="actual" points="${actual}"></polyline>
+    <line class="plan" x1="${startX}" y1="${y(last)}" x2="${planEnd.split(",")[0]}" y2="${planEnd.split(",")[1]}"></line>
+    <line class="potential" x1="${startX}" y1="${y(last)}" x2="${potentialEnd.split(",")[0]}" y2="${potentialEnd.split(",")[1]}"></line>
+  </svg>`;
 }
 function renderOverview(day, items){
   const state = getState();
@@ -391,9 +610,22 @@ function renderAlternativesPanel(state, alternatives){
             <div class="altName">${escapeHtml(alt.name)}</div>
             <div class="altDetail">${escapeHtml(alt.how || "")}</div>
             <div class="altReason">${escapeHtml(alt.why || "")}</div>
+            <button class="preferBtn" onclick="preferAlternative(${jsString(alt.name)})">Prefer this exercise for future workouts</button>
           </div>`).join("")}
       </div>
     </div>`;
+}
+function preferAlternative(name){
+  const item = getItems(getDay())[itemIndex];
+  const prefs = readObject(EXERCISE_PREFS_KEY, {});
+  prefs[item.name] = {
+    preferred: name,
+    source: item.name,
+    savedAt: new Date().toISOString()
+  };
+  writeObject(EXERCISE_PREFS_KEY, prefs);
+  closeAlternatives();
+  alert(`${name} will be preferred for future generated plans.`);
 }
 function closeAlternatives(){
   const panel = $("alternativesPanel");
