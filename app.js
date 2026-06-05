@@ -13,11 +13,21 @@ const SYNC_URL_KEY = "rossWorkout.v1.syncUrl";
 const ALTERNATIVES_KEY = "rossWorkout.v1.alternatives";
 
 async function init(){
+  lockViewportHeight();
   const res = await fetch("workouts.json");
   data = await res.json();
   buildSelectors();
   render();
   loadRemoteHistory();
+}
+function lockViewportHeight(){
+  const setHeight = () => document.documentElement.style.setProperty("--app-height", `${window.innerHeight}px`);
+  setHeight();
+  window.addEventListener("resize", setHeight);
+  window.addEventListener("orientationchange", setHeight);
+  document.addEventListener("touchmove", e => {
+    if(!e.target.closest || !e.target.closest("input, textarea, select")) e.preventDefault();
+  }, {passive:false});
 }
 function buildSelectors(){
   $("weekSelect").innerHTML = data.weeks.map((w,i)=>`<option value="${i}">Week ${w.week}</option>`).join("");
