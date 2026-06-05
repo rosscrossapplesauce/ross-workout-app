@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="Workout">
   <title>Ross Workout Coach</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css?v=20260604-alternatives">
+  <link rel="stylesheet" href="style.css?v=20260604-ux-cleanup">
 </head>
 <body>
   <div class="app">
@@ -18,11 +18,7 @@
         <div class="eyebrow" id="weekLabel">Week 1</div>
         <h1 id="dayTitle">Monday</h1>
       </div>
-      <div class="topActions">
-        <button id="syncStatus" class="status pending" type="button">Pending Sync</button>
-        <button id="overviewBtn" class="ghost" type="button">Overview</button>
-        <button id="resetBtn" class="ghost" type="button">Reset Day</button>
-      </div>
+      <button id="overviewBtn" class="ghost" type="button">Overview</button>
     </header>
 
     <section class="selector">
@@ -38,12 +34,15 @@
     <main id="screen" tabindex="-1"></main>
 
     <footer class="nav">
-      <button id="prevBtn" aria-label="Previous exercise">←</button>
-      <button id="doneBtn" class="primary">Done ✓</button>
-      <button id="nextBtn" aria-label="Next exercise">→</button>
+      <div class="navControls">
+        <button id="prevBtn" aria-label="Previous exercise">←</button>
+        <button id="doneBtn" class="primary">Done ✓</button>
+        <button id="nextBtn" aria-label="Next exercise">→</button>
+      </div>
+      <button id="resetBtn" class="resetFooter" type="button">Reset Day</button>
     </footer>
   </div>
 
-  <script src="app.js?v=20260604-alternatives"></script>
+  <script src="app.js?v=20260604-ux-cleanup"></script>
 </body>
 </html>
