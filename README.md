@@ -7,6 +7,7 @@ Live site: https://rosscrossapplesauce.github.io/ross-workout-app/
 ## What it does
 
 - Shows one exercise or cardio item per screen.
+- Opens to a home screen with the current plan, goal editing, new plan setup, and progress.
 - Keeps the suggested weight giant and easy to read from a bench or machine.
 - Lets you save completed weight for every set, mark missed sets as `DNC`, add notes, and save completed status locally on your phone.
 - Supports swipe navigation plus large bottom buttons for gym use.
@@ -14,6 +15,8 @@ Live site: https://rosscrossapplesauce.github.io/ross-workout-app/
 - Shows last completed weight, previous completion date, and weight change when an exercise appears again.
 - Syncs workout history to Google Sheets when configured.
 - Suggests alternative exercises through a private Apps Script OpenAI proxy when configured.
+- Saves preferred alternative exercises for future generated plans.
+- Shows strength progress charts with actual progress and two projection lines.
 
 ## Files
 
@@ -175,5 +178,7 @@ https://rosscrossapplesauce.github.io/ross-workout-app/
 ## Notes
 
 - Progress is saved in the browser with `localStorage`.
+- Plan setup, goal preferences, and preferred alternatives are saved in `localStorage`.
+- Current plan data still comes from `workouts.json`; the setup flow stores generation constraints for future plan generation.
 - If Google Sheets sync fails, records stay queued locally until the next successful sync attempt.
 - Edit `workouts.json` only when you are ready to change the workout plan.

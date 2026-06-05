@@ -25,6 +25,45 @@ button,select,input,textarea{touch-action:manipulation;-webkit-tap-highlight-col
 .progress{height:8px;background:#0b1220;border-radius:999px;overflow:hidden;border:1px solid var(--line)}
 #progressBar{height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--green));transition:.25s}
 main{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;min-height:0;outline:none;overflow:hidden}
+body[data-mode="home"] .selector,
+body[data-mode="setup"] .selector,
+body[data-mode="progress"] .selector,
+body[data-mode="home"] .nav,
+body[data-mode="setup"] .nav,
+body[data-mode="progress"] .nav{display:none}
+body[data-mode="home"] .app,
+body[data-mode="setup"] .app,
+body[data-mode="progress"] .app{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+body[data-mode="home"] main,
+body[data-mode="setup"] main,
+body[data-mode="progress"] main{justify-content:flex-start}
+.scrollPanel{overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.homePanel,.setupPanel,.progressPanel{background:linear-gradient(180deg,var(--card),#0b1220);border:1px solid var(--line);border-radius:16px;padding:14px;max-height:100%;display:flex;flex-direction:column;gap:12px}
+.homeTitle{font-size:28px;line-height:1;font-weight:950}
+.homeText{font-size:15px;line-height:1.35;color:var(--muted);font-weight:700;margin-top:8px}
+.homeActions{display:flex;flex-direction:column;gap:8px}
+.planSummary{background:#07101d;border:1px solid var(--line);border-radius:12px;padding:10px;color:var(--muted);font-size:13px;line-height:1.35;font-weight:750}
+.summaryTitle,.setupTitle,.chartTitle{color:var(--text);font-size:15px;font-weight:950;margin-bottom:6px}
+.setupGroup{display:flex;flex-direction:column;gap:8px}
+.checkGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.checkOption{background:#07101d;border:1px solid var(--line);border-radius:10px;padding:8px;font-size:13px;font-weight:850;color:var(--text);display:flex;gap:6px;align-items:center}
+.setupGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.setupGrid label{display:flex;flex-direction:column;gap:5px}
+.setupInput{font-size:16px;text-align:left}
+.strengthRow{display:grid;grid-template-columns:1.4fr .8fr .7fr .7fr;gap:6px}
+.strengthRow input{font-size:15px;min-height:38px;text-align:left}
+.progressPanel{gap:10px}
+.chartCard{background:#07101d;border:1px solid var(--line);border-radius:12px;padding:10px}
+.chart{width:100%;height:118px}
+.chart polyline,.chart line{fill:none;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+.chart .actual{stroke:var(--green)}
+.chart .plan{stroke:var(--blue);stroke-dasharray:7 5}
+.chart .potential{stroke:var(--yellow);stroke-dasharray:3 6}
+.legend{display:flex;align-items:center;gap:7px;flex-wrap:wrap;color:var(--muted);font-size:12px;font-weight:800}
+.legend span{width:20px;height:4px;border-radius:99px;display:inline-block}
+.actualLine{background:var(--green)}
+.planLine{background:var(--blue)}
+.potentialLine{background:var(--yellow)}
 .card{background:linear-gradient(180deg,var(--card),#0b1220);border:1px solid var(--line);box-shadow:0 18px 60px rgba(0,0,0,.35);border-radius:16px;padding:11px;max-height:100%;display:flex;flex-direction:column;justify-content:space-between;gap:8px;overflow:hidden}
 .kicker{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--muted);font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:0}
 .exerciseName{font-size:28px;line-height:1;font-weight:900;margin:7px 0 3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -43,6 +82,7 @@ main{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;min
 .altName{font-size:14px;font-weight:950;color:var(--text)}
 .altDetail{font-size:12px;line-height:1.18;color:#dbeafe;font-weight:750;margin-top:2px}
 .altReason{font-size:11px;line-height:1.18;color:var(--muted);font-weight:700;margin-top:2px}
+.preferBtn{width:100%;margin-top:6px;min-height:32px;font-size:12px;background:#0f2436;color:#e0f2fe;border:1px solid rgba(56,189,248,.22)}
 .overviewCard{background:linear-gradient(180deg,var(--card),#0b1220);border:1px solid var(--line);box-shadow:0 18px 60px rgba(0,0,0,.35);border-radius:18px;padding:10px;min-height:0;max-height:100%;display:flex;flex-direction:column;gap:8px;overflow:hidden}
 .overviewHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .overviewTools{display:flex;flex-direction:column;gap:6px;align-items:stretch;min-width:102px}
