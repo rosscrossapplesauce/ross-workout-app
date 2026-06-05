@@ -286,6 +286,24 @@ function setSetting(spreadsheet, key, value) {
   sheet.appendRow([key, value]);
 }
 
+function authorizeOpenAIAccess() {
+  const apiKey = PropertiesService.getScriptProperties().getProperty("OPENAI_API_KEY");
+  if (!apiKey) {
+    throw new Error("Set OPENAI_API_KEY in Script properties before running this.");
+  }
+
+  const response = UrlFetchApp.fetch("https://api.openai.com/v1/models", {
+    method: "get",
+    headers: {
+      Authorization: `Bearer ${apiKey}`
+    },
+    muteHttpExceptions: true
+  });
+
+  SpreadsheetApp.getActiveSpreadsheet().toast("OpenAI access authorized.");
+  return response.getResponseCode();
+}
+
 function normalizeValue(value) {
   if (value === undefined || value === null) return "";
   return value;
