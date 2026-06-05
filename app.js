@@ -144,7 +144,6 @@ function render(){
           <div class="bigWeight">${item.suggestedWeight}<span class="unit"> ${item.unit}</span></div>
           ${history}
           <button class="altBtn" onclick="loadAlternatives()">Alternatives</button>
-          <div id="alternativesPanel" class="alternativesPanel"></div>
         </div>
         <div>
           <label>Completed weight by set</label>
@@ -152,9 +151,10 @@ function render(){
             ${setWeights.map((weight,setIndex)=>setWeightRow(item, setIndex, weight)).join("")}
           </div>
           <button class="suggestedBtn" onclick="useSuggested()">Use suggested for all sets</button>
-          <div style="height:10px"></div>
-          <label>Notes</label>
-          <textarea id="noteInput" placeholder="Optional">${notes}</textarea>
+          <details class="notesFold" ${notes ? "open" : ""}>
+            <summary>Notes</summary>
+            <textarea id="noteInput" placeholder="Optional">${notes}</textarea>
+          </details>
         </div>
       </section>`;
     setTimeout(()=>{
@@ -356,25 +356,38 @@ function writeAlternatives(value){
   localStorage.setItem(ALTERNATIVES_KEY, JSON.stringify(value));
 }
 function renderAlternativesPanel(state, alternatives){
-  const panel = $("alternativesPanel");
+  let panel = $("alternativesPanel");
+  if(!panel){
+    panel = document.createElement("div");
+    panel.id = "alternativesPanel";
+    panel.className = "alternativesPanel";
+    document.body.appendChild(panel);
+  }
   if(!panel) return;
   if(state === "loading"){
-    panel.innerHTML = `<div class="altState">Finding alternatives...</div>`;
+    panel.innerHTML = `<div class="altSheet"><button class="altClose" onclick="closeAlternatives()">×</button><div class="altState">Finding alternatives...</div></div>`;
     return;
   }
   if(state === "error"){
-    panel.innerHTML = `<div class="altState error">${escapeHtml(alternatives || "Could not load alternatives.")}</div>`;
+    panel.innerHTML = `<div class="altSheet"><button class="altClose" onclick="closeAlternatives()">×</button><div class="altState error">${escapeHtml(alternatives || "Could not load alternatives.")}</div></div>`;
     return;
   }
   panel.innerHTML = `
-    <div class="altList">
-      ${alternatives.map(alt => `
-        <div class="altItem">
-          <div class="altName">${escapeHtml(alt.name)}</div>
-          <div class="altDetail">${escapeHtml(alt.how || "")}</div>
-          <div class="altReason">${escapeHtml(alt.why || "")}</div>
-        </div>`).join("")}
+    <div class="altSheet">
+      <button class="altClose" onclick="closeAlternatives()">×</button>
+      <div class="altList">
+        ${alternatives.map(alt => `
+          <div class="altItem">
+            <div class="altName">${escapeHtml(alt.name)}</div>
+            <div class="altDetail">${escapeHtml(alt.how || "")}</div>
+            <div class="altReason">${escapeHtml(alt.why || "")}</div>
+          </div>`).join("")}
+      </div>
     </div>`;
+}
+function closeAlternatives(){
+  const panel = $("alternativesPanel");
+  if(panel) panel.remove();
 }
 function loadAlternatives(){
   const item = getItems(getDay())[itemIndex];
@@ -522,13 +535,14 @@ function syncRecord(record){
   return new Promise(resolve => {
     const callback = `rossWorkoutLog${Date.now()}${Math.round(Math.random()*1000)}`;
     const script = document.createElement("script");
-    const timeout = setTimeout(() => cleanup(false), 12000);
+    let timeout;
     const cleanup = result => {
       clearTimeout(timeout);
       delete window[callback];
       script.remove();
       resolve(result);
     };
+    timeout = setTimeout(() => cleanup(false), 12000);
     window[callback] = payload => cleanup(!!(payload && payload.ok && payload.saved));
     const separator = getSyncUrl().includes("?") ? "&" : "?";
     script.src = `${getSyncUrl()}${separator}action=log&callback=${callback}&record=${encodeURIComponent(JSON.stringify(record))}`;
