@@ -43,6 +43,7 @@ function buildSelectors(){
   $("nextBtn").onclick = nextItem;
   $("doneBtn").onclick = markDone;
   $("resetBtn").onclick = resetDay;
+  $("homeBtn").onclick = renderHome;
   $("overviewBtn").onclick = showOverview;
   window.addEventListener("online", syncPending);
   window.addEventListener("offline", updateSyncStatus);
@@ -139,7 +140,9 @@ function render(){
   $("doneBtn").innerText = "Done ✓";
   $("prevBtn").style.display = "block";
   $("nextBtn").style.display = "block";
+  $("homeBtn").style.display = "block";
   $("overviewBtn").innerText = "Overview";
+  $("overviewBtn").onclick = showOverview;
 
   if(overviewOpen){
     renderOverview(day, items);
@@ -228,6 +231,7 @@ function renderHome(){
   $("prevBtn").style.display = "none";
   $("nextBtn").style.display = "none";
   $("doneBtn").style.display = "none";
+  $("homeBtn").style.display = "none";
   $("overviewBtn").innerText = "Workout";
   $("overviewBtn").onclick = () => render();
   $("screen").innerHTML = `
@@ -265,6 +269,7 @@ function renderSetup(mode){
   $("prevBtn").style.display = "none";
   $("nextBtn").style.display = "none";
   $("doneBtn").style.display = "none";
+  $("homeBtn").style.display = "none";
   $("overviewBtn").innerText = "Home";
   $("overviewBtn").onclick = renderHome;
   $("screen").innerHTML = `
@@ -372,6 +377,7 @@ function renderProgress(){
   $("prevBtn").style.display = "none";
   $("nextBtn").style.display = "none";
   $("doneBtn").style.display = "none";
+  $("homeBtn").style.display = "none";
   $("overviewBtn").innerText = "Home";
   $("overviewBtn").onclick = renderHome;
   const series = strengthSeries().slice(0, 3);
@@ -801,7 +807,7 @@ function loadRemoteHistory(){
       const local = readList(HISTORY_KEY);
       const byId = new Map([...local, ...payload.records].map(record => [record.id || `${record.timestamp}-${record.exercise}`, record]));
       writeList(HISTORY_KEY, Array.from(byId.values()).slice(-500));
-      render();
+      renderCurrentScreen();
     }
     delete window[callback];
     script.remove();
@@ -813,6 +819,12 @@ function loadRemoteHistory(){
     script.remove();
   };
   document.body.appendChild(script);
+}
+function renderCurrentScreen(){
+  if(screenMode === "home") renderHome();
+  else if(screenMode === "setup") renderSetup("change");
+  else if(screenMode === "progress") renderProgress();
+  else render();
 }
 function markDone(){
   if(overviewOpen){

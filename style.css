@@ -9,6 +9,7 @@ body{height:100vh;height:var(--app-height,100svh);overscroll-behavior:none;touch
 .app{max-width:520px;margin:0 auto;height:100vh;height:var(--app-height,100svh);display:flex;flex-direction:column;padding:calc(8px + env(safe-area-inset-top)) 10px calc(104px + env(safe-area-inset-bottom));overflow:hidden;touch-action:manipulation}
 .topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px;flex:0 0 auto}
 .topbar>div:first-child{min-width:0;flex:1}
+.topActions{display:flex;gap:6px;align-items:center;flex:0 0 auto}
 .eyebrow{text-transform:uppercase;letter-spacing:0;color:var(--blue);font-size:12px;font-weight:800}
 h1{font-size:21px;margin:0;line-height:1.02;display:flex;flex-direction:column;gap:1px}
 h1 span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
