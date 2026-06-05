@@ -13,6 +13,7 @@ Live site: https://rosscrossapplesauce.github.io/ross-workout-app/
 - Auto-advances after marking an item done.
 - Shows last completed weight, previous completion date, and weight change when an exercise appears again.
 - Syncs workout history to Google Sheets when configured.
+- Suggests alternative exercises through a private Apps Script OpenAI proxy when configured.
 
 ## Files
 
@@ -101,6 +102,50 @@ If `apps-script.js` changes:
 3. Edit the existing Web App deployment.
 4. Choose a new version.
 5. Deploy.
+
+## Private OpenAI Alternatives Setup
+
+Alternative exercise suggestions are generated through Google Apps Script so your OpenAI API key is never stored in the public PWA or GitHub Pages.
+
+### 1. Create an OpenAI API Key
+
+1. Go to the OpenAI API keys page.
+2. Create a new API key.
+3. Copy it once and keep it private.
+
+### 2. Store the Key in Apps Script
+
+1. Open your Google Sheet.
+2. Go to **Extensions > Apps Script**.
+3. Click **Project Settings**.
+4. Under **Script properties**, add:
+
+```text
+OPENAI_API_KEY = your_api_key_here
+```
+
+Optional model override:
+
+```text
+OPENAI_MODEL = gpt-5.4-mini
+```
+
+If `OPENAI_MODEL` is not set, the script uses `gpt-5.4-mini`.
+
+### 3. Redeploy the Web App
+
+1. Click **Deploy > Manage deployments**.
+2. Edit the existing Web App deployment.
+3. Choose **New version**.
+4. Deploy.
+
+### 4. Use Alternatives
+
+1. Open an exercise in the workout app.
+2. Tap **Alternatives**.
+3. The app asks Apps Script for three substitutions and caches them in the `Settings` sheet.
+
+Do not paste your OpenAI key into the workout app, GitHub, or `workouts.json`.
 
 ## Deploy on GitHub Pages
 
