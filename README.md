@@ -134,6 +134,15 @@ If `OPENAI_MODEL` is not set, the script uses `gpt-5.4-mini`.
 
 ### 3. Redeploy the Web App
 
+Before redeploying, authorize the new OpenAI permission:
+
+1. In Apps Script, use the function dropdown near **Run**.
+2. Select `authorizeOpenAIAccess`.
+3. Click **Run**.
+4. Approve the requested permissions.
+
+Then redeploy:
+
 1. Click **Deploy > Manage deployments**.
 2. Edit the existing Web App deployment.
 3. Choose **New version**.
