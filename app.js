@@ -10,6 +10,7 @@ const key = () => `rossWorkout.v1.w${weekIndex}.d${dayIndex}`;
 const HISTORY_KEY = "rossWorkout.v1.history";
 const PENDING_KEY = "rossWorkout.v1.pendingSync";
 const SYNC_URL_KEY = "rossWorkout.v1.syncUrl";
+const ALTERNATIVES_KEY = "rossWorkout.v1.alternatives";
 
 async function init(){
   const res = await fetch("workouts.json");
@@ -143,6 +144,8 @@ function render(){
           <div class="prescription">${item.sets} × ${item.reps}</div>
           <div class="bigWeight">${item.suggestedWeight}<span class="unit"> ${item.unit}</span></div>
           ${history}
+          <button class="altBtn" onclick="loadAlternatives()">Alternatives</button>
+          <div id="alternativesPanel" class="alternativesPanel"></div>
         </div>
         <div>
           <label>Completed weight by set</label>
@@ -335,6 +338,92 @@ function toggleSetMissed(setIndex){
   row.classList.toggle("setMissed", missed);
   button.classList.toggle("missed", missed);
   saveInputs();
+}
+function alternativesKey(item){
+  return `${item.name}|${item.sets}|${item.reps}`;
+}
+function readAlternatives(){
+  try {
+    return JSON.parse(localStorage.getItem(ALTERNATIVES_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+function writeAlternatives(value){
+  localStorage.setItem(ALTERNATIVES_KEY, JSON.stringify(value));
+}
+function renderAlternativesPanel(state, alternatives){
+  const panel = $("alternativesPanel");
+  if(!panel) return;
+  if(state === "loading"){
+    panel.innerHTML = `<div class="altState">Finding alternatives...</div>`;
+    return;
+  }
+  if(state === "error"){
+    panel.innerHTML = `<div class="altState error">${escapeHtml(alternatives || "Could not load alternatives.")}</div>`;
+    return;
+  }
+  panel.innerHTML = `
+    <div class="altList">
+      ${alternatives.map(alt => `
+        <div class="altItem">
+          <div class="altName">${escapeHtml(alt.name)}</div>
+          <div class="altDetail">${escapeHtml(alt.how || "")}</div>
+          <div class="altReason">${escapeHtml(alt.why || "")}</div>
+        </div>`).join("")}
+    </div>`;
+}
+function loadAlternatives(){
+  const item = getItems(getDay())[itemIndex];
+  if(item.kind !== "exercise") return;
+  const cache = readAlternatives();
+  const localKey = alternativesKey(item);
+  if(cache[localKey]){
+    renderAlternativesPanel("ready", cache[localKey]);
+    return;
+  }
+  if(!getSyncUrl()){
+    renderAlternativesPanel("error", "Tap Pending Sync first and add your Apps Script Web App URL.");
+    return;
+  }
+  if(!navigator.onLine){
+    renderAlternativesPanel("error", "Offline. Try alternatives when you are back online.");
+    return;
+  }
+  renderAlternativesPanel("loading");
+  const callback = `rossWorkoutAlternatives${Date.now()}`;
+  const script = document.createElement("script");
+  const cleanup = () => {
+    delete window[callback];
+    script.remove();
+  };
+  window[callback] = payload => {
+    if(payload && payload.ok && Array.isArray(payload.alternatives)){
+      cache[localKey] = payload.alternatives;
+      writeAlternatives(cache);
+      renderAlternativesPanel("ready", payload.alternatives);
+    } else {
+      renderAlternativesPanel("error", payload && payload.error ? payload.error : "No alternatives returned.");
+    }
+    cleanup();
+  };
+  const separator = getSyncUrl().includes("?") ? "&" : "?";
+  const params = new URLSearchParams({
+    action:"alternatives",
+    callback,
+    exercise:item.name,
+    sets:String(item.sets),
+    reps:String(item.reps),
+    suggestedWeight:String(item.suggestedWeight),
+    unit:item.unit || "",
+    dayTitle:getDay().title || ""
+  });
+  script.src = `${getSyncUrl()}${separator}${params.toString()}`;
+  script.onerror = () => {
+    renderAlternativesPanel("error", "Could not reach the alternatives backend.");
+    cleanup();
+  };
+  document.body.appendChild(script);
 }
 function makeLogRecord(item, id, completed){
   const day = getDay();
