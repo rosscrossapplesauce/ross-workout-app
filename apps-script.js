@@ -33,6 +33,7 @@ const PR_HEADERS = [
 const SETTINGS_HEADERS = ["key", "value"];
 
 function doGet(e) {
+  e = e || {parameter: {}};
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   ensureSheets(spreadsheet);
 
@@ -58,6 +59,7 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  e = e || {};
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   ensureSheets(spreadsheet);
 
