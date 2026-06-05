@@ -30,7 +30,6 @@ function buildSelectors(){
   $("nextBtn").onclick = nextItem;
   $("doneBtn").onclick = markDone;
   $("resetBtn").onclick = resetDay;
-  $("syncStatus").onclick = configureSync;
   $("overviewBtn").onclick = showOverview;
   window.addEventListener("online", syncPending);
   window.addEventListener("offline", updateSyncStatus);
@@ -105,7 +104,7 @@ function render(){
   const items = getItems(day);
   if(itemIndex >= items.length) itemIndex = Math.max(0, items.length-1);
   $("weekLabel").innerText = `Week ${weekIndex+1}`;
-  $("dayTitle").innerText = `${day.day}: ${day.title}`;
+  $("dayTitle").innerHTML = `<span>${escapeHtml(day.day)}</span><span>${escapeHtml(day.title)}</span>`;
   $("weekSelect").value = weekIndex;
   $("daySelect").value = dayIndex;
   $("doneBtn").style.display = items.length ? "block" : "none";
@@ -213,13 +212,17 @@ function renderOverview(day, items){
           <div class="kicker">Today's Workout</div>
           <div class="overviewTitle">${escapeHtml(day.day)}: ${escapeHtml(day.title)}</div>
         </div>
-        <div class="overviewCount">${completedCount}/${items.length}</div>
+        <div class="overviewTools">
+          <button id="syncStatus" class="status pending" type="button" onclick="configureSync()">Pending Sync</button>
+          <div class="overviewCount">${completedCount}/${items.length}</div>
+        </div>
       </div>
       <div class="overviewList">
         ${items.map((item,i)=>overviewRow(item, i, !!state.completed[itemId(item, i)], state)).join("")}
       </div>
     </section>`;
   saveNav();
+  updateSyncStatus();
 }
 function overviewRow(item, index, done, state){
   const id = itemId(item, index);
@@ -280,7 +283,7 @@ function setWeightRow(item, setIndex, weight){
       <button class="stepBtn" onclick="adjustSetWeight(${setIndex}, -5)" aria-label="Decrease set ${setIndex + 1} weight">−</button>
       <input class="setWeightInput" data-set-index="${setIndex}" type="number" inputmode="decimal" enterkeyhint="done" placeholder="${item.suggestedWeight}" value="${missed ? "" : escapeHtml(weight)}" ${missed ? "disabled" : ""}>
       <button class="stepBtn" onclick="adjustSetWeight(${setIndex}, 5)" aria-label="Increase set ${setIndex + 1} weight">+</button>
-      <button class="missBtn ${missed ? "missed" : ""}" onclick="toggleSetMissed(${setIndex})" aria-label="Did not complete set ${setIndex + 1}">DNC</button>
+      <button class="missBtn ${missed ? "missed" : ""}" onclick="toggleSetMissed(${setIndex})" aria-label="Did not complete set ${setIndex + 1}">${missed ? "Missed" : "DNC"}</button>
     </div>`;
 }
 function finalWeight(value){
@@ -476,6 +479,7 @@ function configureSync(){
 function updateSyncStatus(){
   const pending = readList(PENDING_KEY).length;
   const status = $("syncStatus");
+  if(!status) return;
   status.classList.remove("synced", "pending", "offline");
   if(!navigator.onLine){
     status.innerText = "Offline";
