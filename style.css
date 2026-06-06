@@ -65,6 +65,7 @@ body[data-mode="settings"] main{justify-content:flex-start}
 .checkOption input{width:22px;height:22px;min-height:22px;padding:0;margin:0;justify-self:center}
 .setupGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .setupGrid label{display:flex;flex-direction:column;gap:5px}
+.setupGrid .wideField{grid-column:1/-1}
 .setupInput{font-size:16px;text-align:left}
 .tuneGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .pathGrid{display:flex;flex-direction:column;gap:9px}

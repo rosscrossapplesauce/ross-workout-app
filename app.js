@@ -347,6 +347,7 @@ function renderSettings(){
   $("overviewBtn").onclick = renderHome;
   $("screen").innerHTML = `
     <section class="settingsPanel scrollPanel">
+      ${planMessage ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
       <div class="setupGroup">
         <div class="setupTitle">Current stats</div>
         <div class="setupGrid">
@@ -600,7 +601,7 @@ function renderSetup(mode, path = "guided"){
           <label>Start date<input id="startDate" type="date" required value="${escapeHtml(startDefault)}"></label>
           <label>Days/week<input id="daysPerWeek" type="number" inputmode="numeric" placeholder="5" value="${escapeHtml(daysDefault)}"></label>
           <label>Workout length<input id="workoutLength" type="number" inputmode="numeric" placeholder="45" value="${escapeHtml(lengthDefault)}"></label>
-          <label>Limitations<input id="avoidMovements" placeholder="Injuries, machines to avoid..." value="${escapeHtml(current.avoidMovements || "")}"></label>
+          <label class="wideField">Limitations<input id="avoidMovements" placeholder="Injuries, machines to avoid..." value="${escapeHtml(current.avoidMovements || "")}"></label>
         </div>
       </div>
       <details class="advancedSetup" ${path === "advanced" ? "open" : ""}>
