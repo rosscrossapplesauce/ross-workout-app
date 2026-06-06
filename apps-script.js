@@ -56,9 +56,15 @@ function doGet(e) {
     }
   } else if (action === "generatePlan") {
     try {
-      payload = generateTrainingPlan(spreadsheet, e.parameter);
+      payload = generateTrainingPlan(spreadsheet, e.parameter, false);
     } catch (error) {
       payload = {ok: false, error: error.message || "Could not generate a training plan."};
+    }
+  } else if (action === "extendPlan") {
+    try {
+      payload = generateTrainingPlan(spreadsheet, e.parameter, true);
+    } catch (error) {
+      payload = {ok: false, error: error.message || "Could not extend the training plan."};
     }
   } else {
     payload = {ok: true, message: "Workout sheets are ready."};
@@ -196,11 +202,11 @@ function getExerciseAlternatives(spreadsheet, params) {
   return {ok: true, alternatives, cached: false};
 }
 
-function generateTrainingPlan(spreadsheet, params) {
+function generateTrainingPlan(spreadsheet, params, extendExisting) {
   const payload = parseJson(params.payload || "{}");
   const settings = payload.settings || {};
-  if (!settings.goals || !settings.goals.length) {
-    return {ok: false, error: "Save at least one goal before generating a plan."};
+  if ((!settings.goals || !settings.goals.length) && !settings.mainGoal) {
+    return {ok: false, error: "Save a main goal before generating a plan."};
   }
 
   const apiKey = PropertiesService.getScriptProperties().getProperty("OPENAI_API_KEY");
@@ -209,9 +215,9 @@ function generateTrainingPlan(spreadsheet, params) {
   }
 
   const model = PropertiesService.getScriptProperties().getProperty("OPENAI_MODEL") || "gpt-5.4-mini";
-  const plan = callOpenAIForPlan(apiKey, model, payload);
+  const plan = callOpenAIForPlan(apiKey, model, payload, extendExisting);
   plan.generatedAt = new Date().toISOString();
-  setSetting(spreadsheet, "latestGeneratedPlan", JSON.stringify(plan));
+  setSetting(spreadsheet, extendExisting ? "latestPlanExtension" : "latestGeneratedPlan", JSON.stringify(plan));
   return {ok: true, plan};
 }
 
@@ -223,10 +229,10 @@ function parseJson(value) {
   }
 }
 
-function callOpenAIForPlan(apiKey, model, payload) {
+function callOpenAIForPlan(apiKey, model, payload, extendExisting) {
   const settings = payload.settings || {};
   const prompt = [
-    "Create a conservative, gym-friendly training plan as JSON.",
+    extendExisting ? "Create the next 4 weeks of this gym-friendly training plan as JSON." : "Create a conservative, gym-friendly training plan as JSON.",
     "The user is active but returning to lifting after time away. Favor safe starting weights, gradual progression, and simple execution.",
     "Do not provide medical advice. Avoid injury diagnosis. Encourage easing up if pain appears.",
     "Keep workouts efficient and minimal. One day should fit the requested workout length.",
@@ -244,6 +250,9 @@ function callOpenAIForPlan(apiKey, model, payload) {
     "",
     "Recent workout history:",
     JSON.stringify(payload.history || []),
+    "",
+    extendExisting ? "Current plan to continue:" : "Current plan to continue: none",
+    JSON.stringify(payload.currentPlan || null),
     "",
     "JSON shape: {\"plan\":{\"name\":\"...\",\"summary\":\"...\",\"notes\":\"...\",\"units\":\"lb unless noted\",\"weeks\":[...]}}"
   ].join("\n");
