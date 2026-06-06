@@ -311,8 +311,9 @@ function generatedPlanSummary(plan){
 function planSummary(settings){
   return `
     <div class="summaryTitle">Saved setup</div>
-    <div>${escapeHtml((settings.goals || []).join(" + ") || "No goals selected")}</div>
+    <div>${escapeHtml(settings.mainGoal || (settings.goals || []).join(" + ") || "No goals selected")}</div>
     <div>${escapeHtml(settings.daysPerWeek || "?")} days/week · ${escapeHtml(settings.workoutLength || "?")} min · ${escapeHtml(settings.gymAccess || "gym")} access</div>
+    ${settings.trainingExperience ? `<div>${escapeHtml(settings.trainingExperience)} · ${escapeHtml(settings.trainingPace || "steady pace")}</div>` : ""}
     ${settings.crossTrainingSport ? `<div>Cross-training for ${escapeHtml(settings.crossTrainingSport)}</div>` : ""}`;
 }
 function renderSetup(mode){
@@ -339,6 +340,32 @@ function renderSetup(mode){
   $("overviewBtn").onclick = renderHome;
   $("screen").innerHTML = `
     <section class="setupPanel scrollPanel">
+      <div class="setupHint">New to gym tracking? Leave weights blank. The app will start conservatively and adjust from what you log.</div>
+      <div class="setupGroup">
+        <div class="setupTitle">Quick start</div>
+        <div class="setupGrid">
+          <label>Main goal<select id="mainGoal">
+            <option>Build muscle</option>
+            <option>Lose weight</option>
+            <option>Build endurance</option>
+            <option>Return from injury</option>
+            <option>General fitness</option>
+            <option>Hybrid strength + cardio</option>
+          </select></label>
+          <label>Gym experience<select id="trainingExperience">
+            <option>Athletic, new to gym</option>
+            <option>Beginner</option>
+            <option>Returning after time away</option>
+            <option>Intermediate</option>
+          </select></label>
+          <label>Pace<select id="trainingPace">
+            <option>Conservative</option>
+            <option>Moderate</option>
+            <option>Ambitious</option>
+          </select></label>
+          <label>Limitations<input id="avoidMovements" placeholder="Injuries, machines to avoid..." value="${escapeHtml(current.avoidMovements || "")}"></label>
+        </div>
+      </div>
       <div class="setupGroup">
         <div class="setupTitle">Goals</div>
         <div class="checkGrid">${goalOptions().map(goal => checkOption("goal", goal, (current.goals || []).includes(goal))).join("")}</div>
@@ -352,12 +379,16 @@ function renderSetup(mode){
         <label>Days/week<input id="daysPerWeek" type="number" inputmode="numeric" placeholder="5" value="${escapeHtml(current.daysPerWeek || "")}"></label>
         <label>Preferred rest days<input id="restDays" placeholder="Sunday, Thursday" value="${escapeHtml(current.restDays || "")}"></label>
       </div>
-      <div class="setupGroup">
-        <div class="setupTitle">Optional strength starting points</div>
+      <details class="advancedSetup">
+        <summary>Advanced starting weights</summary>
+        <div class="setupHint">Optional. If you do not know these, skip them.</div>
         ${defaultStrengthSamples(current).map((sample,i) => strengthRow(i, sample)).join("")}
-      </div>
+      </details>
     </section>`;
   if(current.gymAccess) $("gymAccess").value = current.gymAccess;
+  if(current.mainGoal) $("mainGoal").value = current.mainGoal;
+  if(current.trainingExperience) $("trainingExperience").value = current.trainingExperience;
+  if(current.trainingPace) $("trainingPace").value = current.trainingPace;
 }
 function goalOptions(){
   return ["Returning to activity", "Maintenance", "Cross training", "Build endurance", "Build muscle", "Hybrid", "Weight loss"];
@@ -394,6 +425,10 @@ function savePlanSetup(mode){
   const settings = {
     mode,
     goals,
+    mainGoal: $("mainGoal").value,
+    trainingExperience: $("trainingExperience").value,
+    trainingPace: $("trainingPace").value,
+    avoidMovements: $("avoidMovements").value.trim(),
     crossTrainingSport: $("crossTrainingSport").value.trim(),
     gymAccess: $("gymAccess").value,
     equipment: $("equipment").value.trim(),
@@ -403,7 +438,16 @@ function savePlanSetup(mode){
     restDays: $("restDays").value.trim(),
     strengthSamples,
     generatedAt: new Date().toISOString(),
-    planBias: generatePlanBias({goals, crossTrainingSport:$("crossTrainingSport").value.trim(), equipment:$("equipment").value.trim(), strengthSamples})
+    planBias: generatePlanBias({
+      goals,
+      mainGoal:$("mainGoal").value,
+      trainingExperience:$("trainingExperience").value,
+      trainingPace:$("trainingPace").value,
+      avoidMovements:$("avoidMovements").value.trim(),
+      crossTrainingSport:$("crossTrainingSport").value.trim(),
+      equipment:$("equipment").value.trim(),
+      strengthSamples
+    })
   };
   writeObject(PLAN_SETTINGS_KEY, settings);
   planMessage = "Setup saved. Generate a private plan when you're ready.";
@@ -521,6 +565,10 @@ function normalizeGeneratedPlan(plan){
 function generatePlanBias(settings){
   const goals = settings.goals || [];
   return {
+    mainGoal: settings.mainGoal || "",
+    experience: settings.trainingExperience || "",
+    pace: settings.trainingPace || "",
+    avoidMovements: settings.avoidMovements || "",
     conditioning: goals.includes("Build endurance") || goals.includes("Weight loss") || goals.includes("Hybrid") ? "rowing-forward aerobic base with one hard interval day" : "moderate conditioning",
     strength: goals.includes("Build muscle") ? "progressive hypertrophy with conservative loading" : "maintenance-friendly strength progression",
     sport: settings.crossTrainingSport || "",
