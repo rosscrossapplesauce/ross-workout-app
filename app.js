@@ -142,6 +142,11 @@ function formatDate(value){
   if(!value) return "";
   return new Date(value).toLocaleDateString(undefined, {month:"short", day:"numeric", year:"numeric"});
 }
+function todayInputDate(){
+  const date = new Date();
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return offsetDate.toISOString().slice(0, 10);
+}
 function getContextId(id){
   return `${getPlanSource()}.w${weekIndex}.d${dayIndex}.${id}`;
 }
@@ -612,11 +617,8 @@ function discardPendingPlan(){
   renderHome();
 }
 function addAnotherMonth(){
-  const settings = readObject(PLAN_SETTINGS_KEY, null);
-  if(!settings){
-    alert("Save your plan setup before adding another month.");
-    return;
-  }
+  const activePlan = getActivePlan();
+  const settings = ensurePlanSettings(activePlan);
   if(!getSyncUrl()){
     alert("Add your Apps Script Web App URL before adding another month.");
     return;
@@ -625,7 +627,6 @@ function addAnotherMonth(){
     alert("You're offline. Add another month when your phone is back online.");
     return;
   }
-  const activePlan = getActivePlan();
   monthMessage = "Building the next month...";
   overviewOpen = true;
   render();
@@ -674,6 +675,53 @@ function addAnotherMonth(){
     render();
   }, 45000);
   document.body.appendChild(script);
+}
+function ensurePlanSettings(plan){
+  const saved = readObject(PLAN_SETTINGS_KEY, null);
+  if(saved && saved.mainGoal && saved.startDate) return saved;
+  const settings = {
+    ...(saved || {}),
+    mode: saved && saved.mode ? saved.mode : "auto",
+    goals: saved && Array.isArray(saved.goals) ? saved.goals : inferredGoals(plan),
+    mainGoal: saved && saved.mainGoal ? saved.mainGoal : "Continue current workout plan",
+    trainingExperience: saved && saved.trainingExperience ? saved.trainingExperience : "Returning after time away",
+    trainingPace: saved && saved.trainingPace ? saved.trainingPace : "Conservative",
+    avoidMovements: saved && saved.avoidMovements ? saved.avoidMovements : "",
+    startDate: saved && saved.startDate ? saved.startDate : todayInputDate(),
+    crossTrainingSport: saved && saved.crossTrainingSport ? saved.crossTrainingSport : "rowing and running",
+    gymAccess: saved && saved.gymAccess ? saved.gymAccess : "Yes",
+    workoutLength: saved && saved.workoutLength ? saved.workoutLength : inferredWorkoutLength(plan),
+    daysPerWeek: saved && saved.daysPerWeek ? saved.daysPerWeek : String((plan.weeks && plan.weeks[0] && plan.weeks[0].days || []).filter(day => getItems(day).some(item => item.kind !== "rest")).length || ""),
+    restDays: saved && saved.restDays ? saved.restDays : inferredRestDays(plan),
+    strengthSamples: saved && saved.strengthSamples ? saved.strengthSamples : [],
+    generatedAt: saved && saved.generatedAt ? saved.generatedAt : new Date().toISOString()
+  };
+  settings.planBias = generatePlanBias(settings);
+  writeObject(PLAN_SETTINGS_KEY, settings);
+  return settings;
+}
+function inferredGoals(plan){
+  const text = `${plan.name || ""} ${plan.summary || ""}`.toLowerCase();
+  const goals = [];
+  if(text.includes("endurance") || text.includes("row")) goals.push("Build endurance");
+  if(text.includes("muscle") || text.includes("strength")) goals.push("Build muscle");
+  if(text.includes("loss") || text.includes("fat")) goals.push("Weight loss");
+  return goals.length ? goals : ["Hybrid"];
+}
+function inferredWorkoutLength(plan){
+  const firstDay = plan.weeks && plan.weeks[0] && plan.weeks[0].days && plan.weeks[0].days.find(day => day.row || day.run || (day.exercises && day.exercises.length));
+  if(!firstDay) return "";
+  const rowMinutes = firstDay.row && firstDay.row.duration && firstDay.row.duration.match(/\d+/);
+  if(rowMinutes) return rowMinutes[0];
+  return firstDay.exercises && firstDay.exercises.length ? "45" : "";
+}
+function inferredRestDays(plan){
+  const firstWeek = plan.weeks && plan.weeks[0] && plan.weeks[0].days || [];
+  return firstWeek
+    .filter(day => !day.row && !day.run && (!day.exercises || !day.exercises.length))
+    .map(day => day.day)
+    .filter(Boolean)
+    .join(", ");
 }
 function compactPlanForGeneration(plan){
   return {
@@ -883,7 +931,7 @@ function renderCalendarOverview(){
         </div>
       </div>
       <div class="overviewActions">
-        <button type="button" onclick="toggleOverviewMode()">List view</button>
+        <button type="button" onclick="toggleOverviewMode()">Today's workout</button>
         <button type="button" onclick="addAnotherMonth()">Add another month</button>
       </div>
       ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
