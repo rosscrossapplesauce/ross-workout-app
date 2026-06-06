@@ -1543,6 +1543,7 @@ function showWorkoutMenu(type = "main"){
     ` : `
       <button type="button" onclick="openWorkoutList()">Today's list</button>
       <button type="button" onclick="openWorkoutCalendar()">Calendar</button>
+      <button type="button" onclick="openSettingsFromMenu()">Settings</button>
       <button type="button" onclick="goHomeFromMenu()">Home</button>
       <button type="button" onclick="closeWorkoutMenu()">Cancel</button>
     `;
@@ -1572,6 +1573,10 @@ function openWorkoutCalendar(){
   overviewMode = "calendar";
   overviewOpen = true;
   render();
+}
+function openSettingsFromMenu(){
+  closeWorkoutMenu();
+  renderSettings();
 }
 function goHomeFromMenu(){
   closeWorkoutMenu();
