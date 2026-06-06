@@ -82,6 +82,7 @@ body[data-mode="progress"] main{justify-content:flex-start}
 .altList{display:flex;flex-direction:column;gap:5px;padding-right:34px}
 .altItem{background:#07101d;border:1px solid var(--line);border-radius:10px;padding:7px}
 .altName{font-size:14px;font-weight:950;color:var(--text)}
+.altRx{font-size:12px;font-weight:900;color:#86efac;margin-top:2px}
 .altDetail{font-size:12px;line-height:1.18;color:#dbeafe;font-weight:750;margin-top:2px}
 .altReason{font-size:11px;line-height:1.18;color:var(--muted);font-weight:700;margin-top:2px}
 .altActions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
