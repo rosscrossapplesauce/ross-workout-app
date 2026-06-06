@@ -20,6 +20,8 @@ const EXERCISE_PREFS_KEY = "rossWorkout.v1.exercisePreferences";
 const GENERATED_PLAN_KEY = "rossWorkout.v1.generatedPlan";
 const PENDING_PLAN_KEY = "rossWorkout.v1.pendingPlan";
 const PLAN_SOURCE_KEY = "rossWorkout.v1.planSource";
+const PLAN_ARCHIVE_KEY = "rossWorkout.v1.planArchive";
+const USER_STATS_KEY = "rossWorkout.v1.userStats";
 
 async function init(){
   lockViewportHeight();
@@ -76,25 +78,14 @@ function getDay(){
   return plan.weeks[weekIndex].days[dayIndex];
 }
 function getPlanSource(){
-  return hasGeneratedPlan() && localStorage.getItem(PLAN_SOURCE_KEY) === "generated" ? "generated" : "original";
+  return hasGeneratedPlan() ? "generated" : "original";
 }
 function getActivePlan(){
-  return getPlanSource() === "generated" ? readObject(GENERATED_PLAN_KEY, data) : data;
+  return hasGeneratedPlan() ? readObject(GENERATED_PLAN_KEY, data) : data;
 }
 function hasGeneratedPlan(){
   const plan = readObject(GENERATED_PLAN_KEY, null);
   return isValidPlan(plan);
-}
-function switchPlan(source){
-  if(source === "generated" && !hasGeneratedPlan()) return;
-  localStorage.setItem(PLAN_SOURCE_KEY, source === "generated" ? "generated" : "original");
-  weekIndex = 0;
-  dayIndex = 0;
-  itemIndex = 0;
-  overviewOpen = false;
-  buildSelectors();
-  saveNav();
-  renderHome();
 }
 function getItems(day){
   const arr = [];
@@ -274,42 +265,31 @@ function renderHome(){
   overviewOpen = false;
   document.body.dataset.mode = "home";
   document.body.dataset.overview = "false";
-  const settings = readObject(PLAN_SETTINGS_KEY, null);
-  const generatedPlan = hasGeneratedPlan() ? readObject(GENERATED_PLAN_KEY, null) : null;
   const pendingPlan = readObject(PENDING_PLAN_KEY, null);
-  const generatedActive = getPlanSource() === "generated";
   const activePlan = getActivePlan();
   $("weekLabel").innerText = "Workout";
   $("dayTitle").innerHTML = `<span>Ross Workout</span><span>Coach</span>`;
-  $("progressText").innerText = generatedActive ? "Generated plan active" : (settings ? "Custom goals saved" : "Current hybrid fat-loss plan");
+  $("progressText").innerText = hasGeneratedPlan() ? "Current plan active" : "Starter plan active";
   $("scoreText").innerText = "";
-  $("progressBar").style.width = settings ? "100%" : "0%";
+  $("progressBar").style.width = "100%";
   $("prevBtn").style.display = "none";
   $("nextBtn").style.display = "none";
   $("doneBtn").style.display = "none";
   $("homeBtn").style.display = "none";
-  $("overviewBtn").innerText = "Workout";
-  $("overviewBtn").onclick = () => render();
+  $("overviewBtn").innerText = "⚙";
+  $("overviewBtn").onclick = renderSettings;
   $("screen").innerHTML = `
     <section class="homePanel scrollPanel">
       <div>
-        <div class="homeTitle">${generatedActive ? "Generated Plan" : "Current Plan"}</div>
+        <div class="homeTitle">Current Plan</div>
         <div class="homeText">${escapeHtml(activePlan.summary || "Fat-loss hybrid training with rowing, conservative strength progression, upper/shoulder emphasis, lower-body work, one easy run, and Sunday rest.")}</div>
       </div>
       <div class="homeActions">
-        <button class="primary" onclick="render()">Continue current plan</button>
-        ${settings ? `<button onclick="generatePersonalPlan()">Generate plan preview</button>` : ""}
-        ${generatedPlan && !generatedActive ? `<button onclick="switchPlan('generated')">Use saved generated plan</button>` : ""}
-        ${generatedActive ? `<button onclick="switchPlan('original')">Use starter plan</button>` : ""}
-        <button onclick="renderSetup('change')">Update plan goals</button>
-        ${settings ? `<button onclick="renderScheduleSetup()">Edit dates + rest days</button>` : ""}
-        <button onclick="renderSetup('new')">Start a new plan</button>
-        <button onclick="renderProgress()">Progress</button>
+        <button class="primary continueBtn" onclick="render()">Continue current plan</button>
+        <button class="textBtn" onclick="renderSetup('new')">Create a new plan</button>
       </div>
       ${planMessage ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
       ${pendingPlan ? pendingPlanSummary(pendingPlan) : ""}
-      ${generatedPlan ? `<div class="planSummary">${generatedPlanSummary(generatedPlan)}</div>` : ""}
-      ${settings ? `<div class="planSummary">${planSummary(settings)}</div>` : ""}
     </section>`;
 }
 function pendingPlanSummary(plan){
@@ -340,6 +320,89 @@ function planSummary(settings){
     <div>${escapeHtml(settings.daysPerWeek || "?")} days/week · ${escapeHtml(settings.workoutLength || "?")} min · starts ${escapeHtml(settings.startDate || "?")}</div>
     ${settings.trainingExperience ? `<div>${escapeHtml(settings.trainingExperience)} · ${escapeHtml(settings.trainingPace || "steady pace")}</div>` : ""}
     ${settings.crossTrainingSport ? `<div>Cross-training for ${escapeHtml(settings.crossTrainingSport)}</div>` : ""}`;
+}
+function renderSettings(){
+  screenMode = "settings";
+  overviewOpen = false;
+  document.body.dataset.mode = "settings";
+  document.body.dataset.overview = "false";
+  const stats = readObject(USER_STATS_KEY, {});
+  const archive = readList(PLAN_ARCHIVE_KEY);
+  $("weekLabel").innerText = "Settings";
+  $("dayTitle").innerHTML = `<span>App</span><span>Settings</span>`;
+  $("progressText").innerText = "Profile + plans";
+  $("scoreText").innerText = "";
+  $("progressBar").style.width = "100%";
+  $("prevBtn").style.display = "none";
+  $("nextBtn").style.display = "none";
+  $("doneBtn").style.display = "none";
+  $("homeBtn").style.display = "none";
+  $("overviewBtn").innerText = "Home";
+  $("overviewBtn").onclick = renderHome;
+  $("screen").innerHTML = `
+    <section class="settingsPanel scrollPanel">
+      <div class="setupGroup">
+        <div class="setupTitle">Current stats</div>
+        <div class="setupGrid">
+          <label>Weight<input id="statWeight" type="number" inputmode="decimal" placeholder="lb" value="${escapeHtml(stats.weight || "")}"></label>
+          <label>Height<input id="statHeight" placeholder="5'10&quot;" value="${escapeHtml(stats.height || "")}"></label>
+          <label>Sex<select id="statSex"><option></option><option>Male</option><option>Female</option><option>Other</option></select></label>
+          <label>Age<input id="statAge" type="number" inputmode="numeric" value="${escapeHtml(stats.age || "")}"></label>
+          <label>Resting HR<input id="statRestingHr" type="number" inputmode="numeric" value="${escapeHtml(stats.restingHr || "")}"></label>
+          <label>Cardio baseline<input id="statCardio" placeholder="2k row, 5k, etc." value="${escapeHtml(stats.cardioBaseline || "")}"></label>
+        </div>
+        <button class="primary" onclick="saveUserStats()">Save stats</button>
+      </div>
+      <div class="settingsActions">
+        <button onclick="renderProgress()">Progress</button>
+        <button onclick="configureSync()">Sync settings</button>
+      </div>
+      <details class="advancedSetup">
+        <summary>Inactive plans</summary>
+        ${archive.length ? archive.map(planArchiveCard).join("") : `<div class="homeText">Past plans will appear here when you replace the current plan.</div>`}
+      </details>
+    </section>`;
+  if(stats.sex) $("statSex").value = stats.sex;
+}
+function saveUserStats(){
+  const stats = {
+    weight: $("statWeight").value.trim(),
+    height: $("statHeight").value.trim(),
+    sex: $("statSex").value,
+    age: $("statAge").value.trim(),
+    restingHr: $("statRestingHr").value.trim(),
+    cardioBaseline: $("statCardio").value.trim(),
+    updatedAt: new Date().toISOString()
+  };
+  writeObject(USER_STATS_KEY, stats);
+  planMessage = "Stats saved.";
+  renderSettings();
+}
+function planArchiveCard(entry, index){
+  return `
+    <div class="planSummary">
+      <div class="summaryTitle">${escapeHtml(entry.name || "Past plan")}</div>
+      <div>${escapeHtml(entry.weeks || "?")} weeks · inactive ${escapeHtml(formatDate(entry.savedAt))}</div>
+      ${entry.summary ? `<div>${escapeHtml(entry.summary)}</div>` : ""}
+      <button onclick="activateArchivedPlan(${index})">Make active</button>
+    </div>`;
+}
+function activateArchivedPlan(index){
+  const archive = readList(PLAN_ARCHIVE_KEY);
+  const entry = archive[index];
+  if(!entry || !isValidPlan(entry.plan)) return;
+  archiveCurrentPlan("Moved to inactive plans");
+  const refreshed = readList(PLAN_ARCHIVE_KEY);
+  refreshed.splice(index, 1);
+  writeList(PLAN_ARCHIVE_KEY, refreshed);
+  writeObject(GENERATED_PLAN_KEY, normalizeGeneratedPlan(entry.plan));
+  weekIndex = 0;
+  dayIndex = 0;
+  itemIndex = 0;
+  buildSelectors();
+  saveNav();
+  planMessage = "Plan made active.";
+  renderHome();
 }
 function renderScheduleSetup(){
   screenMode = "schedule";
@@ -524,8 +587,13 @@ function savePlanSetup(mode){
   };
   writeObject(PLAN_SETTINGS_KEY, settings);
   localStorage.removeItem(PENDING_PLAN_KEY);
-  planMessage = "Setup saved. Generate a private plan when you're ready.";
-  renderHome();
+  if(getSyncUrl() && navigator.onLine){
+    planMessage = mode === "new" ? "Creating your plan preview..." : "Updating your plan preview...";
+    generatePersonalPlan();
+  } else {
+    planMessage = "Setup saved. Add sync settings to create a plan preview.";
+    renderSettings();
+  }
 }
 function generatePersonalPlan(){
   const settings = readObject(PLAN_SETTINGS_KEY, null);
@@ -535,16 +603,16 @@ function generatePersonalPlan(){
     return;
   }
   if(!getSyncUrl()){
-    planMessage = "Add your Apps Script Web App URL before generating a private plan.";
-    renderHome();
+    planMessage = "Add sync settings before creating a plan preview.";
+    renderSettings();
     return;
   }
   if(!navigator.onLine){
-    planMessage = "You're offline. Generate the plan when your phone is back online.";
+    planMessage = "You're offline. Create the plan preview when your phone is back online.";
     renderHome();
     return;
   }
-  planMessage = "Generating your private plan...";
+  planMessage = "Creating your plan preview...";
   renderHome();
   const callback = `rossWorkoutPlan${Date.now()}`;
   const script = document.createElement("script");
@@ -569,6 +637,7 @@ function generatePersonalPlan(){
   const separator = getSyncUrl().includes("?") ? "&" : "?";
   const payload = {
     settings,
+    stats: readObject(USER_STATS_KEY, {}),
     preferences: readObject(EXERCISE_PREFS_KEY, {}),
     history: compactGenerationHistory()
   };
@@ -598,9 +667,9 @@ function activatePendingPlan(){
     return;
   }
   const previewType = plan.previewType || "new";
+  if(previewType !== "extension") archiveCurrentPlan("Replaced by new plan");
   writeObject(GENERATED_PLAN_KEY, normalizeGeneratedPlan(plan));
   localStorage.removeItem(PENDING_PLAN_KEY);
-  localStorage.setItem(PLAN_SOURCE_KEY, "generated");
   if(previewType !== "extension"){
     weekIndex = 0;
     dayIndex = 0;
@@ -610,6 +679,20 @@ function activatePendingPlan(){
   saveNav();
   planMessage = "Generated plan is active.";
   renderHome();
+}
+function archiveCurrentPlan(reason){
+  const current = getActivePlan();
+  if(!isValidPlan(current)) return;
+  const archive = readList(PLAN_ARCHIVE_KEY);
+  archive.push({
+    name: current.name || (hasGeneratedPlan() ? "Generated plan" : "Starter plan"),
+    summary: current.summary || "",
+    weeks: current.weeks.length,
+    plan: current,
+    reason,
+    savedAt: new Date().toISOString()
+  });
+  writeList(PLAN_ARCHIVE_KEY, archive.slice(-12));
 }
 function discardPendingPlan(){
   localStorage.removeItem(PENDING_PLAN_KEY);
@@ -659,6 +742,7 @@ function addAnotherMonth(){
     callback,
     payload: JSON.stringify({
       settings,
+      stats: readObject(USER_STATS_KEY, {}),
       currentPlan: compactPlanForGeneration(activePlan),
       history: compactGenerationHistory()
     })
@@ -817,8 +901,8 @@ function renderProgress(){
   document.body.dataset.mode = "progress";
   document.body.dataset.overview = "false";
   $("weekLabel").innerText = "Progress";
-  $("dayTitle").innerHTML = `<span>Strength</span><span>Trends</span>`;
-  $("progressText").innerText = "Actual + projected";
+  $("dayTitle").innerHTML = `<span>Fitness</span><span>Score</span>`;
+  $("progressText").innerText = "Completed + planned";
   $("scoreText").innerText = "";
   $("progressBar").style.width = "100%";
   $("prevBtn").style.display = "none";
@@ -827,46 +911,118 @@ function renderProgress(){
   $("homeBtn").style.display = "none";
   $("overviewBtn").innerText = "Home";
   $("overviewBtn").onclick = renderHome;
-  const series = strengthSeries().slice(0, 3);
+  const model = fitnessModel();
   $("screen").innerHTML = `
     <section class="progressPanel scrollPanel">
-      ${series.length ? series.map(chartCard).join("") : `<div class="homeText">Log completed set weights to see strength charts here.</div>`}
-      <div class="legend"><span class="actualLine"></span>Actual <span class="planLine"></span>Current plan <span class="potentialLine"></span>Adjusted potential</div>
+      <div class="scoreCard">
+        <div class="scoreNumber">${model.score}</div>
+        <div>
+          <div class="summaryTitle">Overall fitness score</div>
+          <div class="homeText">Strength ${model.strengthScore}/50 · Cardio ${model.cardioScore}/50</div>
+        </div>
+      </div>
+      <div class="chartCard">
+        <div class="chartTitle">Trajectory</div>
+        ${fitnessChartSvg(model)}
+        <div class="legend"><span class="actualLine"></span>Completed <span class="planLine"></span>Current plan <span class="potentialLine"></span>Max training potential</div>
+      </div>
+      <div class="metricGrid">
+        <div class="metricCard"><span>${model.currentGain}%</span><strong>Projected monthly gain</strong></div>
+        <div class="metricCard"><span>${model.maxGain}%</span><strong>Max training potential</strong></div>
+        <div class="metricCard"><span>${model.cardioMinutes}</span><strong>Planned cardio min/wk</strong></div>
+        <div class="metricCard"><span>${model.strengthDays}</span><strong>Strength days/wk</strong></div>
+      </div>
+      <div class="planMessage">Score uses logged set weights, completed cardio, future planned workouts, and your saved stats. Max potential excludes diet and assumes recoverable training volume.</div>
+      <button class="primary" onclick="renderSetup('change')">Edit plan for maximum gains</button>
     </section>`;
 }
-function strengthSeries(){
+function fitnessModel(){
+  const history = readList(HISTORY_KEY).filter(record => record.completed);
+  const stats = readObject(USER_STATS_KEY, {});
+  const plan = getActivePlan();
+  const planStats = weeklyPlanStats(plan);
+  const strengthTrend = strengthTrendScore(history);
+  const completion = completionScore(history);
+  const cardioLogged = history.filter(record => record.itemType === "row" || record.itemType === "run").length;
+  const ageFactor = stats.age ? Math.max(.82, 1 - Math.max(0, Number(stats.age) - 35) * .004) : 1;
+  const strengthDose = Math.min(1, (planStats.strengthDays / 3) * .55 + (planStats.strengthSets / 45) * .45);
+  const cardioDose = Math.min(1, planStats.cardioMinutes / 300 + planStats.intervalDays * .08);
+  const strengthScore = Math.round(50 * Math.min(1, strengthDose * .62 + strengthTrend * .25 + completion * .13) * ageFactor);
+  const cardioScore = Math.round(50 * Math.min(1, cardioDose * .68 + Math.min(1, cardioLogged / 12) * .17 + completion * .15) * ageFactor);
+  const currentGain = Math.round((planStats.monthlyStrengthGain + planStats.monthlyCardioGain) / 2);
+  const maxGain = Math.round((MAX_STRENGTH_GAIN + MAX_CARDIO_GAIN) / 2);
+  return {
+    score: Math.max(0, Math.min(100, strengthScore + cardioScore)),
+    strengthScore,
+    cardioScore,
+    currentGain,
+    maxGain,
+    cardioMinutes: planStats.cardioMinutes,
+    strengthDays: planStats.strengthDays,
+    points: scorePoints(strengthScore + cardioScore, currentGain, maxGain)
+  };
+}
+const MAX_STRENGTH_GAIN = 12;
+const MAX_CARDIO_GAIN = 8;
+function weeklyPlanStats(plan){
+  const days = (plan.weeks || []).flatMap(week => week.days || []);
+  const weeks = Math.max(1, plan.weeks ? plan.weeks.length : 1);
+  const strengthDays = days.filter(day => day.exercises && day.exercises.length).length / weeks;
+  const strengthSets = days.reduce((sum, day) => sum + (day.exercises || []).reduce((inner, ex) => inner + (Number(ex.sets) || 0), 0), 0) / weeks;
+  const cardioMinutes = Math.round(days.reduce((sum, day) => sum + cardioMinutesForDay(day), 0) / weeks);
+  const intervalDays = days.filter(day => `${day.title || ""} ${day.row && day.row.type || ""}`.toLowerCase().includes("interval")).length / weeks;
+  return {
+    strengthDays: Math.round(strengthDays * 10) / 10,
+    strengthSets: Math.round(strengthSets),
+    cardioMinutes,
+    intervalDays,
+    monthlyStrengthGain: Math.round(MAX_STRENGTH_GAIN * Math.min(1, (strengthDays / 3) * .6 + (strengthSets / 45) * .4)),
+    monthlyCardioGain: Math.round(MAX_CARDIO_GAIN * Math.min(1, cardioMinutes / 300 + intervalDays * .08))
+  };
+}
+function cardioMinutesForDay(day){
+  let minutes = 0;
+  const rowMatch = day.row && day.row.duration && String(day.row.duration).match(/\d+/);
+  if(rowMatch) minutes += Number(rowMatch[0]);
+  const runMatch = day.run && (day.run.duration || day.run.distance) && String(day.run.duration || day.run.distance).match(/\d+/);
+  if(runMatch) minutes += day.run && day.run.duration ? Number(runMatch[0]) : Number(runMatch[0]) * 10;
+  return minutes;
+}
+function strengthTrendScore(history){
   const byExercise = {};
-  readList(HISTORY_KEY).filter(record => record.completed && record.exercise && record.setWeights).forEach(record => {
+  history.filter(record => record.exercise && record.setWeights).forEach(record => {
     const weight = finalWeight(record.setWeights);
     if(!Number.isFinite(weight)) return;
     if(!byExercise[record.exercise]) byExercise[record.exercise] = [];
     byExercise[record.exercise].push({date:record.timestamp, weight});
   });
-  return Object.entries(byExercise)
-    .map(([exercise, points]) => ({exercise, points:points.slice(-8)}))
-    .filter(item => item.points.length)
-    .sort((a,b)=>b.points.length-a.points.length);
+  const trends = Object.values(byExercise).map(points => {
+    const sorted = points.sort((a,b)=>new Date(a.date)-new Date(b.date)).slice(-6);
+    if(sorted.length < 2 || !sorted[0].weight) return 0;
+    return Math.max(0, (sorted[sorted.length - 1].weight - sorted[0].weight) / sorted[0].weight);
+  });
+  if(!trends.length) return 0;
+  return Math.min(1, trends.reduce((sum, value) => sum + value, 0) / trends.length / .18);
 }
-function chartCard(series){
-  return `<div class="chartCard"><div class="chartTitle">${escapeHtml(series.exercise)}</div>${chartSvg(series.points)}</div>`;
+function completionScore(history){
+  if(!history.length) return 0;
+  return Math.min(1, history.slice(-24).filter(record => record.completed).length / 24);
 }
-function chartSvg(points){
+function scorePoints(score, currentGain, maxGain){
+  return {
+    actual:[Math.max(0, score - 6), score],
+    plan:[score, Math.min(100, score + currentGain), Math.min(100, score + currentGain * 2)],
+    potential:[score, Math.min(100, score + maxGain), Math.min(100, score + maxGain * 2)]
+  };
+}
+function fitnessChartSvg(model){
   const width = 320, height = 140, pad = 18;
-  const weights = points.map(p => p.weight);
-  const min = Math.min(...weights) - 5;
-  const max = Math.max(...weights) + 15;
-  const x = i => pad + (points.length === 1 ? 0 : i * (width - pad * 2) / (points.length - 1));
-  const y = weight => height - pad - ((weight - min) / Math.max(1, max - min)) * (height - pad * 2);
-  const actual = points.map((p,i)=>`${x(i)},${y(p.weight)}`).join(" ");
-  const last = points[points.length-1].weight;
-  const gain = points.length > 1 ? Math.max(1, (last - points[0].weight) / points.length) : 2;
-  const startX = x(points.length - 1);
-  const planEnd = `${width-pad},${y(last + gain * 4)}`;
-  const potentialEnd = `${width-pad},${y(last + gain * 7)}`;
+  const y = value => height - pad - (value / 100) * (height - pad * 2);
+  const line = (values, startIndex = 0) => values.map((value, index)=>`${pad + (startIndex + index) * (width - pad * 2) / 3},${y(value)}`).join(" ");
   return `<svg class="chart" viewBox="0 0 ${width} ${height}" role="img">
-    <polyline class="actual" points="${actual}"></polyline>
-    <line class="plan" x1="${startX}" y1="${y(last)}" x2="${planEnd.split(",")[0]}" y2="${planEnd.split(",")[1]}"></line>
-    <line class="potential" x1="${startX}" y1="${y(last)}" x2="${potentialEnd.split(",")[0]}" y2="${potentialEnd.split(",")[1]}"></line>
+    <polyline class="actual" points="${line(model.points.actual)}"></polyline>
+    <polyline class="plan" points="${line(model.points.plan, 1)}"></polyline>
+    <polyline class="potential" points="${line(model.points.potential, 1)}"></polyline>
   </svg>`;
 }
 function renderOverview(day, items){
@@ -893,7 +1049,8 @@ function renderOverview(day, items){
         <div class="hint">${escapeHtml(day.recovery || "No workout today.")}</div>
         <div class="overviewActions">
           <button type="button" onclick="toggleOverviewMode()">Calendar view</button>
-          <button type="button" onclick="addAnotherMonth()">Add another month</button>
+          <button type="button" onclick="renderSetup('change')">Edit current plan</button>
+          <button type="button" onclick="addAnotherMonth()">Add month</button>
         </div>
         ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
       </section>`;
@@ -915,7 +1072,8 @@ function renderOverview(day, items){
       </div>
       <div class="overviewActions">
         <button type="button" onclick="toggleOverviewMode()">Calendar view</button>
-        <button type="button" onclick="addAnotherMonth()">Add another month</button>
+        <button type="button" onclick="renderSetup('change')">Edit current plan</button>
+        <button type="button" onclick="addAnotherMonth()">Add month</button>
       </div>
       ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
       <div class="overviewList">
@@ -941,10 +1099,11 @@ function renderCalendarOverview(){
       </div>
       <div class="overviewActions">
         <button type="button" onclick="toggleOverviewMode()">Today's workout</button>
-        <button type="button" onclick="addAnotherMonth()">Add another month</button>
+        <button type="button" onclick="renderSetup('change')">Edit current plan</button>
+        <button type="button" onclick="addAnotherMonth()">Add month</button>
       </div>
       ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
-      <div class="calendarGrid">
+      <div class="calendarGrid scrollPanel">
         ${plan.weeks.map((week, wIdx) => `
           <div class="calendarWeek">
             <div class="calendarWeekTitle">Week ${escapeHtml(week.week || wIdx + 1)}</div>
@@ -1431,6 +1590,7 @@ function renderCurrentScreen(){
   else if(screenMode === "setup") renderSetup("change");
   else if(screenMode === "schedule") renderScheduleSetup();
   else if(screenMode === "progress") renderProgress();
+  else if(screenMode === "settings") renderSettings();
   else render();
 }
 function markDone(){
