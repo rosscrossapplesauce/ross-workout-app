@@ -26,6 +26,8 @@ Live site: https://rosscrossapplesauce.github.io/ross-workout-app/
 - `style.css` - Mobile-first layout and iPhone safe-area styling.
 - `app.js` - Workout navigation, saved progress, and local interactions.
 - `apps-script.js` - Google Apps Script code for Sheets sync.
+- `appsscript.json` - Apps Script manifest for CLI deployments.
+- `.clasp.example.json` - Local Apps Script project config template.
 - `workouts.json` - The workout plan data.
 - `manifest.json` - PWA install metadata.
 
@@ -98,15 +100,67 @@ The status pill shows:
 - `Pending Sync` when records are queued or the Web App URL has not been added.
 - `Offline` when the phone is offline.
 
-### 5. Update the Apps Script Later
+### 5. Set Up Apps Script CLI Updates
+
+After the first manual deployment, you can update Apps Script from this repo with `clasp`.
+
+Install dependencies:
+
+```sh
+npm install
+```
+
+Sign in to Google:
+
+```sh
+npm run apps-script:login
+```
+
+Create your private local clasp config:
+
+```sh
+cp .clasp.example.json .clasp.json
+```
+
+Then edit `.clasp.json` and replace `PASTE_YOUR_APPS_SCRIPT_PROJECT_ID_HERE` with the Apps Script project ID from **Project Settings > Script ID**.
+
+Check the connection:
+
+```sh
+npm run apps-script:status
+```
+
+Open the connected Apps Script project:
+
+```sh
+npm run apps-script:open
+```
+
+`.clasp.json` and `.clasprc.json` are ignored by Git because they are local/private.
+
+### 6. Update the Apps Script Later
 
 If `apps-script.js` changes:
 
-1. Paste the new script into Apps Script.
-2. Click **Deploy > Manage deployments**.
-3. Edit the existing Web App deployment.
-4. Choose a new version.
-5. Deploy.
+1. Push the latest local script:
+
+```sh
+npm run apps-script:push
+```
+
+2. Deploy a new Apps Script version:
+
+```sh
+npm run apps-script:deploy -- -d "Update workout app script"
+```
+
+If you want to update an existing deployment instead of creating a new one, pass its deployment ID:
+
+```sh
+npm run apps-script:deploy -- -i YOUR_DEPLOYMENT_ID -d "Update workout app script"
+```
+
+You can find deployment IDs in Apps Script under **Deploy > Manage deployments**.
 
 ## Private OpenAI Setup
 
