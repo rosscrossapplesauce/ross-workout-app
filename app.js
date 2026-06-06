@@ -449,6 +449,73 @@ function saveScheduleSetup(){
   overviewMode = "calendar";
   renderHome();
 }
+function renderPlanTune(){
+  screenMode = "planTune";
+  overviewOpen = false;
+  document.body.dataset.mode = "setup";
+  document.body.dataset.overview = "false";
+  $("weekLabel").innerText = "Plan";
+  $("dayTitle").innerHTML = `<span>Edit</span><span>Current Plan</span>`;
+  $("progressText").innerText = "Choose what should change";
+  $("scoreText").innerText = "";
+  $("progressBar").style.width = "100%";
+  $("prevBtn").style.display = "none";
+  $("nextBtn").style.display = "none";
+  $("doneBtn").style.display = "none";
+  $("resetBtn").style.display = "none";
+  $("homeBtn").style.display = "none";
+  $("overviewBtn").innerText = "Overview";
+  $("overviewBtn").onclick = showOverview;
+  const options = planTuneOptions();
+  $("screen").innerHTML = `
+    <section class="setupPanel scrollPanel">
+      <div class="setupHint">This keeps your logged exercise history and stats, then creates a preview before anything becomes active.</div>
+      <div class="tuneGrid">
+        ${options.map(option => `
+          <button type="button" class="tuneOption" onclick="selectPlanTune('${escapeHtml(option.id)}')">
+            <strong>${escapeHtml(option.label)}</strong>
+            <span>${escapeHtml(option.detail)}</span>
+          </button>`).join("")}
+      </div>
+      <button type="button" onclick="renderScheduleSetup()">Edit dates + rest days</button>
+    </section>`;
+}
+function planTuneOptions(){
+  return [
+    {id:"shorter", label:"Shorter workouts", detail:"Reduce daily time and keep the highest-value work."},
+    {id:"longer", label:"Longer workouts", detail:"Add useful volume without changing the goal."},
+    {id:"more_strength", label:"More strength", detail:"Prioritize progressive lifting and major muscle groups."},
+    {id:"less_strength", label:"Less strength", detail:"Reduce lifting volume and preserve maintenance work."},
+    {id:"more_cardio", label:"More cardio", detail:"Add rowing/running volume and aerobic progression."},
+    {id:"less_cardio", label:"Less cardio", detail:"Ease up on conditioning while keeping fitness."},
+    {id:"more_arms", label:"More arms + upper", detail:"Bias shoulders, arms, chest, and back."},
+    {id:"more_legs", label:"More legs", detail:"Bias lower-body strength without wrecking recovery."},
+    {id:"recovery", label:"More recovery", detail:"Add rest, reduce intensity, and protect consistency."},
+    {id:"maximum_gains", label:"Maximum gains", detail:"Optimize recoverable strength and cardio progress."}
+  ];
+}
+function selectPlanTune(id){
+  const option = planTuneOptions().find(item => item.id === id);
+  if(!option) return;
+  const settings = ensurePlanSettings(getActivePlan());
+  settings.planAdjustment = option.label;
+  settings.planAdjustmentDetail = option.detail;
+  settings.generatedAt = new Date().toISOString();
+  settings.planBias = {
+    ...generatePlanBias(settings),
+    adjustment: option.label,
+    adjustmentDetail: option.detail
+  };
+  writeObject(PLAN_SETTINGS_KEY, settings);
+  localStorage.removeItem(PENDING_PLAN_KEY);
+  if(getSyncUrl() && navigator.onLine){
+    planMessage = `Creating preview: ${option.label}.`;
+    generatePersonalPlan();
+  } else {
+    planMessage = "Plan edit saved. Add sync settings to create a preview.";
+    renderSettings();
+  }
+}
 function renderSetup(mode){
   screenMode = "setup";
   overviewOpen = false;
@@ -933,7 +1000,7 @@ function renderProgress(){
         <div class="metricCard"><span>${model.strengthDays}</span><strong>Strength days/wk</strong></div>
       </div>
       <div class="planMessage">Score uses logged set weights, completed cardio, future planned workouts, and your saved stats. Max potential excludes diet and assumes recoverable training volume.</div>
-      <button class="primary" onclick="renderSetup('change')">Edit plan for maximum gains</button>
+      <button class="primary" onclick="selectPlanTune('maximum_gains')">Edit plan for maximum gains</button>
     </section>`;
 }
 function fitnessModel(){
@@ -1034,7 +1101,7 @@ function renderOverview(day, items){
   $("prevBtn").style.display = "none";
   $("nextBtn").style.display = "none";
   $("doneBtn").style.display = "block";
-  $("doneBtn").innerText = "Today's workout";
+  $("doneBtn").innerText = selectedWorkoutButtonLabel();
   $("overviewBtn").innerText = "Workout";
 
   if(overviewMode === "calendar"){
@@ -1049,7 +1116,7 @@ function renderOverview(day, items){
         <div class="hint">${escapeHtml(day.recovery || "No workout today.")}</div>
         <div class="overviewActions">
           <button type="button" onclick="toggleOverviewMode()">Calendar view</button>
-          <button type="button" onclick="renderSetup('change')">Edit current plan</button>
+          <button type="button" onclick="renderPlanTune()">Edit current plan</button>
           <button type="button" onclick="addAnotherMonth()">Add month</button>
         </div>
         ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
@@ -1072,7 +1139,7 @@ function renderOverview(day, items){
       </div>
       <div class="overviewActions">
         <button type="button" onclick="toggleOverviewMode()">Calendar view</button>
-        <button type="button" onclick="renderSetup('change')">Edit current plan</button>
+        <button type="button" onclick="renderPlanTune()">Edit current plan</button>
         <button type="button" onclick="addAnotherMonth()">Add month</button>
       </div>
       ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
@@ -1098,8 +1165,8 @@ function renderCalendarOverview(){
         </div>
       </div>
       <div class="overviewActions">
-        <button type="button" onclick="toggleOverviewMode()">Today's workout</button>
-        <button type="button" onclick="renderSetup('change')">Edit current plan</button>
+        <button type="button" onclick="toggleOverviewMode()">${escapeHtml(selectedWorkoutButtonLabel())}</button>
+        <button type="button" onclick="renderPlanTune()">Edit current plan</button>
         <button type="button" onclick="addAnotherMonth()">Add month</button>
       </div>
       ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
@@ -1131,6 +1198,11 @@ function planDateLabel(weekIdx, dayIdx){
   if(Number.isNaN(date.getTime())) return "";
   date.setDate(date.getDate() + weekIdx * 7 + dayIdx);
   return date.toLocaleDateString(undefined, {month:"short", day:"numeric"});
+}
+function selectedWorkoutButtonLabel(){
+  const day = getDay();
+  const dateLabel = planDateLabel(weekIndex, dayIndex);
+  return dateLabel ? `View ${dateLabel} workout` : `View ${day.day || "selected"} workout`;
 }
 function dayFocus(day){
   const parts = [];
@@ -1591,6 +1663,7 @@ function renderCurrentScreen(){
   else if(screenMode === "schedule") renderScheduleSetup();
   else if(screenMode === "progress") renderProgress();
   else if(screenMode === "settings") renderSettings();
+  else if(screenMode === "planTune") renderPlanTune();
   else render();
 }
 function markDone(){
