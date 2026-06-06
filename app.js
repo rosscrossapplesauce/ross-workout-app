@@ -181,10 +181,9 @@ function render(){
   $("weekSelect").value = weekIndex;
   $("daySelect").value = dayIndex;
   $("doneBtn").style.display = items.length ? "block" : "none";
-  $("doneBtn").innerText = "Done ✓";
   $("doneBtn").onclick = markDone;
-  $("prevBtn").style.display = "block";
-  $("nextBtn").style.display = "block";
+  $("prevBtn").style.display = itemIndex > 0 ? "block" : "none";
+  $("nextBtn").style.display = itemIndex < items.length - 1 ? "block" : "none";
   $("homeBtn").style.display = "block";
   $("overviewBtn").innerText = "Overview";
   $("overviewBtn").onclick = showOverview;
@@ -209,6 +208,7 @@ function render(){
   const item = items[itemIndex];
   const id = itemId(item, itemIndex);
   const done = !!state.completed[id];
+  $("doneBtn").innerText = done ? "Undo Done" : "Done ✓";
 
   if(item.kind === "exercise"){
     const exercise = effectiveExercise(item, id, state);
@@ -298,10 +298,10 @@ function renderHome(){
       </div>
       <div class="homeActions">
         <button class="primary" onclick="render()">Continue current plan</button>
-        ${settings ? `<button onclick="generatePersonalPlan()">Generate private plan</button>` : ""}
-        ${generatedPlan && !generatedActive ? `<button onclick="switchPlan('generated')">Use generated plan</button>` : ""}
-        ${generatedActive ? `<button onclick="switchPlan('original')">Use original plan</button>` : ""}
-        <button onclick="renderSetup('change')">Change current plan's goals</button>
+        ${settings ? `<button onclick="generatePersonalPlan()">Generate plan preview</button>` : ""}
+        ${generatedPlan && !generatedActive ? `<button onclick="switchPlan('generated')">Use saved generated plan</button>` : ""}
+        ${generatedActive ? `<button onclick="switchPlan('original')">Use starter plan</button>` : ""}
+        <button onclick="renderSetup('change')">Update plan goals</button>
         ${settings ? `<button onclick="renderScheduleSetup()">Edit dates + rest days</button>` : ""}
         <button onclick="renderSetup('new')">Start a new plan</button>
         <button onclick="renderProgress()">Progress</button>
@@ -342,7 +342,7 @@ function planSummary(settings){
     ${settings.crossTrainingSport ? `<div>Cross-training for ${escapeHtml(settings.crossTrainingSport)}</div>` : ""}`;
 }
 function renderScheduleSetup(){
-  screenMode = "setup";
+  screenMode = "schedule";
   overviewOpen = false;
   document.body.dataset.mode = "setup";
   document.body.dataset.overview = "false";
@@ -403,7 +403,7 @@ function renderSetup(mode){
   $("doneBtn").innerText = "Save plan setup";
   $("doneBtn").onclick = () => savePlanSetup(mode);
   $("resetBtn").style.display = "block";
-  $("resetBtn").innerText = "Skip for now";
+  $("resetBtn").innerText = "Cancel";
   $("resetBtn").onclick = renderHome;
   $("homeBtn").style.display = "none";
   $("overviewBtn").innerText = "Home";
@@ -878,8 +878,8 @@ function renderOverview(day, items){
   $("prevBtn").style.display = "none";
   $("nextBtn").style.display = "none";
   $("doneBtn").style.display = "block";
-  $("doneBtn").innerText = "Back to Exercise";
-  $("overviewBtn").innerText = "Exercise";
+  $("doneBtn").innerText = "Today's workout";
+  $("overviewBtn").innerText = "Workout";
 
   if(overviewMode === "calendar"){
     renderCalendarOverview();
@@ -887,7 +887,16 @@ function renderOverview(day, items){
   }
 
   if(!items.length){
-    $("screen").innerHTML = `<section class="overviewCard rest"><div class="exerciseName">Rest Day</div><div class="hint">${escapeHtml(day.recovery || "No workout today.")}</div></section>`;
+    $("screen").innerHTML = `
+      <section class="overviewCard rest">
+        <div class="exerciseName">Rest Day</div>
+        <div class="hint">${escapeHtml(day.recovery || "No workout today.")}</div>
+        <div class="overviewActions">
+          <button type="button" onclick="toggleOverviewMode()">Calendar view</button>
+          <button type="button" onclick="addAnotherMonth()">Add another month</button>
+        </div>
+        ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
+      </section>`;
     saveNav();
     return;
   }
@@ -1420,6 +1429,7 @@ function loadRemoteHistory(){
 function renderCurrentScreen(){
   if(screenMode === "home") renderHome();
   else if(screenMode === "setup") renderSetup("change");
+  else if(screenMode === "schedule") renderScheduleSetup();
   else if(screenMode === "progress") renderProgress();
   else render();
 }
