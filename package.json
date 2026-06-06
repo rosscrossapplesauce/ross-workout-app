@@ -1,0 +1,12 @@
+{
+  "scripts": {
+    "apps-script:login": "clasp login",
+    "apps-script:status": "clasp status",
+    "apps-script:push": "clasp push",
+    "apps-script:open": "clasp open",
+    "apps-script:deploy": "clasp deploy"
+  },
+  "devDependencies": {
+    "@google/clasp": "^3.3.0"
+  }
+}
