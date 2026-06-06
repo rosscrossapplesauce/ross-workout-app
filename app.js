@@ -6,6 +6,7 @@ let syncInFlight = false;
 let overviewOpen = false;
 let screenMode = "home";
 let planMessage = "";
+let overviewMode = "list";
 
 const $ = id => document.getElementById(id);
 const key = () => getPlanSource() === "generated" ? `rossWorkout.v1.generated.w${weekIndex}.d${dayIndex}` : `rossWorkout.v1.w${weekIndex}.d${dayIndex}`;
@@ -312,7 +313,7 @@ function planSummary(settings){
   return `
     <div class="summaryTitle">Saved setup</div>
     <div>${escapeHtml(settings.mainGoal || (settings.goals || []).join(" + ") || "No goals selected")}</div>
-    <div>${escapeHtml(settings.daysPerWeek || "?")} days/week · ${escapeHtml(settings.workoutLength || "?")} min · ${escapeHtml(settings.gymAccess || "gym")} access</div>
+    <div>${escapeHtml(settings.daysPerWeek || "?")} days/week · ${escapeHtml(settings.workoutLength || "?")} min · starts ${escapeHtml(settings.startDate || "?")}</div>
     ${settings.trainingExperience ? `<div>${escapeHtml(settings.trainingExperience)} · ${escapeHtml(settings.trainingPace || "steady pace")}</div>` : ""}
     ${settings.crossTrainingSport ? `<div>Cross-training for ${escapeHtml(settings.crossTrainingSport)}</div>` : ""}`;
 }
@@ -357,6 +358,7 @@ function renderSetup(mode){
             <option>Beginner</option>
             <option>Returning after time away</option>
             <option>Intermediate</option>
+            <option>Advanced</option>
           </select></label>
           <label>Pace<select id="trainingPace">
             <option>Conservative</option>
@@ -364,6 +366,7 @@ function renderSetup(mode){
             <option>Ambitious</option>
           </select></label>
           <label>Limitations<input id="avoidMovements" placeholder="Injuries, machines to avoid..." value="${escapeHtml(current.avoidMovements || "")}"></label>
+          <label>Start date<input id="startDate" type="date" required value="${escapeHtml(current.startDate || "")}"></label>
         </div>
       </div>
       <div class="setupGroup">
@@ -373,14 +376,12 @@ function renderSetup(mode){
       </div>
       <div class="setupGrid">
         <label>Gym access<select id="gymAccess"><option>Yes</option><option>No</option></select></label>
-        <label>Equipment<input id="equipment" placeholder="Dumbbells, rower, bands..." value="${escapeHtml(current.equipment || "")}"></label>
-        <label>Hours/week<input id="hoursPerWeek" type="number" inputmode="decimal" value="${escapeHtml(current.hoursPerWeek || "")}"></label>
         <label>Workout length<input id="workoutLength" type="number" inputmode="numeric" placeholder="45" value="${escapeHtml(current.workoutLength || "")}"></label>
         <label>Days/week<input id="daysPerWeek" type="number" inputmode="numeric" placeholder="5" value="${escapeHtml(current.daysPerWeek || "")}"></label>
         <label>Preferred rest days<input id="restDays" placeholder="Sunday, Thursday" value="${escapeHtml(current.restDays || "")}"></label>
       </div>
       <details class="advancedSetup">
-        <summary>Advanced starting weights</summary>
+        <summary>Add advanced starting weights</summary>
         <div class="setupHint">Optional. If you do not know these, skip them.</div>
         ${defaultStrengthSamples(current).map((sample,i) => strengthRow(i, sample)).join("")}
       </details>
@@ -415,6 +416,10 @@ function defaultStrengthSamples(current){
   return names.map(name => ({name}));
 }
 function savePlanSetup(mode){
+  if(!$("startDate").value){
+    alert("Pick a starting date before saving your plan setup.");
+    return;
+  }
   const goals = Array.from(document.querySelectorAll('input[name="goal"]:checked')).map(input => input.value);
   const strengthSamples = Array.from(document.querySelectorAll(".strengthRow")).map(row => ({
     name: row.querySelector(".strengthName").value.trim(),
@@ -429,10 +434,9 @@ function savePlanSetup(mode){
     trainingExperience: $("trainingExperience").value,
     trainingPace: $("trainingPace").value,
     avoidMovements: $("avoidMovements").value.trim(),
+    startDate: $("startDate").value,
     crossTrainingSport: $("crossTrainingSport").value.trim(),
     gymAccess: $("gymAccess").value,
-    equipment: $("equipment").value.trim(),
-    hoursPerWeek: $("hoursPerWeek").value.trim(),
     workoutLength: $("workoutLength").value.trim(),
     daysPerWeek: $("daysPerWeek").value.trim(),
     restDays: $("restDays").value.trim(),
@@ -444,8 +448,8 @@ function savePlanSetup(mode){
       trainingExperience:$("trainingExperience").value,
       trainingPace:$("trainingPace").value,
       avoidMovements:$("avoidMovements").value.trim(),
+      startDate:$("startDate").value,
       crossTrainingSport:$("crossTrainingSport").value.trim(),
-      equipment:$("equipment").value.trim(),
       strengthSamples
     })
   };
@@ -521,6 +525,91 @@ function generatePersonalPlan(){
   }, 45000);
   document.body.appendChild(script);
 }
+function addAnotherMonth(){
+  const settings = readObject(PLAN_SETTINGS_KEY, null);
+  if(!settings){
+    alert("Save your plan setup before adding another month.");
+    return;
+  }
+  if(!getSyncUrl()){
+    alert("Add your Apps Script Web App URL before adding another month.");
+    return;
+  }
+  if(!navigator.onLine){
+    alert("You're offline. Add another month when your phone is back online.");
+    return;
+  }
+  const activePlan = getActivePlan();
+  if(!confirm("Add another month to the current workout plan?")) return;
+  const callback = `rossWorkoutExtend${Date.now()}`;
+  const script = document.createElement("script");
+  let timeout;
+  const cleanup = () => {
+    clearTimeout(timeout);
+    delete window[callback];
+    script.remove();
+  };
+  window[callback] = payload => {
+    if(payload && payload.ok && isValidPlan(payload.plan)){
+      const extension = normalizeGeneratedPlan(payload.plan);
+      const combined = appendPlanMonth(activePlan, extension);
+      writeObject(GENERATED_PLAN_KEY, combined);
+      localStorage.setItem(PLAN_SOURCE_KEY, "generated");
+      buildSelectors();
+      overviewMode = "calendar";
+      overviewOpen = true;
+      render();
+      alert("Another month was added to your plan.");
+    } else {
+      alert(payload && payload.error ? payload.error : "Could not add another month.");
+    }
+    cleanup();
+  };
+  const separator = getSyncUrl().includes("?") ? "&" : "?";
+  const params = new URLSearchParams({
+    action:"extendPlan",
+    callback,
+    payload: JSON.stringify({
+      settings,
+      currentPlan: compactPlanForGeneration(activePlan),
+      history: compactGenerationHistory()
+    })
+  });
+  script.src = `${getSyncUrl()}${separator}${params.toString()}`;
+  script.onerror = () => {
+    cleanup();
+    alert("Could not reach the plan generator.");
+  };
+  timeout = setTimeout(() => {
+    cleanup();
+    alert("Adding another month timed out. Try again in a minute.");
+  }, 45000);
+  document.body.appendChild(script);
+}
+function compactPlanForGeneration(plan){
+  return {
+    name: plan.name || "",
+    summary: plan.summary || "",
+    weeks: (plan.weeks || []).slice(-4)
+  };
+}
+function appendPlanMonth(currentPlan, extension){
+  const base = normalizeGeneratedPlan(currentPlan);
+  const startWeek = base.weeks.length;
+  const extraWeeks = extension.weeks.map((week, index) => ({
+    ...week,
+    week: startWeek + index + 1
+  }));
+  return {
+    ...base,
+    source:"generated",
+    name: base.name || extension.name || "Generated plan",
+    summary: base.summary || extension.summary || "",
+    notes: extension.notes || base.notes || "",
+    generatedAt: new Date().toISOString(),
+    weeks: [...base.weeks, ...extraWeeks]
+  };
+}
 function compactGenerationHistory(){
   return readList(HISTORY_KEY)
     .filter(record => record && record.completed)
@@ -569,10 +658,11 @@ function generatePlanBias(settings){
     experience: settings.trainingExperience || "",
     pace: settings.trainingPace || "",
     avoidMovements: settings.avoidMovements || "",
+    startDate: settings.startDate || "",
     conditioning: goals.includes("Build endurance") || goals.includes("Weight loss") || goals.includes("Hybrid") ? "rowing-forward aerobic base with one hard interval day" : "moderate conditioning",
     strength: goals.includes("Build muscle") ? "progressive hypertrophy with conservative loading" : "maintenance-friendly strength progression",
     sport: settings.crossTrainingSport || "",
-    equipment: settings.equipment || "standard gym equipment",
+    equipment: "standard gym equipment",
     startingWeights: estimateStartingWeights(settings.strengthSamples || [])
   };
 }
@@ -654,6 +744,11 @@ function renderOverview(day, items){
   $("doneBtn").innerText = "Back to Exercise";
   $("overviewBtn").innerText = "Exercise";
 
+  if(overviewMode === "calendar"){
+    renderCalendarOverview();
+    return;
+  }
+
   if(!items.length){
     $("screen").innerHTML = `<section class="overviewCard rest"><div class="exerciseName">Rest Day</div><div class="hint">${escapeHtml(day.recovery || "No workout today.")}</div></section>`;
     saveNav();
@@ -672,12 +767,86 @@ function renderOverview(day, items){
           <div class="overviewCount">${completedCount}/${items.length}</div>
         </div>
       </div>
+      <div class="overviewActions">
+        <button type="button" onclick="toggleOverviewMode()">Calendar view</button>
+        <button type="button" onclick="addAnotherMonth()">Add another month</button>
+      </div>
       <div class="overviewList">
         ${items.map((item,i)=>overviewRow(item, i, !!state.completed[itemId(item, i)], state)).join("")}
       </div>
     </section>`;
   saveNav();
   updateSyncStatus();
+}
+function renderCalendarOverview(){
+  const plan = getActivePlan();
+  const state = getState();
+  $("screen").innerHTML = `
+    <section class="overviewCard">
+      <div class="overviewHeader">
+        <div>
+          <div class="kicker">Calendar View</div>
+          <div class="overviewTitle">${escapeHtml(plan.name || "Workout Plan")}</div>
+        </div>
+        <div class="overviewTools">
+          <button id="syncStatus" class="status pending" type="button" onclick="configureSync()">Pending Sync</button>
+        </div>
+      </div>
+      <div class="overviewActions">
+        <button type="button" onclick="toggleOverviewMode()">List view</button>
+        <button type="button" onclick="addAnotherMonth()">Add another month</button>
+      </div>
+      <div class="calendarGrid">
+        ${plan.weeks.map((week, wIdx) => `
+          <div class="calendarWeek">
+            <div class="calendarWeekTitle">Week ${escapeHtml(week.week || wIdx + 1)}</div>
+            ${week.days.map((day, dIdx) => calendarDay(day, wIdx, dIdx, state)).join("")}
+          </div>`).join("")}
+      </div>
+    </section>`;
+  updateSyncStatus();
+}
+function calendarDay(day, weekIdx, dayIdx, state){
+  const focus = dayFocus(day);
+  const current = weekIdx === weekIndex && dayIdx === dayIndex;
+  const dateLabel = planDateLabel(weekIdx, dayIdx);
+  const label = dateLabel ? `${dateLabel} · ${day.day || `Day ${dayIdx + 1}`}` : (day.day || `Day ${dayIdx + 1}`);
+  return `
+    <button class="calendarDay ${current ? "calendarCurrent" : ""}" onclick="jumpToDay(${weekIdx}, ${dayIdx})">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(focus)}</strong>
+    </button>`;
+}
+function planDateLabel(weekIdx, dayIdx){
+  const settings = readObject(PLAN_SETTINGS_KEY, null);
+  if(!settings || !settings.startDate) return "";
+  const date = new Date(`${settings.startDate}T00:00:00`);
+  if(Number.isNaN(date.getTime())) return "";
+  date.setDate(date.getDate() + weekIdx * 7 + dayIdx);
+  return date.toLocaleDateString(undefined, {month:"short", day:"numeric"});
+}
+function dayFocus(day){
+  const parts = [];
+  if(day.row) parts.push(`${day.row.duration || ""} row`.trim());
+  if(day.run) parts.push(`${day.run.distance || day.run.duration || ""} run`.trim());
+  if(day.exercises && day.exercises.length) parts.push(day.title || "Strength");
+  if(!parts.length && day.recovery) parts.push("Recovery");
+  return parts.filter(Boolean).join(" + ") || day.title || "Workout";
+}
+function toggleOverviewMode(){
+  overviewMode = overviewMode === "calendar" ? "list" : "calendar";
+  overviewOpen = true;
+  render();
+}
+function jumpToDay(nextWeekIndex, nextDayIndex){
+  weekIndex = nextWeekIndex;
+  dayIndex = nextDayIndex;
+  itemIndex = 0;
+  overviewMode = "list";
+  overviewOpen = true;
+  buildDaySelector();
+  saveNav();
+  render();
 }
 function overviewRow(item, index, done, state){
   const id = itemId(item, index);
