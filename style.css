@@ -40,11 +40,13 @@ body[data-mode="progress"] .app{padding-bottom:calc(10px + env(safe-area-inset-b
 body[data-mode="home"] main,
 body[data-mode="setup"] main,
 body[data-mode="progress"] main{justify-content:flex-start}
-.scrollPanel{overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.scrollPanel{overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;scroll-padding-bottom:96px}
 .homePanel,.setupPanel,.progressPanel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;max-height:100%;display:flex;flex-direction:column;gap:12px;box-shadow:0 12px 32px rgba(16,21,33,.08)}
+.setupPanel{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
 .homeTitle{font-family:Georgia,"Times New Roman",serif;font-size:32px;line-height:.98;font-weight:500;letter-spacing:0}
 .homeText{font-size:15px;line-height:1.45;color:var(--muted);font-weight:750;margin-top:8px}
 .homeActions{display:flex;flex-direction:column;gap:8px}
+.setupPanel .homeActions{padding-bottom:calc(14px + env(safe-area-inset-bottom))}
 .planSummary{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:10px;color:var(--muted);font-size:13px;line-height:1.38;font-weight:750}
 .planMessage{background:rgba(49,158,166,.1);border:1px solid rgba(49,158,166,.25);border-radius:12px;padding:10px;color:#25686d;font-size:13px;line-height:1.35;font-weight:850}
 .summaryTitle,.setupTitle,.chartTitle{color:var(--ink);font-size:14px;font-weight:950;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em}
