@@ -9,6 +9,7 @@ let planMessage = "";
 let planMessageScope = "all";
 let overviewMode = "list";
 let monthMessage = "";
+let holdTimer = null;
 
 const $ = id => document.getElementById(id);
 const key = () => getPlanSource() === "generated" ? `rossWorkout.v1.generated.w${weekIndex}.d${dayIndex}` : `rossWorkout.v1.w${weekIndex}.d${dayIndex}`;
@@ -168,6 +169,7 @@ function historySummary(item, id){
 function render(){
   screenMode = "workout";
   document.body.dataset.mode = "workout";
+  closeWorkoutMenu();
   document.body.dataset.overview = overviewOpen ? "true" : "false";
   const plan = getActivePlan();
   const day = getDay();
@@ -179,14 +181,12 @@ function render(){
   $("daySelect").value = dayIndex;
   $("doneBtn").style.display = items.length ? "block" : "none";
   $("doneBtn").onclick = markDone;
-  setNavArrow($("prevBtn"), itemIndex > 0);
-  setNavArrow($("nextBtn"), itemIndex < items.length - 1);
-  $("homeBtn").style.display = "block";
-  $("overviewBtn").innerText = "Overview";
-  $("overviewBtn").onclick = showOverview;
-  $("resetBtn").style.display = "block";
-  $("resetBtn").innerText = "Reset Day";
-  $("resetBtn").onclick = resetDay;
+  $("prevBtn").style.display = "none";
+  $("nextBtn").style.display = "none";
+  $("homeBtn").style.display = "none";
+  $("overviewBtn").innerText = "Menu";
+  $("overviewBtn").onclick = () => showWorkoutMenu("main");
+  $("resetBtn").style.display = "none";
 
   if(overviewOpen){
     renderOverview(day, items);
@@ -200,7 +200,11 @@ function render(){
   $("scoreText").innerText = total ? `${Math.round(completedCount/total*100)}%` : "";
   $("progressBar").style.width = total ? `${completedCount/total*100}%` : "0%";
 
-  if(!items.length){ $("screen").innerHTML = `<div class="card rest"><div><div class="exerciseName">Rest Day</div><div class="hint">${day.recovery || "No workout today."}</div></div></div>`; return; }
+  if(!items.length){
+    $("screen").innerHTML = `<div class="card rest"><div><div class="exerciseName">Rest Day</div><div class="hint">${day.recovery || "No workout today."}</div></div></div>`;
+    attachWorkoutHoldMenu();
+    return;
+  }
 
   const item = items[itemIndex];
   const id = itemId(item, itemIndex);
@@ -240,6 +244,7 @@ function render(){
     setTimeout(()=>{
       document.querySelectorAll(".setWeightInput").forEach(input => input.oninput = saveInputs);
       $("noteInput").oninput = saveInputs;
+      attachWorkoutHoldMenu();
     },0);
   } else if(item.kind === "row"){
     $("screen").innerHTML = `
@@ -252,6 +257,7 @@ function render(){
           <div class="smallDetail">${item.pace}</div>
         </div>
       </section>`;
+    attachWorkoutHoldMenu();
   } else if(item.kind === "run"){
     $("screen").innerHTML = `
       <section class="card ${done ? "completed":""}">
@@ -262,8 +268,10 @@ function render(){
           <div class="prescription">${item.pace}</div>
         </div>
       </section>`;
+    attachWorkoutHoldMenu();
   } else {
     $("screen").innerHTML = `<section class="card rest ${done ? "completed":""}"><div><div class="exerciseName">Rest Day</div><div class="hint">${item.text}</div></div></section>`;
+    attachWorkoutHoldMenu();
   }
   saveNav();
 }
@@ -1284,6 +1292,7 @@ function renderOverview(day, items){
   $("doneBtn").style.display = "block";
   $("doneBtn").innerText = selectedWorkoutButtonLabel();
   $("overviewBtn").innerText = "Workout";
+  $("overviewBtn").onclick = showOverview;
 
   if(overviewMode === "calendar"){
     renderCalendarOverview();
@@ -1297,8 +1306,6 @@ function renderOverview(day, items){
         <div class="hint">${escapeHtml(day.recovery || "No workout today.")}</div>
         <div class="overviewActions">
           <button type="button" onclick="toggleOverviewMode()">Calendar view</button>
-          <button type="button" onclick="renderPlanTune()">Edit current plan</button>
-          <button type="button" onclick="addAnotherMonth()">Add month</button>
         </div>
         ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
       </section>`;
@@ -1320,8 +1327,6 @@ function renderOverview(day, items){
       </div>
       <div class="overviewActions">
         <button type="button" onclick="toggleOverviewMode()">Calendar view</button>
-        <button type="button" onclick="renderPlanTune()">Edit current plan</button>
-        <button type="button" onclick="addAnotherMonth()">Add month</button>
       </div>
       ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
       <div class="overviewList">
@@ -1347,8 +1352,6 @@ function renderCalendarOverview(){
       </div>
       <div class="overviewActions">
         <button type="button" onclick="toggleOverviewMode()">${escapeHtml(selectedWorkoutButtonLabel())}</button>
-        <button type="button" onclick="renderPlanTune()">Edit current plan</button>
-        <button type="button" onclick="addAnotherMonth()">Add month</button>
       </div>
       ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
       <div class="calendarGrid scrollPanel">
@@ -1439,6 +1442,83 @@ function jumpToItem(index){
   overviewOpen = false;
   render();
   $("screen").focus({preventScroll:true});
+}
+function attachWorkoutHoldMenu(){
+  const screen = $("screen");
+  if(!screen) return;
+  screen.onpointerdown = event => {
+    if(screenMode !== "workout" || overviewOpen || event.target.closest("button,input,textarea,select,summary,details")) return;
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(() => showWorkoutMenu("quick"), 650);
+  };
+  screen.onpointerup = clearWorkoutHold;
+  screen.onpointercancel = clearWorkoutHold;
+  screen.onpointerleave = clearWorkoutHold;
+  screen.onpointermove = event => {
+    if(Math.abs(event.movementX || 0) > 6 || Math.abs(event.movementY || 0) > 6) clearWorkoutHold();
+  };
+  screen.oncontextmenu = event => {
+    if(screenMode !== "workout" || overviewOpen) return;
+    event.preventDefault();
+    showWorkoutMenu("quick");
+  };
+}
+function clearWorkoutHold(){
+  clearTimeout(holdTimer);
+  holdTimer = null;
+}
+function showWorkoutMenu(type = "main"){
+  clearWorkoutHold();
+  if(screenMode !== "workout") return;
+  closeWorkoutMenu();
+  const items = getItems(getDay());
+  const isQuickMenu = type === "quick";
+  const menuButtons = isQuickMenu ? `
+      ${itemIndex > 0 ? `<button type="button" onclick="prevItem()">Previous exercise</button>` : ""}
+      ${itemIndex < items.length - 1 ? `<button type="button" onclick="nextItem()">Next exercise</button>` : ""}
+      <button type="button" onclick="openWorkoutCalendar()">Calendar</button>
+      <button type="button" class="dangerAction" onclick="resetDayFromMenu()">Reset day</button>
+      <button type="button" onclick="closeWorkoutMenu()">Cancel</button>
+    ` : `
+      <button type="button" onclick="openWorkoutList()">Today's list</button>
+      <button type="button" onclick="openWorkoutCalendar()">Calendar</button>
+      <button type="button" onclick="goHomeFromMenu()">Home</button>
+      <button type="button" onclick="closeWorkoutMenu()">Cancel</button>
+    `;
+  const sheet = document.createElement("div");
+  sheet.id = "workoutMenu";
+  sheet.className = "actionSheet";
+  sheet.innerHTML = `
+    <button class="sheetBackdrop" type="button" aria-label="Close menu" onclick="closeWorkoutMenu()"></button>
+    <div class="sheetPanel" role="dialog" aria-modal="true" aria-label="Workout menu">
+      <div class="sheetHandle"></div>
+      ${menuButtons}
+    </div>`;
+  document.body.appendChild(sheet);
+}
+function closeWorkoutMenu(){
+  const existing = document.getElementById("workoutMenu");
+  if(existing) existing.remove();
+}
+function openWorkoutList(){
+  closeWorkoutMenu();
+  overviewMode = "list";
+  overviewOpen = true;
+  render();
+}
+function openWorkoutCalendar(){
+  closeWorkoutMenu();
+  overviewMode = "calendar";
+  overviewOpen = true;
+  render();
+}
+function goHomeFromMenu(){
+  closeWorkoutMenu();
+  renderHome();
+}
+function resetDayFromMenu(){
+  closeWorkoutMenu();
+  resetDay();
 }
 function itemId(item, i){
   if(item.kind === "exercise") return `exercise-${item.idx}`;
