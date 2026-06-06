@@ -174,11 +174,15 @@ function render(){
   $("daySelect").value = dayIndex;
   $("doneBtn").style.display = items.length ? "block" : "none";
   $("doneBtn").innerText = "Done ✓";
+  $("doneBtn").onclick = markDone;
   $("prevBtn").style.display = "block";
   $("nextBtn").style.display = "block";
   $("homeBtn").style.display = "block";
   $("overviewBtn").innerText = "Overview";
   $("overviewBtn").onclick = showOverview;
+  $("resetBtn").style.display = "block";
+  $("resetBtn").innerText = "Reset Day";
+  $("resetBtn").onclick = resetDay;
 
   if(overviewOpen){
     renderOverview(day, items);
@@ -324,7 +328,12 @@ function renderSetup(mode){
   $("progressBar").style.width = "33%";
   $("prevBtn").style.display = "none";
   $("nextBtn").style.display = "none";
-  $("doneBtn").style.display = "none";
+  $("doneBtn").style.display = "block";
+  $("doneBtn").innerText = "Save plan setup";
+  $("doneBtn").onclick = () => savePlanSetup(mode);
+  $("resetBtn").style.display = "block";
+  $("resetBtn").innerText = "Skip for now";
+  $("resetBtn").onclick = renderHome;
   $("homeBtn").style.display = "none";
   $("overviewBtn").innerText = "Home";
   $("overviewBtn").onclick = renderHome;
@@ -346,10 +355,6 @@ function renderSetup(mode){
       <div class="setupGroup">
         <div class="setupTitle">Optional strength starting points</div>
         ${defaultStrengthSamples(current).map((sample,i) => strengthRow(i, sample)).join("")}
-      </div>
-      <div class="homeActions">
-        <button class="primary" onclick="savePlanSetup('${mode}')">Save plan setup</button>
-        <button onclick="renderHome()">Skip for now</button>
       </div>
     </section>`;
   if(current.gymAccess) $("gymAccess").value = current.gymAccess;

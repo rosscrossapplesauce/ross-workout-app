@@ -32,21 +32,18 @@ body[data-mode="home"] .selector,
 body[data-mode="setup"] .selector,
 body[data-mode="progress"] .selector,
 body[data-mode="home"] .nav,
-body[data-mode="setup"] .nav,
 body[data-mode="progress"] .nav{display:none}
 body[data-mode="home"] .app,
-body[data-mode="setup"] .app,
 body[data-mode="progress"] .app{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
 body[data-mode="home"] main,
 body[data-mode="setup"] main,
 body[data-mode="progress"] main{justify-content:flex-start}
 .scrollPanel{overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;scroll-padding-bottom:96px}
 .homePanel,.setupPanel,.progressPanel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;max-height:100%;display:flex;flex-direction:column;gap:12px;box-shadow:0 12px 32px rgba(16,21,33,.08)}
-.setupPanel{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
+.setupPanel{padding-bottom:calc(18px + env(safe-area-inset-bottom))}
 .homeTitle{font-family:Georgia,"Times New Roman",serif;font-size:32px;line-height:.98;font-weight:500;letter-spacing:0}
 .homeText{font-size:15px;line-height:1.45;color:var(--muted);font-weight:750;margin-top:8px}
 .homeActions{display:flex;flex-direction:column;gap:8px}
-.setupPanel .homeActions{padding-bottom:calc(14px + env(safe-area-inset-bottom))}
 .planSummary{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:10px;color:var(--muted);font-size:13px;line-height:1.38;font-weight:750}
 .planMessage{background:rgba(49,158,166,.1);border:1px solid rgba(49,158,166,.25);border-radius:12px;padding:10px;color:#25686d;font-size:13px;line-height:1.35;font-weight:850}
 .summaryTitle,.setupTitle,.chartTitle{color:var(--ink);font-size:14px;font-weight:950;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em}
@@ -132,6 +129,8 @@ textarea{font-size:14px;min-height:38px;font-weight:650;resize:none}
 .navControls{display:grid;grid-template-columns:60px 1fr 60px;gap:7px}
 body[data-overview="true"] .navControls{grid-template-columns:1fr}
 body[data-overview="true"] #doneBtn{grid-column:1}
+body[data-mode="setup"] .navControls{grid-template-columns:1fr}
+body[data-mode="setup"] #doneBtn{grid-column:1}
 button{border:1px solid var(--line);border-radius:12px;padding:10px 8px;font-size:15px;font-weight:950;background:rgba(255,250,244,.84);color:var(--ink);min-height:42px;user-select:none;-webkit-user-select:none;display:inline-flex;align-items:center;justify-content:center;text-align:center;line-height:1.1;-webkit-appearance:none;appearance:none}
 button:active{transform:translateY(1px)}
 .primary{background:var(--coral);color:var(--ivory);border-color:var(--coral);font-size:20px}
