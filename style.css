@@ -58,6 +58,12 @@ body[data-mode="settings"] main{justify-content:flex-start}
 .previewActions button{min-height:36px;font-size:13px}
 .previewActions .primary{font-size:15px}
 .planMessage{background:rgba(49,158,166,.1);border:1px solid rgba(49,158,166,.25);border-radius:12px;padding:10px;color:#25686d;font-size:13px;line-height:1.35;font-weight:850}
+.planProgressCard{background:#fffdf9;border:1px solid rgba(49,158,166,.28);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;color:#25686d;font-weight:850}
+.planProgressTop{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:13px}
+.planProgressTop strong{color:var(--ink);font-size:18px}
+.planProgressTrack{height:10px;background:rgba(229,219,207,.7);border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.planProgressTrack div{height:100%;background:linear-gradient(90deg,var(--teal),var(--gold),var(--coral));transition:width .65s ease}
+.planProgressDetail{font-size:12px;line-height:1.3;color:var(--muted)}
 .setupHint{background:rgba(46,139,111,.08);border:1px solid rgba(46,139,111,.18);border-radius:10px;padding:9px;color:#286e59;font-size:13px;line-height:1.32;font-weight:800}
 .summaryTitle,.setupTitle,.chartTitle{color:var(--ink);font-size:14px;font-weight:950;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em}
 .setupGroup{display:flex;flex-direction:column;gap:8px}
