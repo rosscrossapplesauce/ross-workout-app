@@ -173,8 +173,8 @@ function render(){
   $("daySelect").value = dayIndex;
   $("doneBtn").style.display = items.length ? "block" : "none";
   $("doneBtn").onclick = markDone;
-  $("prevBtn").style.display = itemIndex > 0 ? "block" : "none";
-  $("nextBtn").style.display = itemIndex < items.length - 1 ? "block" : "none";
+  setNavArrow($("prevBtn"), itemIndex > 0);
+  setNavArrow($("nextBtn"), itemIndex < items.length - 1);
   $("homeBtn").style.display = "block";
   $("overviewBtn").innerText = "Overview";
   $("overviewBtn").onclick = showOverview;
@@ -207,8 +207,9 @@ function render(){
     const setWeights = getSetWeights(state, id, exercise);
     const notes = state.notes[id] || "";
     const originalName = exercise.name === item.name ? "" : `<div class="altApplied">Original: ${escapeHtml(item.name)}</div>`;
+    const fitClass = setWeights.length >= 4 ? "manySets" : "";
     $("screen").innerHTML = `
-      <section class="card ${done ? "completed":""}">
+      <section class="card ${fitClass} ${done ? "completed":""}">
         <div>
           <div class="kicker"><span>Exercise ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
           <div class="exerciseName">${escapeHtml(exercise.name)}</div>
@@ -259,6 +260,11 @@ function render(){
     $("screen").innerHTML = `<section class="card rest ${done ? "completed":""}"><div><div class="exerciseName">Rest Day</div><div class="hint">${item.text}</div></div></section>`;
   }
   saveNav();
+}
+function setNavArrow(button, enabled){
+  button.style.display = "block";
+  button.style.visibility = enabled ? "visible" : "hidden";
+  button.disabled = !enabled;
 }
 function renderHome(){
   screenMode = "home";
