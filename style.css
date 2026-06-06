@@ -117,7 +117,7 @@ body[data-mode="progress"] main{justify-content:flex-start}
 .overviewDone .overviewCheck{background:var(--green);border-color:var(--green);color:var(--ivory)}
 .overviewDone .overviewName{text-decoration:line-through;color:var(--green)}
 .overviewDone .overviewDetail{color:var(--green)}
-.calendarGrid{display:flex;flex-direction:column;gap:8px;overflow:auto}
+.calendarGrid{display:flex;flex-direction:column;gap:8px;overflow:auto;min-height:0;flex:1 1 auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 .calendarWeek{display:grid;grid-template-columns:1fr 1fr;gap:5px}
 .calendarWeekTitle{grid-column:1/-1;color:var(--teal);font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.07em}
 .calendarDay{min-height:54px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;background:var(--soft);color:var(--ink);border:1px solid var(--line);padding:7px;text-align:left}
