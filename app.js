@@ -7,6 +7,7 @@ let overviewOpen = false;
 let screenMode = "home";
 let planMessage = "";
 let overviewMode = "list";
+let monthMessage = "";
 
 const $ = id => document.getElementById(id);
 const key = () => getPlanSource() === "generated" ? `rossWorkout.v1.generated.w${weekIndex}.d${dayIndex}` : `rossWorkout.v1.w${weekIndex}.d${dayIndex}`;
@@ -17,6 +18,7 @@ const ALTERNATIVES_KEY = "rossWorkout.v1.alternatives";
 const PLAN_SETTINGS_KEY = "rossWorkout.v1.planSettings";
 const EXERCISE_PREFS_KEY = "rossWorkout.v1.exercisePreferences";
 const GENERATED_PLAN_KEY = "rossWorkout.v1.generatedPlan";
+const PENDING_PLAN_KEY = "rossWorkout.v1.pendingPlan";
 const PLAN_SOURCE_KEY = "rossWorkout.v1.planSource";
 
 async function init(){
@@ -269,6 +271,7 @@ function renderHome(){
   document.body.dataset.overview = "false";
   const settings = readObject(PLAN_SETTINGS_KEY, null);
   const generatedPlan = hasGeneratedPlan() ? readObject(GENERATED_PLAN_KEY, null) : null;
+  const pendingPlan = readObject(PENDING_PLAN_KEY, null);
   const generatedActive = getPlanSource() === "generated";
   const activePlan = getActivePlan();
   $("weekLabel").innerText = "Workout";
@@ -294,13 +297,29 @@ function renderHome(){
         ${generatedPlan && !generatedActive ? `<button onclick="switchPlan('generated')">Use generated plan</button>` : ""}
         ${generatedActive ? `<button onclick="switchPlan('original')">Use original plan</button>` : ""}
         <button onclick="renderSetup('change')">Change current plan's goals</button>
+        ${settings ? `<button onclick="renderScheduleSetup()">Edit dates + rest days</button>` : ""}
         <button onclick="renderSetup('new')">Start a new plan</button>
         <button onclick="renderProgress()">Progress</button>
       </div>
       ${planMessage ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
+      ${pendingPlan ? pendingPlanSummary(pendingPlan) : ""}
       ${generatedPlan ? `<div class="planSummary">${generatedPlanSummary(generatedPlan)}</div>` : ""}
       ${settings ? `<div class="planSummary">${planSummary(settings)}</div>` : ""}
     </section>`;
+}
+function pendingPlanSummary(plan){
+  return `
+    <div class="planSummary previewPlan">
+      <div class="summaryTitle">Plan Preview</div>
+      <div>${escapeHtml(plan.name || "Generated plan")}</div>
+      <div>${escapeHtml(plan.weeks.length)} weeks · ${escapeHtml(plan.weeks[0].days.length)} days/week</div>
+      ${plan.summary ? `<div>${escapeHtml(plan.summary)}</div>` : ""}
+      ${plan.notes ? `<div>${escapeHtml(plan.notes)}</div>` : ""}
+      <div class="previewActions">
+        <button class="primary" onclick="activatePendingPlan()">Use this plan</button>
+        <button onclick="discardPendingPlan()">Keep current plan</button>
+      </div>
+    </div>`;
 }
 function generatedPlanSummary(plan){
   return `
@@ -316,6 +335,51 @@ function planSummary(settings){
     <div>${escapeHtml(settings.daysPerWeek || "?")} days/week · ${escapeHtml(settings.workoutLength || "?")} min · starts ${escapeHtml(settings.startDate || "?")}</div>
     ${settings.trainingExperience ? `<div>${escapeHtml(settings.trainingExperience)} · ${escapeHtml(settings.trainingPace || "steady pace")}</div>` : ""}
     ${settings.crossTrainingSport ? `<div>Cross-training for ${escapeHtml(settings.crossTrainingSport)}</div>` : ""}`;
+}
+function renderScheduleSetup(){
+  screenMode = "setup";
+  overviewOpen = false;
+  document.body.dataset.mode = "setup";
+  document.body.dataset.overview = "false";
+  const current = readObject(PLAN_SETTINGS_KEY, {});
+  $("weekLabel").innerText = "Schedule";
+  $("dayTitle").innerHTML = `<span>Edit</span><span>Plan Dates</span>`;
+  $("progressText").innerText = "This does not change your workouts";
+  $("scoreText").innerText = "";
+  $("progressBar").style.width = "100%";
+  $("prevBtn").style.display = "none";
+  $("nextBtn").style.display = "none";
+  $("doneBtn").style.display = "block";
+  $("doneBtn").innerText = "Save schedule";
+  $("doneBtn").onclick = saveScheduleSetup;
+  $("resetBtn").style.display = "block";
+  $("resetBtn").innerText = "Cancel";
+  $("resetBtn").onclick = renderHome;
+  $("homeBtn").style.display = "none";
+  $("overviewBtn").innerText = "Home";
+  $("overviewBtn").onclick = renderHome;
+  $("screen").innerHTML = `
+    <section class="setupPanel scrollPanel">
+      <div class="setupHint">Adjust calendar dates without changing the exercises or weights already in your plan.</div>
+      <div class="setupGrid">
+        <label>Start date<input id="scheduleStartDate" type="date" required value="${escapeHtml(current.startDate || "")}"></label>
+        <label>Preferred rest days<input id="scheduleRestDays" placeholder="Sunday, Thursday" value="${escapeHtml(current.restDays || "")}"></label>
+      </div>
+    </section>`;
+}
+function saveScheduleSetup(){
+  const settings = readObject(PLAN_SETTINGS_KEY, {});
+  if(!$("scheduleStartDate").value){
+    alert("Pick a starting date before saving your schedule.");
+    return;
+  }
+  settings.startDate = $("scheduleStartDate").value;
+  settings.restDays = $("scheduleRestDays").value.trim();
+  if(settings.planBias) settings.planBias.startDate = settings.startDate;
+  writeObject(PLAN_SETTINGS_KEY, settings);
+  planMessage = "Schedule saved.";
+  overviewMode = "calendar";
+  renderHome();
 }
 function renderSetup(mode){
   screenMode = "setup";
@@ -454,6 +518,7 @@ function savePlanSetup(mode){
     })
   };
   writeObject(PLAN_SETTINGS_KEY, settings);
+  localStorage.removeItem(PENDING_PLAN_KEY);
   planMessage = "Setup saved. Generate a private plan when you're ready.";
   renderHome();
 }
@@ -487,14 +552,9 @@ function generatePersonalPlan(){
   window[callback] = payload => {
     if(payload && payload.ok && isValidPlan(payload.plan)){
       const plan = normalizeGeneratedPlan(payload.plan);
-      writeObject(GENERATED_PLAN_KEY, plan);
-      localStorage.setItem(PLAN_SOURCE_KEY, "generated");
-      weekIndex = 0;
-      dayIndex = 0;
-      itemIndex = 0;
-      buildSelectors();
-      saveNav();
-      planMessage = "Generated plan is active.";
+      plan.previewType = "new";
+      writeObject(PENDING_PLAN_KEY, plan);
+      planMessage = "Plan preview ready. Review it before switching.";
     } else {
       planMessage = payload && payload.error ? payload.error : "Could not generate a plan.";
     }
@@ -525,6 +585,32 @@ function generatePersonalPlan(){
   }, 45000);
   document.body.appendChild(script);
 }
+function activatePendingPlan(){
+  const plan = readObject(PENDING_PLAN_KEY, null);
+  if(!plan || !isValidPlan(plan)){
+    planMessage = "No plan preview is ready.";
+    renderHome();
+    return;
+  }
+  const previewType = plan.previewType || "new";
+  writeObject(GENERATED_PLAN_KEY, normalizeGeneratedPlan(plan));
+  localStorage.removeItem(PENDING_PLAN_KEY);
+  localStorage.setItem(PLAN_SOURCE_KEY, "generated");
+  if(previewType !== "extension"){
+    weekIndex = 0;
+    dayIndex = 0;
+    itemIndex = 0;
+  }
+  buildSelectors();
+  saveNav();
+  planMessage = "Generated plan is active.";
+  renderHome();
+}
+function discardPendingPlan(){
+  localStorage.removeItem(PENDING_PLAN_KEY);
+  planMessage = "Kept your current plan.";
+  renderHome();
+}
 function addAnotherMonth(){
   const settings = readObject(PLAN_SETTINGS_KEY, null);
   if(!settings){
@@ -540,7 +626,9 @@ function addAnotherMonth(){
     return;
   }
   const activePlan = getActivePlan();
-  if(!confirm("Add another month to the current workout plan?")) return;
+  monthMessage = "Building the next month...";
+  overviewOpen = true;
+  render();
   const callback = `rossWorkoutExtend${Date.now()}`;
   const script = document.createElement("script");
   let timeout;
@@ -553,15 +641,14 @@ function addAnotherMonth(){
     if(payload && payload.ok && isValidPlan(payload.plan)){
       const extension = normalizeGeneratedPlan(payload.plan);
       const combined = appendPlanMonth(activePlan, extension);
-      writeObject(GENERATED_PLAN_KEY, combined);
-      localStorage.setItem(PLAN_SOURCE_KEY, "generated");
-      buildSelectors();
-      overviewMode = "calendar";
-      overviewOpen = true;
-      render();
-      alert("Another month was added to your plan.");
+      combined.previewType = "extension";
+      writeObject(PENDING_PLAN_KEY, combined);
+      monthMessage = "";
+      planMessage = "Next-month preview ready. Review it before switching.";
+      renderHome();
     } else {
-      alert(payload && payload.error ? payload.error : "Could not add another month.");
+      monthMessage = payload && payload.error ? payload.error : "Could not add another month.";
+      render();
     }
     cleanup();
   };
@@ -578,11 +665,13 @@ function addAnotherMonth(){
   script.src = `${getSyncUrl()}${separator}${params.toString()}`;
   script.onerror = () => {
     cleanup();
-    alert("Could not reach the plan generator.");
+    monthMessage = "Could not reach the plan generator.";
+    render();
   };
   timeout = setTimeout(() => {
     cleanup();
-    alert("Adding another month timed out. Try again in a minute.");
+    monthMessage = "Adding another month timed out. Try again in a minute.";
+    render();
   }, 45000);
   document.body.appendChild(script);
 }
@@ -771,6 +860,7 @@ function renderOverview(day, items){
         <button type="button" onclick="toggleOverviewMode()">Calendar view</button>
         <button type="button" onclick="addAnotherMonth()">Add another month</button>
       </div>
+      ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
       <div class="overviewList">
         ${items.map((item,i)=>overviewRow(item, i, !!state.completed[itemId(item, i)], state)).join("")}
       </div>
@@ -796,6 +886,7 @@ function renderCalendarOverview(){
         <button type="button" onclick="toggleOverviewMode()">List view</button>
         <button type="button" onclick="addAnotherMonth()">Add another month</button>
       </div>
+      ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
       <div class="calendarGrid">
         ${plan.weeks.map((week, wIdx) => `
           <div class="calendarWeek">
