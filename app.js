@@ -149,19 +149,21 @@ function getLastHistory(exName, currentContext){
 }
 function historySummary(item, id){
   const state = getState();
-  const exerciseName = displayExerciseName(item, id, state);
+  const exercise = effectiveExercise(item, id, state);
+  const exerciseName = exercise.name;
   const last = getLastHistory(exerciseName, getContextId(id));
   if(!last) return "";
   const lastDisplay = last.setWeights || last.completedWeight;
   const lastWeight = finalWeight(lastDisplay);
-  const currentTarget = Number(item.suggestedWeight);
+  const currentTarget = Number(exercise.suggestedWeight);
   const change = Number.isFinite(lastWeight) && Number.isFinite(currentTarget) ? currentTarget - lastWeight : null;
-  const changeText = change === null ? "" : ` · ${change >= 0 ? "+" : ""}${change} ${item.unit}`;
-  return `<div class="lastWeek">Last completed: ${escapeHtml(lastDisplay)} ${escapeHtml(item.unit)} · ${formatDate(last.timestamp)}${changeText}</div>`;
+  const changeText = change === null ? "" : ` · ${change >= 0 ? "+" : ""}${change} ${exercise.unit}`;
+  return `<div class="lastWeek">Last completed: ${escapeHtml(lastDisplay)} ${escapeHtml(exercise.unit)} · ${formatDate(last.timestamp)}${changeText}</div>`;
 }
 function render(){
   screenMode = "workout";
   document.body.dataset.mode = "workout";
+  document.body.dataset.overview = overviewOpen ? "true" : "false";
   const plan = getActivePlan();
   const day = getDay();
   const items = getItems(day);
@@ -197,26 +199,26 @@ function render(){
   const done = !!state.completed[id];
 
   if(item.kind === "exercise"){
+    const exercise = effectiveExercise(item, id, state);
     const history = historySummary(item, id);
-    const setWeights = getSetWeights(state, id, item);
+    const setWeights = getSetWeights(state, id, exercise);
     const notes = state.notes[id] || "";
-    const exerciseName = displayExerciseName(item, id, state);
-    const originalName = exerciseName === item.name ? "" : `<div class="altApplied">Original: ${escapeHtml(item.name)}</div>`;
+    const originalName = exercise.name === item.name ? "" : `<div class="altApplied">Original: ${escapeHtml(item.name)}</div>`;
     $("screen").innerHTML = `
       <section class="card ${done ? "completed":""}">
         <div>
           <div class="kicker"><span>Exercise ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
-          <div class="exerciseName">${escapeHtml(exerciseName)}</div>
+          <div class="exerciseName">${escapeHtml(exercise.name)}</div>
           ${originalName}
-          <div class="prescription">${item.sets} × ${item.reps}</div>
-          <div class="bigWeight">${item.suggestedWeight}<span class="unit"> ${item.unit}</span></div>
+          <div class="prescription">${escapeHtml(exercise.sets)} × ${escapeHtml(exercise.reps)}</div>
+          <div class="bigWeight">${escapeHtml(exercise.suggestedWeight)}<span class="unit"> ${escapeHtml(exercise.unit)}</span></div>
           ${history}
           <button class="altBtn" onclick="loadAlternatives()">Alternatives</button>
         </div>
         <div>
           <label>Completed weight by set</label>
           <div class="setGrid">
-            ${setWeights.map((weight,setIndex)=>setWeightRow(item, setIndex, weight)).join("")}
+            ${setWeights.map((weight,setIndex)=>setWeightRow(exercise, setIndex, weight)).join("")}
           </div>
           <button class="suggestedBtn" onclick="useSuggested()">Use suggested for all sets</button>
           <details class="notesFold" ${notes ? "open" : ""}>
@@ -259,6 +261,7 @@ function renderHome(){
   screenMode = "home";
   overviewOpen = false;
   document.body.dataset.mode = "home";
+  document.body.dataset.overview = "false";
   const settings = readObject(PLAN_SETTINGS_KEY, null);
   const generatedPlan = hasGeneratedPlan() ? readObject(GENERATED_PLAN_KEY, null) : null;
   const generatedActive = getPlanSource() === "generated";
@@ -312,6 +315,7 @@ function renderSetup(mode){
   screenMode = "setup";
   overviewOpen = false;
   document.body.dataset.mode = "setup";
+  document.body.dataset.overview = "false";
   const current = mode === "change" ? readObject(PLAN_SETTINGS_KEY, {}) : {};
   $("weekLabel").innerText = mode === "new" ? "New Plan" : "Plan Goals";
   $("dayTitle").innerHTML = `<span>${mode === "new" ? "Start" : "Update"}</span><span>Training Plan</span>`;
@@ -531,6 +535,7 @@ function renderProgress(){
   screenMode = "progress";
   overviewOpen = false;
   document.body.dataset.mode = "progress";
+  document.body.dataset.overview = "false";
   $("weekLabel").innerText = "Progress";
   $("dayTitle").innerHTML = `<span>Strength</span><span>Trends</span>`;
   $("progressText").innerText = "Actual + projected";
@@ -623,10 +628,11 @@ function renderOverview(day, items){
 }
 function overviewRow(item, index, done, state){
   const id = itemId(item, index);
-  const title = item.kind === "exercise" ? displayExerciseName(item, id, state) : (item.type || "Rest");
-  const setWeights = item.kind === "exercise" ? compactSetWeights(getSetWeights(state, id, item)) : [];
+  const exercise = item.kind === "exercise" ? effectiveExercise(item, id, state) : item;
+  const title = item.kind === "exercise" ? exercise.name : (item.type || "Rest");
+  const setWeights = item.kind === "exercise" ? compactSetWeights(getSetWeights(state, id, exercise)) : [];
   const detail = item.kind === "exercise"
-    ? `${item.sets} × ${item.reps} · suggested ${item.suggestedWeight} ${item.unit}${setWeights.length ? ` · sets ${setWeights.join(" / ")} ${item.unit}` : ""}`
+    ? `${exercise.sets} × ${exercise.reps} · suggested ${exercise.suggestedWeight} ${exercise.unit}${setWeights.length ? ` · sets ${setWeights.join(" / ")} ${exercise.unit}` : ""}`
     : item.kind === "row"
       ? `${item.duration} · ${item.intensity}${item.pace ? ` · ${item.pace}` : ""}`
       : item.kind === "run"
@@ -656,8 +662,23 @@ function itemId(item, i){
   if(item.kind === "exercise") return `exercise-${item.idx}`;
   return `${item.kind}-${i}`;
 }
-function displayExerciseName(item, id, state = getState()){
-  return (state.alternatives && state.alternatives[id]) || item.name;
+function getAppliedAlternative(state, id){
+  const alternative = state.alternatives && state.alternatives[id];
+  if(!alternative) return null;
+  return typeof alternative === "string" ? {name: alternative} : alternative;
+}
+function effectiveExercise(item, id, state = getState()){
+  const alternative = getAppliedAlternative(state, id);
+  if(!alternative) return item;
+  return {
+    ...item,
+    name: alternative.name || item.name,
+    sets: Number(alternative.sets) || item.sets,
+    reps: alternative.reps || item.reps,
+    suggestedWeight: alternative.suggestedWeight !== undefined && alternative.suggestedWeight !== "" ? Number(alternative.suggestedWeight) : item.suggestedWeight,
+    unit: alternative.unit || item.unit,
+    notes: alternative.notes || alternative.how || item.notes || ""
+  };
 }
 function getSetCount(item){
   const count = Number(item.sets);
@@ -709,24 +730,28 @@ function saveInputs(){
 }
 function useSuggested(){
   const item = getItems(getDay())[itemIndex];
+  const id = itemId(item, itemIndex);
+  const exercise = effectiveExercise(item, id);
   document.querySelectorAll(".setWeightRow").forEach(row => {
     row.classList.remove("setMissed");
     row.querySelector(".missBtn").classList.remove("missed");
     const input = row.querySelector(".setWeightInput");
     input.disabled = false;
-    input.value = item.suggestedWeight;
+    input.value = exercise.suggestedWeight;
   });
   saveInputs();
 }
 function adjustSetWeight(setIndex, delta){
   const item = getItems(getDay())[itemIndex];
+  const id = itemId(item, itemIndex);
+  const exercise = effectiveExercise(item, id);
   const input = document.querySelector(`.setWeightInput[data-set-index="${setIndex}"]`);
   if(input.disabled){
     input.disabled = false;
     input.closest(".setWeightRow").classList.remove("setMissed");
     input.closest(".setWeightRow").querySelector(".missBtn").classList.remove("missed");
   }
-  const current = input.value === "" ? Number(item.suggestedWeight) : Number(input.value);
+  const current = input.value === "" ? Number(exercise.suggestedWeight) : Number(input.value);
   if(Number.isNaN(current)) return;
   input.value = Math.max(0, current + delta);
   saveInputs();
@@ -743,7 +768,7 @@ function toggleSetMissed(setIndex){
   saveInputs();
 }
 function alternativesKey(item){
-  return `${item.name}|${item.sets}|${item.reps}`;
+  return `v2|${item.name}|${item.sets}|${item.reps}`;
 }
 function readAlternatives(){
   try {
@@ -772,48 +797,77 @@ function renderAlternativesPanel(state, alternatives){
     panel.innerHTML = `<div class="altSheet"><button class="altClose" onclick="closeAlternatives()">×</button><div class="altState error">${escapeHtml(alternatives || "Could not load alternatives.")}</div></div>`;
     return;
   }
+  window.currentAlternatives = alternatives.map(normalizeAlternative);
   panel.innerHTML = `
     <div class="altSheet">
       <button class="altClose" onclick="closeAlternatives()">×</button>
       <div class="altList">
-        ${alternatives.map(alt => `
+        ${window.currentAlternatives.map((alt, index) => `
           <div class="altItem">
             <div class="altName">${escapeHtml(alt.name)}</div>
+            <div class="altRx">${escapeHtml(alt.sets)} × ${escapeHtml(alt.reps)} · ${escapeHtml(alt.suggestedWeight)} ${escapeHtml(alt.unit)}</div>
             <div class="altDetail">${escapeHtml(alt.how || "")}</div>
             <div class="altReason">${escapeHtml(alt.why || "")}</div>
             <div class="altActions">
-              <button class="justOnceBtn" onclick="useAlternativeThisTime(${jsString(alt.name)})">Just this time</button>
-              <button class="preferBtn" onclick="preferAlternative(${jsString(alt.name)})">Future workouts</button>
+              <button class="justOnceBtn" onclick="useAlternativeThisTime(${index})">Just this time</button>
+              <button class="preferBtn" onclick="preferAlternative(${index})">Future workouts</button>
             </div>
           </div>`).join("")}
       </div>
     </div>`;
 }
-function useAlternativeThisTime(name){
+function normalizeAlternative(alt){
+  const item = getItems(getDay())[itemIndex];
+  return {
+    name: alt.name || "Alternative exercise",
+    sets: Number(alt.sets) || item.sets,
+    reps: alt.reps || item.reps,
+    suggestedWeight: alt.suggestedWeight !== undefined && alt.suggestedWeight !== "" ? Number(alt.suggestedWeight) : item.suggestedWeight,
+    unit: alt.unit || item.unit || "lb",
+    how: alt.how || alt.notes || "",
+    why: alt.why || ""
+  };
+}
+function selectedAlternative(index){
+  return window.currentAlternatives && window.currentAlternatives[index] ? normalizeAlternative(window.currentAlternatives[index]) : null;
+}
+function applyAlternativeToCurrent(alternative){
   const item = getItems(getDay())[itemIndex];
   const id = itemId(item, itemIndex);
   const state = getState();
   if(!state.alternatives) state.alternatives = {};
-  state.alternatives[id] = name;
+  state.alternatives[id] = alternative;
+  if(state.setWeights && state.setWeights[id]){
+    state.setWeights[id] = state.setWeights[id].slice(0, Number(alternative.sets) || 1);
+  }
   setState(state);
+}
+function useAlternativeThisTime(index){
+  const alternative = selectedAlternative(index);
+  if(!alternative) return;
+  applyAlternativeToCurrent(alternative);
   closeAlternatives();
   render();
 }
-function preferAlternative(name){
+function preferAlternative(index){
+  const alternative = selectedAlternative(index);
+  if(!alternative) return;
   const item = getItems(getDay())[itemIndex];
   const prefs = readObject(EXERCISE_PREFS_KEY, {});
   prefs[item.name] = {
-    preferred: name,
+    preferred: alternative,
     source: item.name,
     savedAt: new Date().toISOString()
   };
   writeObject(EXERCISE_PREFS_KEY, prefs);
+  applyAlternativeToCurrent(alternative);
   closeAlternatives();
-  alert(`${name} will be preferred for future generated plans.`);
+  render();
 }
 function closeAlternatives(){
   const panel = $("alternativesPanel");
   if(panel) panel.remove();
+  window.currentAlternatives = [];
 }
 function loadAlternatives(){
   const item = getItems(getDay())[itemIndex];
@@ -872,6 +926,7 @@ function makeLogRecord(item, id, completed){
   const state = getState();
   const plan = getActivePlan();
   const isExercise = item.kind === "exercise";
+  const exercise = isExercise ? effectiveExercise(item, id, state) : item;
   return {
     id: `${Date.now()}-${weekIndex}-${dayIndex}-${id}`,
     context: getContextId(id),
@@ -880,13 +935,13 @@ function makeLogRecord(item, id, completed){
     week: plan.weeks[weekIndex].week,
     day: day.day,
     dayTitle: day.title,
-    exercise: isExercise ? displayExerciseName(item, id, state) : (item.type || item.text || item.kind),
+    exercise: isExercise ? exercise.name : (item.type || item.text || item.kind),
     originalExercise: isExercise ? item.name : "",
     itemType: item.kind,
-    suggestedWeight: isExercise ? item.suggestedWeight : "",
-    unit: isExercise ? item.unit : "",
-    completedWeight: isExercise ? compactSetWeights(getSetWeights(state, id, item)).join(" / ") : "",
-    setWeights: isExercise ? compactSetWeights(getSetWeights(state, id, item)).join(" / ") : "",
+    suggestedWeight: isExercise ? exercise.suggestedWeight : "",
+    unit: isExercise ? exercise.unit : "",
+    completedWeight: isExercise ? compactSetWeights(getSetWeights(state, id, exercise)).join(" / ") : "",
+    setWeights: isExercise ? compactSetWeights(getSetWeights(state, id, exercise)).join(" / ") : "",
     notes: isExercise ? (state.notes[id] || "") : "",
     completed
   };
@@ -1021,7 +1076,7 @@ function markDone(){
   const s = getState();
   const willComplete = !s.completed[id];
   if(item.kind === "exercise" && willComplete){
-    const setWeights = getSetWeights(s, id, item);
+    const setWeights = getSetWeights(s, id, effectiveExercise(item, id, s));
     if(!setWeights.every(isSetComplete)){
       alert("Enter a weight or tap DNC for every set before marking this exercise done.");
       render();

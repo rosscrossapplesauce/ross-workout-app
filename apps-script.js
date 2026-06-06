@@ -169,7 +169,7 @@ function getExerciseAlternatives(spreadsheet, params) {
   if (!exercise) return {ok: false, error: "Missing exercise name."};
 
   const cacheKey = [
-    "alternatives",
+    "alternativesV2",
     exercise,
     params.sets || "",
     params.reps || "",
@@ -372,6 +372,8 @@ function callOpenAIForAlternatives(apiKey, model, params) {
     "Return exactly three safe gym exercise alternatives as JSON.",
     "Each alternative should target the same primary muscles and movement pattern.",
     "Prefer common commercial gym machines, cables, dumbbells, or bodyweight options.",
+    "For each alternative, choose the best sets and reps for that exercise while keeping the same training intent.",
+    "Choose a conservative starting weight in pounds. Use 0 for bodyweight movements.",
     "Avoid medical claims. Keep instructions short.",
     "",
     `Exercise: ${params.exercise || ""}`,
@@ -379,7 +381,7 @@ function callOpenAIForAlternatives(apiKey, model, params) {
     `Prescription: ${params.sets || ""} sets x ${params.reps || ""} reps`,
     `Suggested weight: ${params.suggestedWeight || ""} ${params.unit || ""}`,
     "",
-    "JSON shape: {\"alternatives\":[{\"name\":\"...\",\"how\":\"...\",\"why\":\"...\"}]}"
+    "JSON shape: {\"alternatives\":[{\"name\":\"...\",\"sets\":3,\"reps\":\"8-10\",\"suggestedWeight\":50,\"unit\":\"lb\",\"how\":\"...\",\"why\":\"...\"}]}"
   ].join("\n");
 
   const response = UrlFetchApp.fetch("https://api.openai.com/v1/responses", {
@@ -409,9 +411,13 @@ function callOpenAIForAlternatives(apiKey, model, params) {
                 items: {
                   type: "object",
                   additionalProperties: false,
-                  required: ["name", "how", "why"],
+                  required: ["name", "sets", "reps", "suggestedWeight", "unit", "how", "why"],
                   properties: {
                     name: {type: "string"},
+                    sets: {type: "number"},
+                    reps: {type: "string"},
+                    suggestedWeight: {type: "number"},
+                    unit: {type: "string"},
                     how: {type: "string"},
                     why: {type: "string"}
                   }
