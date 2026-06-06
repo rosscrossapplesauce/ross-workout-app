@@ -6,8 +6,10 @@ let syncInFlight = false;
 let overviewOpen = false;
 let screenMode = "home";
 let planMessage = "";
+let planMessageScope = "all";
 let overviewMode = "list";
 let monthMessage = "";
+let holdTimer = null;
 
 const $ = id => document.getElementById(id);
 const key = () => getPlanSource() === "generated" ? `rossWorkout.v1.generated.w${weekIndex}.d${dayIndex}` : `rossWorkout.v1.w${weekIndex}.d${dayIndex}`;
@@ -22,6 +24,11 @@ const PENDING_PLAN_KEY = "rossWorkout.v1.pendingPlan";
 const PLAN_SOURCE_KEY = "rossWorkout.v1.planSource";
 const PLAN_ARCHIVE_KEY = "rossWorkout.v1.planArchive";
 const USER_STATS_KEY = "rossWorkout.v1.userStats";
+
+function setPlanMessage(message, scope = "all"){
+  planMessage = message;
+  planMessageScope = scope;
+}
 
 async function init(){
   lockViewportHeight();
@@ -162,6 +169,7 @@ function historySummary(item, id){
 function render(){
   screenMode = "workout";
   document.body.dataset.mode = "workout";
+  closeWorkoutMenu();
   document.body.dataset.overview = overviewOpen ? "true" : "false";
   const plan = getActivePlan();
   const day = getDay();
@@ -173,14 +181,12 @@ function render(){
   $("daySelect").value = dayIndex;
   $("doneBtn").style.display = items.length ? "block" : "none";
   $("doneBtn").onclick = markDone;
-  setNavArrow($("prevBtn"), itemIndex > 0);
-  setNavArrow($("nextBtn"), itemIndex < items.length - 1);
-  $("homeBtn").style.display = "block";
-  $("overviewBtn").innerText = "Overview";
-  $("overviewBtn").onclick = showOverview;
-  $("resetBtn").style.display = "block";
-  $("resetBtn").innerText = "Reset Day";
-  $("resetBtn").onclick = resetDay;
+  $("prevBtn").style.display = "none";
+  $("nextBtn").style.display = "none";
+  $("homeBtn").style.display = "none";
+  $("overviewBtn").innerText = "Menu";
+  $("overviewBtn").onclick = () => showWorkoutMenu("main");
+  $("resetBtn").style.display = "none";
 
   if(overviewOpen){
     renderOverview(day, items);
@@ -194,7 +200,11 @@ function render(){
   $("scoreText").innerText = total ? `${Math.round(completedCount/total*100)}%` : "";
   $("progressBar").style.width = total ? `${completedCount/total*100}%` : "0%";
 
-  if(!items.length){ $("screen").innerHTML = `<div class="card rest"><div><div class="exerciseName">Rest Day</div><div class="hint">${day.recovery || "No workout today."}</div></div></div>`; return; }
+  if(!items.length){
+    $("screen").innerHTML = `<div class="card rest"><div><div class="exerciseName">Rest Day</div><div class="hint">${day.recovery || "No workout today."}</div></div></div>`;
+    attachWorkoutHoldMenu();
+    return;
+  }
 
   const item = items[itemIndex];
   const id = itemId(item, itemIndex);
@@ -234,6 +244,7 @@ function render(){
     setTimeout(()=>{
       document.querySelectorAll(".setWeightInput").forEach(input => input.oninput = saveInputs);
       $("noteInput").oninput = saveInputs;
+      attachWorkoutHoldMenu();
     },0);
   } else if(item.kind === "row"){
     $("screen").innerHTML = `
@@ -246,6 +257,7 @@ function render(){
           <div class="smallDetail">${item.pace}</div>
         </div>
       </section>`;
+    attachWorkoutHoldMenu();
   } else if(item.kind === "run"){
     $("screen").innerHTML = `
       <section class="card ${done ? "completed":""}">
@@ -256,8 +268,10 @@ function render(){
           <div class="prescription">${item.pace}</div>
         </div>
       </section>`;
+    attachWorkoutHoldMenu();
   } else {
     $("screen").innerHTML = `<section class="card rest ${done ? "completed":""}"><div><div class="exerciseName">Rest Day</div><div class="hint">${item.text}</div></div></section>`;
+    attachWorkoutHoldMenu();
   }
   saveNav();
 }
@@ -294,7 +308,7 @@ function renderHome(){
         <button class="primary continueBtn" onclick="render()">Continue current plan</button>
         <button class="textBtn" onclick="renderPlanStart()">Create a new plan</button>
       </div>
-      ${planMessage ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
+      ${planMessage && planMessageScope !== "settings" ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
       ${pendingPlan ? pendingPlanSummary(pendingPlan) : ""}
     </section>`;
 }
@@ -327,12 +341,45 @@ function planSummary(settings){
     ${settings.trainingExperience ? `<div>${escapeHtml(settings.trainingExperience)} · ${escapeHtml(settings.trainingPace || "steady pace")}</div>` : ""}
     ${settings.crossTrainingSport ? `<div>Cross-training for ${escapeHtml(settings.crossTrainingSport)}</div>` : ""}`;
 }
+function limitationOptions(){
+  return [
+    "Sore back",
+    "Knee pain",
+    "Shoulder pain",
+    "Limited equipment",
+    "Temporary gym",
+    "Avoid running",
+    "Avoid overhead pressing",
+    "Avoid heavy lower body"
+  ];
+}
+function activeLimitations(settings){
+  if(!settings || !settings.limitationsEnabled) return "";
+  const tags = Array.isArray(settings.limitationTags) ? settings.limitationTags : [];
+  return [...tags, settings.avoidMovements || ""].filter(Boolean).join("; ");
+}
+function limitationStatus(settings){
+  const text = activeLimitations(settings);
+  if(!text) return "None active";
+  const duration = settings.limitationDuration === "temporary" ? "Temporary" : "Indefinite";
+  return `${duration}: ${text}`;
+}
+function statsStatus(stats){
+  const parts = [
+    stats.weight ? `${stats.weight} lb` : "",
+    stats.height || "",
+    stats.age ? `${stats.age} years` : "",
+    stats.cardioBaseline || ""
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "Not set";
+}
 function renderSettings(){
   screenMode = "settings";
   overviewOpen = false;
   document.body.dataset.mode = "settings";
   document.body.dataset.overview = "false";
   const stats = readObject(USER_STATS_KEY, {});
+  const settings = readObject(PLAN_SETTINGS_KEY, {});
   const archive = readList(PLAN_ARCHIVE_KEY);
   $("weekLabel").innerText = "Settings";
   $("dayTitle").innerHTML = `<span>App</span><span>Settings</span>`;
@@ -347,7 +394,46 @@ function renderSettings(){
   $("overviewBtn").onclick = renderHome;
   $("screen").innerHTML = `
     <section class="settingsPanel scrollPanel">
-      ${planMessage ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
+      ${planMessage && planMessageScope !== "home" ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
+      <div class="settingsActions">
+        <button onclick="renderStatsSettings()">Current stats</button>
+        <button onclick="renderLimitationsSettings()">Limitations</button>
+        <button onclick="renderProgress()">Progress</button>
+        <button onclick="configureSync()">Sync settings</button>
+      </div>
+      <div class="planSummary">
+        <div class="summaryTitle">Current stats</div>
+        <div>${escapeHtml(statsStatus(stats))}</div>
+      </div>
+      <div class="planSummary">
+        <div class="summaryTitle">Limitations</div>
+        <div>${escapeHtml(limitationStatus(settings))}</div>
+      </div>
+      <details class="advancedSetup">
+        <summary>Inactive plans</summary>
+        ${archive.length ? archive.map(planArchiveCard).join("") : `<div class="homeText">Past plans will appear here when you replace the current plan.</div>`}
+      </details>
+    </section>`;
+}
+function renderStatsSettings(){
+  screenMode = "stats";
+  overviewOpen = false;
+  document.body.dataset.mode = "settings";
+  document.body.dataset.overview = "false";
+  const stats = readObject(USER_STATS_KEY, {});
+  $("weekLabel").innerText = "Settings";
+  $("dayTitle").innerHTML = `<span>Current</span><span>Stats</span>`;
+  $("progressText").innerText = "Profile";
+  $("scoreText").innerText = "";
+  $("progressBar").style.width = "100%";
+  $("prevBtn").style.display = "none";
+  $("nextBtn").style.display = "none";
+  $("doneBtn").style.display = "none";
+  $("homeBtn").style.display = "none";
+  $("overviewBtn").innerText = "Settings";
+  $("overviewBtn").onclick = renderSettings;
+  $("screen").innerHTML = `
+    <section class="settingsPanel scrollPanel">
       <div class="setupGroup">
         <div class="setupTitle">Current stats</div>
         <div class="setupGrid">
@@ -359,17 +445,68 @@ function renderSettings(){
           <label>Cardio baseline<input id="statCardio" placeholder="2k row, 5k, etc." value="${escapeHtml(stats.cardioBaseline || "")}"></label>
         </div>
         <button class="primary" onclick="saveUserStats()">Save stats</button>
+        <button type="button" onclick="renderSettings()">Back to settings</button>
       </div>
-      <div class="settingsActions">
-        <button onclick="renderProgress()">Progress</button>
-        <button onclick="configureSync()">Sync settings</button>
-      </div>
-      <details class="advancedSetup">
-        <summary>Inactive plans</summary>
-        ${archive.length ? archive.map(planArchiveCard).join("") : `<div class="homeText">Past plans will appear here when you replace the current plan.</div>`}
-      </details>
     </section>`;
   if(stats.sex) $("statSex").value = stats.sex;
+}
+function renderLimitationsSettings(){
+  screenMode = "limitations";
+  overviewOpen = false;
+  document.body.dataset.mode = "settings";
+  document.body.dataset.overview = "false";
+  const settings = readObject(PLAN_SETTINGS_KEY, {});
+  const enabled = !!settings.limitationsEnabled;
+  const duration = settings.limitationDuration || "temporary";
+  const tags = Array.isArray(settings.limitationTags) ? settings.limitationTags : [];
+  $("weekLabel").innerText = "Settings";
+  $("dayTitle").innerHTML = `<span>Plan</span><span>Limitations</span>`;
+  $("progressText").innerText = enabled ? "Active for plan previews" : "Off";
+  $("scoreText").innerText = "";
+  $("progressBar").style.width = enabled ? "100%" : "0%";
+  $("prevBtn").style.display = "none";
+  $("nextBtn").style.display = "none";
+  $("doneBtn").style.display = "none";
+  $("homeBtn").style.display = "none";
+  $("overviewBtn").innerText = "Settings";
+  $("overviewBtn").onclick = renderSettings;
+  $("screen").innerHTML = `
+    <section class="settingsPanel scrollPanel">
+      <label class="toggleOption">
+        <input id="limitationsEnabled" type="checkbox" ${enabled ? "checked" : ""} onchange="updateLimitationsProgress()">
+        <span><strong>Use limitations in plans</strong><small>Off is best unless something should change your training.</small></span>
+      </label>
+      <div class="setupGroup">
+        <div class="setupTitle">How long?</div>
+        <div class="segmented">
+          <label><input type="radio" name="limitationDuration" value="temporary" ${duration === "temporary" ? "checked" : ""}><span>Temporary</span></label>
+          <label><input type="radio" name="limitationDuration" value="indefinite" ${duration === "indefinite" ? "checked" : ""}><span>Indefinite</span></label>
+        </div>
+      </div>
+      <div class="setupGroup">
+        <div class="setupTitle">What should plans account for?</div>
+        <div class="checkGrid">${limitationOptions().map(option => checkOption("limitationTag", option, tags.includes(option))).join("")}</div>
+      </div>
+      <label>Extra detail<textarea id="avoidMovements" placeholder="Movements to avoid, equipment missing, what hurts, or what feels okay.">${escapeHtml(settings.avoidMovements || "")}</textarea></label>
+      <button class="primary" onclick="saveLimitationsSettings()">Save limitations</button>
+      <button type="button" onclick="renderSettings()">Back to settings</button>
+    </section>`;
+}
+function updateLimitationsProgress(){
+  const enabled = $("limitationsEnabled") && $("limitationsEnabled").checked;
+  $("progressText").innerText = enabled ? "Active for plan previews" : "Off";
+  $("progressBar").style.width = enabled ? "100%" : "0%";
+}
+function saveLimitationsSettings(){
+  const settings = readObject(PLAN_SETTINGS_KEY, {});
+  settings.limitationsEnabled = $("limitationsEnabled").checked;
+  settings.limitationDuration = document.querySelector('input[name="limitationDuration"]:checked').value;
+  settings.limitationTags = Array.from(document.querySelectorAll('input[name="limitationTag"]:checked')).map(input => input.value);
+  settings.avoidMovements = $("avoidMovements").value.trim();
+  settings.planBias = generatePlanBias(settings);
+  writeObject(PLAN_SETTINGS_KEY, settings);
+  setPlanMessage(settings.limitationsEnabled ? "Limitations saved for future plan previews." : "Limitations turned off.", "settings");
+  renderSettings();
 }
 function saveUserStats(){
   const stats = {
@@ -382,7 +519,7 @@ function saveUserStats(){
     updatedAt: new Date().toISOString()
   };
   writeObject(USER_STATS_KEY, stats);
-  planMessage = "Stats saved.";
+  setPlanMessage("Stats saved.", "settings");
   renderSettings();
 }
 function planArchiveCard(entry, index){
@@ -408,7 +545,7 @@ function activateArchivedPlan(index){
   itemIndex = 0;
   buildSelectors();
   saveNav();
-  planMessage = "Plan made active.";
+  setPlanMessage("Plan made active.");
   renderHome();
 }
 function renderScheduleSetup(){
@@ -452,7 +589,7 @@ function saveScheduleSetup(){
   settings.restDays = $("scheduleRestDays").value.trim();
   if(settings.planBias) settings.planBias.startDate = settings.startDate;
   writeObject(PLAN_SETTINGS_KEY, settings);
-  planMessage = "Schedule saved.";
+  setPlanMessage("Schedule saved.");
   overviewMode = "calendar";
   renderHome();
 }
@@ -552,10 +689,10 @@ function selectPlanTune(id){
   writeObject(PLAN_SETTINGS_KEY, settings);
   localStorage.removeItem(PENDING_PLAN_KEY);
   if(getSyncUrl() && navigator.onLine){
-    planMessage = `Creating preview: ${option.label}.`;
+    setPlanMessage(`Creating preview: ${option.label}.`);
     generatePersonalPlan();
   } else {
-    planMessage = "Plan edit saved. Add sync settings to create a preview.";
+    setPlanMessage("Plan edit saved. Add sync settings to create a preview.", "settings");
     renderSettings();
   }
 }
@@ -564,7 +701,8 @@ function renderSetup(mode, path = "guided"){
   overviewOpen = false;
   document.body.dataset.mode = "setup";
   document.body.dataset.overview = "false";
-  const current = mode === "change" ? readObject(PLAN_SETTINGS_KEY, {}) : {};
+  const savedSettings = readObject(PLAN_SETTINGS_KEY, {});
+  const current = mode === "change" ? savedSettings : {};
   const startDefault = current.startDate || (mode === "new" ? todayInputDate() : "");
   const daysDefault = current.daysPerWeek || (mode === "new" ? "5" : "");
   const lengthDefault = current.workoutLength || (mode === "new" ? "45" : "");
@@ -601,7 +739,6 @@ function renderSetup(mode, path = "guided"){
           <label>Start date<input id="startDate" type="date" required value="${escapeHtml(startDefault)}"></label>
           <label>Days/week<input id="daysPerWeek" type="number" inputmode="numeric" placeholder="5" value="${escapeHtml(daysDefault)}"></label>
           <label>Workout length<input id="workoutLength" type="number" inputmode="numeric" placeholder="45" value="${escapeHtml(lengthDefault)}"></label>
-          <label class="wideField">Limitations<input id="avoidMovements" placeholder="Injuries, machines to avoid..." value="${escapeHtml(current.avoidMovements || "")}"></label>
         </div>
       </div>
       <details class="advancedSetup" ${path === "advanced" ? "open" : ""}>
@@ -672,13 +809,14 @@ function savePlanSetup(mode){
     reps: row.querySelector(".strengthReps").value.trim(),
     rpe: row.querySelector(".strengthRpe").value.trim()
   })).filter(sample => sample.name || sample.weight || sample.reps);
+  const savedSettings = readObject(PLAN_SETTINGS_KEY, {});
   const settings = {
+    ...savedSettings,
     mode,
     goals,
     mainGoal: $("mainGoal").value,
     trainingExperience: $("trainingExperience").value,
     trainingPace: $("trainingPace").value,
-    avoidMovements: $("avoidMovements").value.trim(),
     startDate: $("startDate").value,
     crossTrainingSport: $("crossTrainingSport").value.trim(),
     gymAccess: $("gymAccess").value,
@@ -692,7 +830,10 @@ function savePlanSetup(mode){
       mainGoal:$("mainGoal").value,
       trainingExperience:$("trainingExperience").value,
       trainingPace:$("trainingPace").value,
-      avoidMovements:$("avoidMovements").value.trim(),
+      limitationsEnabled: savedSettings.limitationsEnabled,
+      limitationDuration: savedSettings.limitationDuration,
+      limitationTags: savedSettings.limitationTags,
+      avoidMovements: savedSettings.avoidMovements,
       startDate:$("startDate").value,
       crossTrainingSport:$("crossTrainingSport").value.trim(),
       strengthSamples
@@ -701,31 +842,31 @@ function savePlanSetup(mode){
   writeObject(PLAN_SETTINGS_KEY, settings);
   localStorage.removeItem(PENDING_PLAN_KEY);
   if(getSyncUrl() && navigator.onLine){
-    planMessage = mode === "new" ? "Creating your plan preview..." : "Updating your plan preview...";
+    setPlanMessage(mode === "new" ? "Creating your plan preview..." : "Updating your plan preview...");
     generatePersonalPlan();
   } else {
-    planMessage = "Setup saved. Add sync settings to create a plan preview.";
+    setPlanMessage("Setup saved. Add sync settings to create a plan preview.", "settings");
     renderSettings();
   }
 }
 function generatePersonalPlan(){
   const settings = readObject(PLAN_SETTINGS_KEY, null);
   if(!settings){
-    planMessage = "Save your plan setup first.";
+    setPlanMessage("Save your plan setup first.");
     renderHome();
     return;
   }
   if(!getSyncUrl()){
-    planMessage = "Add sync settings before creating a plan preview.";
+    setPlanMessage("Add sync settings before creating a plan preview.", "settings");
     renderSettings();
     return;
   }
   if(!navigator.onLine){
-    planMessage = "You're offline. Create the plan preview when your phone is back online.";
+    setPlanMessage("You're offline. Create the plan preview when your phone is back online.");
     renderHome();
     return;
   }
-  planMessage = "Creating your plan preview...";
+  setPlanMessage("Creating your plan preview...");
   renderHome();
   const callback = `rossWorkoutPlan${Date.now()}`;
   const script = document.createElement("script");
@@ -740,9 +881,9 @@ function generatePersonalPlan(){
       const plan = normalizeGeneratedPlan(payload.plan);
       plan.previewType = "new";
       writeObject(PENDING_PLAN_KEY, plan);
-      planMessage = "Plan preview ready. Review it before switching.";
+      setPlanMessage("Plan preview ready. Review it before switching.");
     } else {
-      planMessage = payload && payload.error ? payload.error : "Could not generate a plan.";
+      setPlanMessage(payload && payload.error ? payload.error : "Could not generate a plan.");
     }
     cleanup();
     renderHome();
@@ -762,12 +903,12 @@ function generatePersonalPlan(){
   script.src = `${getSyncUrl()}${separator}${params.toString()}`;
   script.onerror = () => {
     cleanup();
-    planMessage = "Could not reach the plan generator.";
+    setPlanMessage("Could not reach the plan generator.");
     renderHome();
   };
   timeout = setTimeout(() => {
     cleanup();
-    planMessage = "Plan generation timed out. Try again in a minute.";
+    setPlanMessage("Plan generation timed out. Try again in a minute.");
     renderHome();
   }, 45000);
   document.body.appendChild(script);
@@ -775,7 +916,7 @@ function generatePersonalPlan(){
 function activatePendingPlan(){
   const plan = readObject(PENDING_PLAN_KEY, null);
   if(!plan || !isValidPlan(plan)){
-    planMessage = "No plan preview is ready.";
+    setPlanMessage("No plan preview is ready.");
     renderHome();
     return;
   }
@@ -790,7 +931,7 @@ function activatePendingPlan(){
   }
   buildSelectors();
   saveNav();
-  planMessage = "Generated plan is active.";
+  setPlanMessage("Generated plan is active.");
   renderHome();
 }
 function archiveCurrentPlan(reason){
@@ -809,7 +950,7 @@ function archiveCurrentPlan(reason){
 }
 function discardPendingPlan(){
   localStorage.removeItem(PENDING_PLAN_KEY);
-  planMessage = "Kept your current plan.";
+  setPlanMessage("Kept your current plan.");
   renderHome();
 }
 function addAnotherMonth(){
@@ -841,7 +982,7 @@ function addAnotherMonth(){
       combined.previewType = "extension";
       writeObject(PENDING_PLAN_KEY, combined);
       monthMessage = "";
-      planMessage = "Next-month preview ready. Review it before switching.";
+      setPlanMessage("Next-month preview ready. Review it before switching.");
       renderHome();
     } else {
       monthMessage = payload && payload.error ? payload.error : "Could not add another month.";
@@ -987,11 +1128,13 @@ function normalizeGeneratedPlan(plan){
 }
 function generatePlanBias(settings){
   const goals = settings.goals || [];
+  const limitations = activeLimitations(settings);
   return {
     mainGoal: settings.mainGoal || "",
     experience: settings.trainingExperience || "",
     pace: settings.trainingPace || "",
-    avoidMovements: settings.avoidMovements || "",
+    avoidMovements: limitations,
+    limitationDuration: limitations ? (settings.limitationDuration || "temporary") : "",
     startDate: settings.startDate || "",
     conditioning: goals.includes("Build endurance") || goals.includes("Weight loss") || goals.includes("Hybrid") ? "rowing-forward aerobic base with one hard interval day" : "moderate conditioning",
     strength: goals.includes("Build muscle") ? "progressive hypertrophy with conservative loading" : "maintenance-friendly strength progression",
@@ -1149,6 +1292,7 @@ function renderOverview(day, items){
   $("doneBtn").style.display = "block";
   $("doneBtn").innerText = selectedWorkoutButtonLabel();
   $("overviewBtn").innerText = "Workout";
+  $("overviewBtn").onclick = showOverview;
 
   if(overviewMode === "calendar"){
     renderCalendarOverview();
@@ -1162,8 +1306,6 @@ function renderOverview(day, items){
         <div class="hint">${escapeHtml(day.recovery || "No workout today.")}</div>
         <div class="overviewActions">
           <button type="button" onclick="toggleOverviewMode()">Calendar view</button>
-          <button type="button" onclick="renderPlanTune()">Edit current plan</button>
-          <button type="button" onclick="addAnotherMonth()">Add month</button>
         </div>
         ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
       </section>`;
@@ -1185,8 +1327,6 @@ function renderOverview(day, items){
       </div>
       <div class="overviewActions">
         <button type="button" onclick="toggleOverviewMode()">Calendar view</button>
-        <button type="button" onclick="renderPlanTune()">Edit current plan</button>
-        <button type="button" onclick="addAnotherMonth()">Add month</button>
       </div>
       ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
       <div class="overviewList">
@@ -1212,8 +1352,6 @@ function renderCalendarOverview(){
       </div>
       <div class="overviewActions">
         <button type="button" onclick="toggleOverviewMode()">${escapeHtml(selectedWorkoutButtonLabel())}</button>
-        <button type="button" onclick="renderPlanTune()">Edit current plan</button>
-        <button type="button" onclick="addAnotherMonth()">Add month</button>
       </div>
       ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
       <div class="calendarGrid scrollPanel">
@@ -1304,6 +1442,83 @@ function jumpToItem(index){
   overviewOpen = false;
   render();
   $("screen").focus({preventScroll:true});
+}
+function attachWorkoutHoldMenu(){
+  const screen = $("screen");
+  if(!screen) return;
+  screen.onpointerdown = event => {
+    if(screenMode !== "workout" || overviewOpen || event.target.closest("button,input,textarea,select,summary,details")) return;
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(() => showWorkoutMenu("quick"), 650);
+  };
+  screen.onpointerup = clearWorkoutHold;
+  screen.onpointercancel = clearWorkoutHold;
+  screen.onpointerleave = clearWorkoutHold;
+  screen.onpointermove = event => {
+    if(Math.abs(event.movementX || 0) > 6 || Math.abs(event.movementY || 0) > 6) clearWorkoutHold();
+  };
+  screen.oncontextmenu = event => {
+    if(screenMode !== "workout" || overviewOpen) return;
+    event.preventDefault();
+    showWorkoutMenu("quick");
+  };
+}
+function clearWorkoutHold(){
+  clearTimeout(holdTimer);
+  holdTimer = null;
+}
+function showWorkoutMenu(type = "main"){
+  clearWorkoutHold();
+  if(screenMode !== "workout") return;
+  closeWorkoutMenu();
+  const items = getItems(getDay());
+  const isQuickMenu = type === "quick";
+  const menuButtons = isQuickMenu ? `
+      ${itemIndex > 0 ? `<button type="button" onclick="prevItem()">Previous exercise</button>` : ""}
+      ${itemIndex < items.length - 1 ? `<button type="button" onclick="nextItem()">Next exercise</button>` : ""}
+      <button type="button" onclick="openWorkoutCalendar()">Calendar</button>
+      <button type="button" class="dangerAction" onclick="resetDayFromMenu()">Reset day</button>
+      <button type="button" onclick="closeWorkoutMenu()">Cancel</button>
+    ` : `
+      <button type="button" onclick="openWorkoutList()">Today's list</button>
+      <button type="button" onclick="openWorkoutCalendar()">Calendar</button>
+      <button type="button" onclick="goHomeFromMenu()">Home</button>
+      <button type="button" onclick="closeWorkoutMenu()">Cancel</button>
+    `;
+  const sheet = document.createElement("div");
+  sheet.id = "workoutMenu";
+  sheet.className = "actionSheet";
+  sheet.innerHTML = `
+    <button class="sheetBackdrop" type="button" aria-label="Close menu" onclick="closeWorkoutMenu()"></button>
+    <div class="sheetPanel" role="dialog" aria-modal="true" aria-label="Workout menu">
+      <div class="sheetHandle"></div>
+      ${menuButtons}
+    </div>`;
+  document.body.appendChild(sheet);
+}
+function closeWorkoutMenu(){
+  const existing = document.getElementById("workoutMenu");
+  if(existing) existing.remove();
+}
+function openWorkoutList(){
+  closeWorkoutMenu();
+  overviewMode = "list";
+  overviewOpen = true;
+  render();
+}
+function openWorkoutCalendar(){
+  closeWorkoutMenu();
+  overviewMode = "calendar";
+  overviewOpen = true;
+  render();
+}
+function goHomeFromMenu(){
+  closeWorkoutMenu();
+  renderHome();
+}
+function resetDayFromMenu(){
+  closeWorkoutMenu();
+  resetDay();
 }
 function itemId(item, i){
   if(item.kind === "exercise") return `exercise-${item.idx}`;
@@ -1710,6 +1925,8 @@ function renderCurrentScreen(){
   else if(screenMode === "schedule") renderScheduleSetup();
   else if(screenMode === "progress") renderProgress();
   else if(screenMode === "settings") renderSettings();
+  else if(screenMode === "stats") renderStatsSettings();
+  else if(screenMode === "limitations") renderLimitationsSettings();
   else if(screenMode === "planTune") renderPlanTune();
   else render();
 }
