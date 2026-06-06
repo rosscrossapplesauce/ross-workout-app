@@ -292,7 +292,7 @@ function renderHome(){
       </div>
       <div class="homeActions">
         <button class="primary continueBtn" onclick="render()">Continue current plan</button>
-        <button class="textBtn" onclick="renderSetup('new')">Create a new plan</button>
+        <button class="textBtn" onclick="renderPlanStart()">Create a new plan</button>
       </div>
       ${planMessage ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
       ${pendingPlan ? pendingPlanSummary(pendingPlan) : ""}
@@ -347,6 +347,7 @@ function renderSettings(){
   $("overviewBtn").onclick = renderHome;
   $("screen").innerHTML = `
     <section class="settingsPanel scrollPanel">
+      ${planMessage ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
       <div class="setupGroup">
         <div class="setupTitle">Current stats</div>
         <div class="setupGrid">
@@ -455,6 +456,42 @@ function saveScheduleSetup(){
   overviewMode = "calendar";
   renderHome();
 }
+function renderPlanStart(){
+  screenMode = "planStart";
+  overviewOpen = false;
+  document.body.dataset.mode = "setup";
+  document.body.dataset.overview = "false";
+  $("weekLabel").innerText = "New Plan";
+  $("dayTitle").innerHTML = `<span>Start</span><span>Training</span>`;
+  $("progressText").innerText = "Pick the path that fits";
+  $("scoreText").innerText = "";
+  $("progressBar").style.width = "20%";
+  $("prevBtn").style.display = "none";
+  $("nextBtn").style.display = "none";
+  $("doneBtn").style.display = "none";
+  $("resetBtn").style.display = "none";
+  $("homeBtn").style.display = "none";
+  $("overviewBtn").innerText = "Home";
+  $("overviewBtn").onclick = renderHome;
+  $("screen").innerHTML = `
+    <section class="setupPanel scrollPanel">
+      <div class="setupHint">Most people can use the first option. You can fine tune after the preview.</div>
+      <div class="pathGrid">
+        <button type="button" class="pathOption primaryPath" onclick="renderSetup('new','guided')">
+          <strong>Build me a plan</strong>
+          <span>Fastest path. Smart defaults, conservative weights, adjusts from your logs.</span>
+        </button>
+        <button type="button" class="pathOption" onclick="renderSetup('new','advanced')">
+          <strong>I know what I want</strong>
+          <span>Choose volume, focus, pace, and optional starting weights.</span>
+        </button>
+        <button type="button" class="pathOption" onclick="renderPlanTune()">
+          <strong>Modify current plan</strong>
+          <span>Make the current plan shorter, stronger, more cardio, more recovery, or more targeted.</span>
+        </button>
+      </div>
+    </section>`;
+}
 function renderPlanTune(){
   screenMode = "planTune";
   overviewOpen = false;
@@ -522,33 +559,36 @@ function selectPlanTune(id){
     renderSettings();
   }
 }
-function renderSetup(mode){
+function renderSetup(mode, path = "guided"){
   screenMode = "setup";
   overviewOpen = false;
   document.body.dataset.mode = "setup";
   document.body.dataset.overview = "false";
   const current = mode === "change" ? readObject(PLAN_SETTINGS_KEY, {}) : {};
+  const startDefault = current.startDate || (mode === "new" ? todayInputDate() : "");
+  const daysDefault = current.daysPerWeek || (mode === "new" ? "5" : "");
+  const lengthDefault = current.workoutLength || (mode === "new" ? "45" : "");
   $("weekLabel").innerText = mode === "new" ? "New Plan" : "Plan Goals";
-  $("dayTitle").innerHTML = `<span>${mode === "new" ? "Start" : "Update"}</span><span>Training Plan</span>`;
-  $("progressText").innerText = "Skip anything you do not know";
+  $("dayTitle").innerHTML = `<span>${path === "advanced" ? "Fine Tune" : "Build"}</span><span>Training Plan</span>`;
+  $("progressText").innerText = path === "advanced" ? "Add detail where it helps" : "Only answer what matters";
   $("scoreText").innerText = "";
-  $("progressBar").style.width = "33%";
+  $("progressBar").style.width = path === "advanced" ? "60%" : "40%";
   $("prevBtn").style.display = "none";
   $("nextBtn").style.display = "none";
   $("doneBtn").style.display = "block";
-  $("doneBtn").innerText = "Save plan setup";
+  $("doneBtn").innerText = mode === "new" ? "Create preview" : "Update preview";
   $("doneBtn").onclick = () => savePlanSetup(mode);
   $("resetBtn").style.display = "block";
-  $("resetBtn").innerText = "Cancel";
-  $("resetBtn").onclick = renderHome;
+  $("resetBtn").innerText = "Back";
+  $("resetBtn").onclick = mode === "new" ? renderPlanStart : renderHome;
   $("homeBtn").style.display = "none";
   $("overviewBtn").innerText = "Home";
   $("overviewBtn").onclick = renderHome;
   $("screen").innerHTML = `
     <section class="setupPanel scrollPanel">
-      <div class="setupHint">New to gym tracking? Leave weights blank. The app will start conservatively and adjust from what you log.</div>
+      <div class="setupHint">${path === "advanced" ? "Use this only where you have a real preference. Blank fields are fine." : "The app will fill in the rest, start conservatively, and adjust from what you log."}</div>
       <div class="setupGroup">
-        <div class="setupTitle">Quick start</div>
+        <div class="setupTitle">Plan basics</div>
         <div class="setupGrid">
           <label>Main goal<select id="mainGoal">
             <option>Build muscle</option>
@@ -558,7 +598,16 @@ function renderSetup(mode){
             <option>General fitness</option>
             <option>Hybrid strength + cardio</option>
           </select></label>
-          <label>Gym experience<select id="trainingExperience">
+          <label>Start date<input id="startDate" type="date" required value="${escapeHtml(startDefault)}"></label>
+          <label>Days/week<input id="daysPerWeek" type="number" inputmode="numeric" placeholder="5" value="${escapeHtml(daysDefault)}"></label>
+          <label>Workout length<input id="workoutLength" type="number" inputmode="numeric" placeholder="45" value="${escapeHtml(lengthDefault)}"></label>
+          <label class="wideField">Limitations<input id="avoidMovements" placeholder="Injuries, machines to avoid..." value="${escapeHtml(current.avoidMovements || "")}"></label>
+        </div>
+      </div>
+      <details class="advancedSetup" ${path === "advanced" ? "open" : ""}>
+        <summary>Fine tune</summary>
+        <div class="setupGrid">
+          <label>Experience<select id="trainingExperience">
             <option>Athletic, new to gym</option>
             <option>Beginner</option>
             <option>Returning after time away</option>
@@ -570,24 +619,15 @@ function renderSetup(mode){
             <option>Moderate</option>
             <option>Ambitious</option>
           </select></label>
-          <label>Limitations<input id="avoidMovements" placeholder="Injuries, machines to avoid..." value="${escapeHtml(current.avoidMovements || "")}"></label>
-          <label>Start date<input id="startDate" type="date" required value="${escapeHtml(current.startDate || "")}"></label>
+          <label>Gym access<select id="gymAccess"><option>Yes</option><option>No</option></select></label>
+          <label>Rest days<input id="restDays" placeholder="Sunday, Thursday" value="${escapeHtml(current.restDays || "")}"></label>
         </div>
-      </div>
-      <div class="setupGroup">
-        <div class="setupTitle">Goals</div>
         <div class="checkGrid">${goalOptions().map(goal => checkOption("goal", goal, (current.goals || []).includes(goal))).join("")}</div>
         <input id="crossTrainingSport" class="setupInput" placeholder="Sport/activity for cross training" value="${escapeHtml(current.crossTrainingSport || "")}">
-      </div>
-      <div class="setupGrid">
-        <label>Gym access<select id="gymAccess"><option>Yes</option><option>No</option></select></label>
-        <label>Workout length<input id="workoutLength" type="number" inputmode="numeric" placeholder="45" value="${escapeHtml(current.workoutLength || "")}"></label>
-        <label>Days/week<input id="daysPerWeek" type="number" inputmode="numeric" placeholder="5" value="${escapeHtml(current.daysPerWeek || "")}"></label>
-        <label>Preferred rest days<input id="restDays" placeholder="Sunday, Thursday" value="${escapeHtml(current.restDays || "")}"></label>
-      </div>
-      <details class="advancedSetup">
-        <summary>Add advanced starting weights</summary>
-        <div class="setupHint">Optional. If you do not know these, skip them.</div>
+      </details>
+      <details class="advancedSetup" ${path === "advanced" ? "open" : ""}>
+        <summary>Add starting weights</summary>
+        <div class="setupHint">Optional. Skip these if you do not know them yet.</div>
         ${defaultStrengthSamples(current).map((sample,i) => strengthRow(i, sample)).join("")}
       </details>
     </section>`;
@@ -1665,6 +1705,7 @@ function loadRemoteHistory(){
 }
 function renderCurrentScreen(){
   if(screenMode === "home") renderHome();
+  else if(screenMode === "planStart") renderPlanStart();
   else if(screenMode === "setup") renderSetup("change");
   else if(screenMode === "schedule") renderScheduleSetup();
   else if(screenMode === "progress") renderProgress();
