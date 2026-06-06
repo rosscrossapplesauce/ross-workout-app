@@ -162,6 +162,7 @@ function historySummary(item, id){
 function render(){
   screenMode = "workout";
   document.body.dataset.mode = "workout";
+  document.body.dataset.overview = overviewOpen ? "true" : "false";
   const plan = getActivePlan();
   const day = getDay();
   const items = getItems(day);
@@ -259,6 +260,7 @@ function renderHome(){
   screenMode = "home";
   overviewOpen = false;
   document.body.dataset.mode = "home";
+  document.body.dataset.overview = "false";
   const settings = readObject(PLAN_SETTINGS_KEY, null);
   const generatedPlan = hasGeneratedPlan() ? readObject(GENERATED_PLAN_KEY, null) : null;
   const generatedActive = getPlanSource() === "generated";
@@ -312,6 +314,7 @@ function renderSetup(mode){
   screenMode = "setup";
   overviewOpen = false;
   document.body.dataset.mode = "setup";
+  document.body.dataset.overview = "false";
   const current = mode === "change" ? readObject(PLAN_SETTINGS_KEY, {}) : {};
   $("weekLabel").innerText = mode === "new" ? "New Plan" : "Plan Goals";
   $("dayTitle").innerHTML = `<span>${mode === "new" ? "Start" : "Update"}</span><span>Training Plan</span>`;
@@ -531,6 +534,7 @@ function renderProgress(){
   screenMode = "progress";
   overviewOpen = false;
   document.body.dataset.mode = "progress";
+  document.body.dataset.overview = "false";
   $("weekLabel").innerText = "Progress";
   $("dayTitle").innerHTML = `<span>Strength</span><span>Trends</span>`;
   $("progressText").innerText = "Actual + projected";
