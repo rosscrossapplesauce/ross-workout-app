@@ -44,6 +44,7 @@ body[data-mode="progress"] main{justify-content:flex-start}
 .homeText{font-size:15px;line-height:1.35;color:var(--muted);font-weight:700;margin-top:8px}
 .homeActions{display:flex;flex-direction:column;gap:8px}
 .planSummary{background:#07101d;border:1px solid var(--line);border-radius:12px;padding:10px;color:var(--muted);font-size:13px;line-height:1.35;font-weight:750}
+.planMessage{background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);border-radius:12px;padding:10px;color:#dbeafe;font-size:13px;line-height:1.35;font-weight:850}
 .summaryTitle,.setupTitle,.chartTitle{color:var(--text);font-size:15px;font-weight:950;margin-bottom:6px}
 .setupGroup{display:flex;flex-direction:column;gap:8px}
 .checkGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
