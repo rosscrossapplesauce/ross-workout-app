@@ -5,15 +5,18 @@ let itemIndex = Number(localStorage.getItem("itemIndex") || 0);
 let syncInFlight = false;
 let overviewOpen = false;
 let screenMode = "home";
+let planMessage = "";
 
 const $ = id => document.getElementById(id);
-const key = () => `rossWorkout.v1.w${weekIndex}.d${dayIndex}`;
+const key = () => getPlanSource() === "generated" ? `rossWorkout.v1.generated.w${weekIndex}.d${dayIndex}` : `rossWorkout.v1.w${weekIndex}.d${dayIndex}`;
 const HISTORY_KEY = "rossWorkout.v1.history";
 const PENDING_KEY = "rossWorkout.v1.pendingSync";
 const SYNC_URL_KEY = "rossWorkout.v1.syncUrl";
 const ALTERNATIVES_KEY = "rossWorkout.v1.alternatives";
 const PLAN_SETTINGS_KEY = "rossWorkout.v1.planSettings";
 const EXERCISE_PREFS_KEY = "rossWorkout.v1.exercisePreferences";
+const GENERATED_PLAN_KEY = "rossWorkout.v1.generatedPlan";
+const PLAN_SOURCE_KEY = "rossWorkout.v1.planSource";
 
 async function init(){
   lockViewportHeight();
@@ -33,11 +36,12 @@ function lockViewportHeight(){
   }, {passive:false});
 }
 function buildSelectors(){
-  $("weekSelect").innerHTML = data.weeks.map((w,i)=>`<option value="${i}">Week ${w.week}</option>`).join("");
+  const plan = getActivePlan();
+  $("weekSelect").innerHTML = plan.weeks.map((w,i)=>`<option value="${i}">Week ${w.week}</option>`).join("");
   buildDaySelector();
   $("weekSelect").value = weekIndex;
   $("daySelect").value = dayIndex;
-  $("weekSelect").onchange = e => { weekIndex=Number(e.target.value); dayIndex=Math.min(dayIndex, data.weeks[weekIndex].days.length-1); itemIndex=0; buildDaySelector(); saveNav(); render(); };
+  $("weekSelect").onchange = e => { weekIndex=Number(e.target.value); dayIndex=Math.min(dayIndex, getActivePlan().weeks[weekIndex].days.length-1); itemIndex=0; buildDaySelector(); saveNav(); render(); };
   $("daySelect").onchange = e => { dayIndex=Number(e.target.value); itemIndex=0; saveNav(); render(); };
   $("prevBtn").onclick = prevItem;
   $("nextBtn").onclick = nextItem;
@@ -51,7 +55,10 @@ function buildSelectors(){
   syncPending();
 }
 function buildDaySelector(){
-  $("daySelect").innerHTML = data.weeks[weekIndex].days.map((d,i)=>`<option value="${i}">${d.day}</option>`).join("");
+  const plan = getActivePlan();
+  weekIndex = Math.min(weekIndex, plan.weeks.length - 1);
+  dayIndex = Math.min(dayIndex, plan.weeks[weekIndex].days.length - 1);
+  $("daySelect").innerHTML = plan.weeks[weekIndex].days.map((d,i)=>`<option value="${i}">${d.day}</option>`).join("");
   $("daySelect").value = dayIndex;
 }
 function saveNav(){
@@ -60,7 +67,31 @@ function saveNav(){
   localStorage.setItem("itemIndex", itemIndex);
 }
 function getDay(){
-  return data.weeks[weekIndex].days[dayIndex];
+  const plan = getActivePlan();
+  weekIndex = Math.min(weekIndex, plan.weeks.length - 1);
+  dayIndex = Math.min(dayIndex, plan.weeks[weekIndex].days.length - 1);
+  return plan.weeks[weekIndex].days[dayIndex];
+}
+function getPlanSource(){
+  return hasGeneratedPlan() && localStorage.getItem(PLAN_SOURCE_KEY) === "generated" ? "generated" : "original";
+}
+function getActivePlan(){
+  return getPlanSource() === "generated" ? readObject(GENERATED_PLAN_KEY, data) : data;
+}
+function hasGeneratedPlan(){
+  const plan = readObject(GENERATED_PLAN_KEY, null);
+  return isValidPlan(plan);
+}
+function switchPlan(source){
+  if(source === "generated" && !hasGeneratedPlan()) return;
+  localStorage.setItem(PLAN_SOURCE_KEY, source === "generated" ? "generated" : "original");
+  weekIndex = 0;
+  dayIndex = 0;
+  itemIndex = 0;
+  overviewOpen = false;
+  buildSelectors();
+  saveNav();
+  renderHome();
 }
 function getItems(day){
   const arr = [];
@@ -109,7 +140,7 @@ function formatDate(value){
   return new Date(value).toLocaleDateString(undefined, {month:"short", day:"numeric", year:"numeric"});
 }
 function getContextId(id){
-  return `w${weekIndex}.d${dayIndex}.${id}`;
+  return `${getPlanSource()}.w${weekIndex}.d${dayIndex}.${id}`;
 }
 function getLastHistory(exName, currentContext){
   return readList(HISTORY_KEY)
@@ -131,10 +162,11 @@ function historySummary(item, id){
 function render(){
   screenMode = "workout";
   document.body.dataset.mode = "workout";
+  const plan = getActivePlan();
   const day = getDay();
   const items = getItems(day);
   if(itemIndex >= items.length) itemIndex = Math.max(0, items.length-1);
-  $("weekLabel").innerText = `Week ${weekIndex+1}`;
+  $("weekLabel").innerText = `${getPlanSource() === "generated" ? "Custom" : "Week"} ${plan.weeks[weekIndex].week || weekIndex+1}`;
   $("dayTitle").innerHTML = `<span>${escapeHtml(day.day)}</span><span>${escapeHtml(day.title)}</span>`;
   $("weekSelect").value = weekIndex;
   $("daySelect").value = dayIndex;
@@ -228,9 +260,12 @@ function renderHome(){
   overviewOpen = false;
   document.body.dataset.mode = "home";
   const settings = readObject(PLAN_SETTINGS_KEY, null);
+  const generatedPlan = hasGeneratedPlan() ? readObject(GENERATED_PLAN_KEY, null) : null;
+  const generatedActive = getPlanSource() === "generated";
+  const activePlan = getActivePlan();
   $("weekLabel").innerText = "Workout";
   $("dayTitle").innerHTML = `<span>Ross Workout</span><span>Coach</span>`;
-  $("progressText").innerText = settings ? "Custom goals saved" : "Current hybrid fat-loss plan";
+  $("progressText").innerText = generatedActive ? "Generated plan active" : (settings ? "Custom goals saved" : "Current hybrid fat-loss plan");
   $("scoreText").innerText = "";
   $("progressBar").style.width = settings ? "100%" : "0%";
   $("prevBtn").style.display = "none";
@@ -242,17 +277,29 @@ function renderHome(){
   $("screen").innerHTML = `
     <section class="homePanel scrollPanel">
       <div>
-        <div class="homeTitle">Current Plan</div>
-        <div class="homeText">Fat-loss hybrid training with rowing, conservative strength progression, upper/shoulder emphasis, lower-body work, one easy run, and Sunday rest.</div>
+        <div class="homeTitle">${generatedActive ? "Generated Plan" : "Current Plan"}</div>
+        <div class="homeText">${escapeHtml(activePlan.summary || "Fat-loss hybrid training with rowing, conservative strength progression, upper/shoulder emphasis, lower-body work, one easy run, and Sunday rest.")}</div>
       </div>
       <div class="homeActions">
         <button class="primary" onclick="render()">Continue current plan</button>
+        ${settings ? `<button onclick="generatePersonalPlan()">Generate private plan</button>` : ""}
+        ${generatedPlan && !generatedActive ? `<button onclick="switchPlan('generated')">Use generated plan</button>` : ""}
+        ${generatedActive ? `<button onclick="switchPlan('original')">Use original plan</button>` : ""}
         <button onclick="renderSetup('change')">Change current plan's goals</button>
         <button onclick="renderSetup('new')">Start a new plan</button>
         <button onclick="renderProgress()">Progress</button>
       </div>
+      ${planMessage ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
+      ${generatedPlan ? `<div class="planSummary">${generatedPlanSummary(generatedPlan)}</div>` : ""}
       ${settings ? `<div class="planSummary">${planSummary(settings)}</div>` : ""}
     </section>`;
+}
+function generatedPlanSummary(plan){
+  return `
+    <div class="summaryTitle">${escapeHtml(plan.name || "Generated plan")}</div>
+    <div>${escapeHtml(plan.weeks.length)} weeks · ${escapeHtml(plan.weeks[0].days.length)} days/week</div>
+    ${plan.generatedAt ? `<div>Generated ${formatDate(plan.generatedAt)}</div>` : ""}
+    ${plan.notes ? `<div>${escapeHtml(plan.notes)}</div>` : ""}`;
 }
 function planSummary(settings){
   return `
@@ -350,7 +397,117 @@ function savePlanSetup(mode){
     planBias: generatePlanBias({goals, crossTrainingSport:$("crossTrainingSport").value.trim(), equipment:$("equipment").value.trim(), strengthSamples})
   };
   writeObject(PLAN_SETTINGS_KEY, settings);
+  planMessage = "Setup saved. Generate a private plan when you're ready.";
   renderHome();
+}
+function generatePersonalPlan(){
+  const settings = readObject(PLAN_SETTINGS_KEY, null);
+  if(!settings){
+    planMessage = "Save your plan setup first.";
+    renderHome();
+    return;
+  }
+  if(!getSyncUrl()){
+    planMessage = "Add your Apps Script Web App URL before generating a private plan.";
+    renderHome();
+    return;
+  }
+  if(!navigator.onLine){
+    planMessage = "You're offline. Generate the plan when your phone is back online.";
+    renderHome();
+    return;
+  }
+  planMessage = "Generating your private plan...";
+  renderHome();
+  const callback = `rossWorkoutPlan${Date.now()}`;
+  const script = document.createElement("script");
+  let timeout;
+  const cleanup = () => {
+    clearTimeout(timeout);
+    delete window[callback];
+    script.remove();
+  };
+  window[callback] = payload => {
+    if(payload && payload.ok && isValidPlan(payload.plan)){
+      const plan = normalizeGeneratedPlan(payload.plan);
+      writeObject(GENERATED_PLAN_KEY, plan);
+      localStorage.setItem(PLAN_SOURCE_KEY, "generated");
+      weekIndex = 0;
+      dayIndex = 0;
+      itemIndex = 0;
+      buildSelectors();
+      saveNav();
+      planMessage = "Generated plan is active.";
+    } else {
+      planMessage = payload && payload.error ? payload.error : "Could not generate a plan.";
+    }
+    cleanup();
+    renderHome();
+  };
+  const separator = getSyncUrl().includes("?") ? "&" : "?";
+  const payload = {
+    settings,
+    preferences: readObject(EXERCISE_PREFS_KEY, {}),
+    history: compactGenerationHistory()
+  };
+  const params = new URLSearchParams({
+    action:"generatePlan",
+    callback,
+    payload: JSON.stringify(payload)
+  });
+  script.src = `${getSyncUrl()}${separator}${params.toString()}`;
+  script.onerror = () => {
+    cleanup();
+    planMessage = "Could not reach the plan generator.";
+    renderHome();
+  };
+  timeout = setTimeout(() => {
+    cleanup();
+    planMessage = "Plan generation timed out. Try again in a minute.";
+    renderHome();
+  }, 45000);
+  document.body.appendChild(script);
+}
+function compactGenerationHistory(){
+  return readList(HISTORY_KEY)
+    .filter(record => record && record.completed)
+    .slice(-16)
+    .map(record => ({
+      date: record.timestamp,
+      exercise: record.exercise,
+      itemType: record.itemType,
+      weight: record.setWeights || record.completedWeight || "",
+      notes: record.notes || ""
+    }));
+}
+function isValidPlan(plan){
+  return !!(plan && Array.isArray(plan.weeks) && plan.weeks.length && plan.weeks.every(week => Array.isArray(week.days) && week.days.length));
+}
+function normalizeGeneratedPlan(plan){
+  return {
+    ...plan,
+    source:"generated",
+    generatedAt: plan.generatedAt || new Date().toISOString(),
+    units: plan.units || "lb unless noted",
+    weeks: plan.weeks.map((week, weekIdx) => ({
+      week: week.week || weekIdx + 1,
+      days: week.days.map((day, dayIdx) => ({
+        day: day.day || `Day ${dayIdx + 1}`,
+        title: day.title || "Training",
+        row: day.row || null,
+        run: day.run || null,
+        recovery: day.recovery || "",
+        exercises: Array.isArray(day.exercises) ? day.exercises.map(ex => ({
+          name: ex.name || "Exercise",
+          sets: Number(ex.sets) || 1,
+          reps: String(ex.reps || ""),
+          suggestedWeight: Number(ex.suggestedWeight) || 0,
+          unit: ex.unit || "lb",
+          notes: ex.notes || ""
+        })) : []
+      }))
+    }))
+  };
 }
 function generatePlanBias(settings){
   const goals = settings.goals || [];
@@ -713,12 +870,14 @@ function loadAlternatives(){
 function makeLogRecord(item, id, completed){
   const day = getDay();
   const state = getState();
+  const plan = getActivePlan();
   const isExercise = item.kind === "exercise";
   return {
     id: `${Date.now()}-${weekIndex}-${dayIndex}-${id}`,
     context: getContextId(id),
     timestamp: new Date().toISOString(),
-    week: data.weeks[weekIndex].week,
+    planSource: getPlanSource(),
+    week: plan.weeks[weekIndex].week,
     day: day.day,
     dayTitle: day.title,
     exercise: isExercise ? displayExerciseName(item, id, state) : (item.type || item.text || item.kind),

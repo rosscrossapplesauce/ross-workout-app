@@ -10,7 +10,9 @@ const WORKOUT_HEADERS = [
   "week",
   "day",
   "dayTitle",
+  "planSource",
   "exercise",
+  "originalExercise",
   "itemType",
   "suggestedWeight",
   "unit",
@@ -33,6 +35,8 @@ const PR_HEADERS = [
 const SETTINGS_HEADERS = ["key", "value"];
 
 function doGet(e) {
+  e = e || {parameter: {}};
+  e.parameter = e.parameter || {};
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   ensureSheets(spreadsheet);
 
@@ -50,6 +54,12 @@ function doGet(e) {
     } catch (error) {
       payload = {ok: false, error: error.message || "Could not generate alternatives."};
     }
+  } else if (action === "generatePlan") {
+    try {
+      payload = generateTrainingPlan(spreadsheet, e.parameter);
+    } catch (error) {
+      payload = {ok: false, error: error.message || "Could not generate a training plan."};
+    }
   } else {
     payload = {ok: true, message: "Workout sheets are ready."};
   }
@@ -58,6 +68,7 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  e = e || {};
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   ensureSheets(spreadsheet);
 
@@ -183,6 +194,177 @@ function getExerciseAlternatives(spreadsheet, params) {
   const alternatives = callOpenAIForAlternatives(apiKey, model, params);
   setSetting(spreadsheet, cacheKey, JSON.stringify(alternatives));
   return {ok: true, alternatives, cached: false};
+}
+
+function generateTrainingPlan(spreadsheet, params) {
+  const payload = parseJson(params.payload || "{}");
+  const settings = payload.settings || {};
+  if (!settings.goals || !settings.goals.length) {
+    return {ok: false, error: "Save at least one goal before generating a plan."};
+  }
+
+  const apiKey = PropertiesService.getScriptProperties().getProperty("OPENAI_API_KEY");
+  if (!apiKey) {
+    return {ok: false, error: "OpenAI key is not set in Apps Script properties."};
+  }
+
+  const model = PropertiesService.getScriptProperties().getProperty("OPENAI_MODEL") || "gpt-5.4-mini";
+  const plan = callOpenAIForPlan(apiKey, model, payload);
+  plan.generatedAt = new Date().toISOString();
+  setSetting(spreadsheet, "latestGeneratedPlan", JSON.stringify(plan));
+  return {ok: true, plan};
+}
+
+function parseJson(value) {
+  try {
+    return JSON.parse(value || "{}");
+  } catch (error) {
+    return {};
+  }
+}
+
+function callOpenAIForPlan(apiKey, model, payload) {
+  const settings = payload.settings || {};
+  const prompt = [
+    "Create a conservative, gym-friendly training plan as JSON.",
+    "The user is active but returning to lifting after time away. Favor safe starting weights, gradual progression, and simple execution.",
+    "Do not provide medical advice. Avoid injury diagnosis. Encourage easing up if pain appears.",
+    "Keep workouts efficient and minimal. One day should fit the requested workout length.",
+    "Use rowing, running, strength, and rest according to the user's goals and notes.",
+    "If weight-loss timing is mentioned, keep it realistic and training-focused rather than promising fat loss.",
+    "Return 4 weeks. Use the requested days per week when provided, otherwise 5 days per week.",
+    "For strength exercises, suggest conservative numeric starting weights in pounds. Use 0 only for bodyweight movements.",
+    "Each training day may include row, run, exercises, recovery, or a combination.",
+    "",
+    "User setup:",
+    JSON.stringify(settings),
+    "",
+    "Preferred exercise substitutions:",
+    JSON.stringify(payload.preferences || {}),
+    "",
+    "Recent workout history:",
+    JSON.stringify(payload.history || []),
+    "",
+    "JSON shape: {\"plan\":{\"name\":\"...\",\"summary\":\"...\",\"notes\":\"...\",\"units\":\"lb unless noted\",\"weeks\":[...]}}"
+  ].join("\n");
+
+  const response = UrlFetchApp.fetch("https://api.openai.com/v1/responses", {
+    method: "post",
+    contentType: "application/json",
+    headers: {
+      Authorization: `Bearer ${apiKey}`
+    },
+    muteHttpExceptions: true,
+    payload: JSON.stringify({
+      model,
+      input: prompt,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "generated_workout_plan",
+          strict: true,
+          schema: workoutPlanSchema()
+        }
+      }
+    })
+  });
+
+  const status = response.getResponseCode();
+  const body = response.getContentText();
+  if (status < 200 || status >= 300) {
+    throw new Error(`OpenAI request failed: ${status} ${body}`);
+  }
+
+  const parsed = JSON.parse(body);
+  const text = parsed.output_text || extractResponseText(parsed);
+  const output = JSON.parse(text);
+  return output.plan || output;
+}
+
+function workoutPlanSchema() {
+  const cardioSchema = {
+    anyOf: [
+      {
+        type: "object",
+        additionalProperties: false,
+        required: ["type", "duration", "intensity", "pace"],
+        properties: {
+          type: {type: "string"},
+          duration: {type: "string"},
+          intensity: {type: "string"},
+          pace: {type: "string"}
+        }
+      },
+      {type: "null"}
+    ]
+  };
+
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["plan"],
+    properties: {
+      plan: {
+        type: "object",
+        additionalProperties: false,
+        required: ["name", "summary", "notes", "units", "weeks"],
+        properties: {
+          name: {type: "string"},
+          summary: {type: "string"},
+          notes: {type: "string"},
+          units: {type: "string"},
+          weeks: {
+            type: "array",
+            minItems: 4,
+            maxItems: 4,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["week", "days"],
+              properties: {
+                week: {type: "number"},
+                days: {
+                  type: "array",
+                  minItems: 3,
+                  maxItems: 7,
+                  items: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["day", "title", "row", "run", "recovery", "exercises"],
+                    properties: {
+                      day: {type: "string"},
+                      title: {type: "string"},
+                      row: cardioSchema,
+                      run: cardioSchema,
+                      recovery: {type: "string"},
+                      exercises: {
+                        type: "array",
+                        minItems: 0,
+                        maxItems: 8,
+                        items: {
+                          type: "object",
+                          additionalProperties: false,
+                          required: ["name", "sets", "reps", "suggestedWeight", "unit", "notes"],
+                          properties: {
+                            name: {type: "string"},
+                            sets: {type: "number"},
+                            reps: {type: "string"},
+                            suggestedWeight: {type: "number"},
+                            unit: {type: "string"},
+                            notes: {type: "string"}
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  };
 }
 
 function callOpenAIForAlternatives(apiKey, model, params) {

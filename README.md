@@ -15,6 +15,8 @@ Live site: https://rosscrossapplesauce.github.io/ross-workout-app/
 - Shows last completed weight, previous completion date, and weight change when an exercise appears again.
 - Syncs workout history to Google Sheets when configured.
 - Suggests alternative exercises through a private Apps Script OpenAI proxy when configured.
+- Generates a private custom training plan from saved goals through Apps Script/OpenAI when configured.
+- Lets you switch between the original `workouts.json` plan and the generated plan.
 - Saves preferred alternative exercises for future generated plans.
 - Shows strength progress charts with actual progress and two projection lines.
 
@@ -106,9 +108,9 @@ If `apps-script.js` changes:
 4. Choose a new version.
 5. Deploy.
 
-## Private OpenAI Alternatives Setup
+## Private OpenAI Setup
 
-Alternative exercise suggestions are generated through Google Apps Script so your OpenAI API key is never stored in the public PWA or GitHub Pages.
+Alternative exercise suggestions and generated training plans run through Google Apps Script so your OpenAI API key is never stored in the public PWA or GitHub Pages.
 
 ### 1. Create an OpenAI API Key
 
@@ -157,6 +159,17 @@ Then redeploy:
 2. Tap **Alternatives**.
 3. The app asks Apps Script for three substitutions and caches them in the `Settings` sheet.
 
+### 5. Generate a Private Plan
+
+1. Open the workout app.
+2. Tap **Start a new plan** or **Change current plan's goals**.
+3. Save your goals, equipment, schedule, and optional strength starting points.
+4. Tap **Generate private plan** on the home screen.
+5. The app asks Apps Script to create a 4-week plan and saves it locally on your phone.
+6. Use **Use original plan** or **Use generated plan** to switch between plans.
+
+Generated plans do not edit `workouts.json`. The original plan remains the fallback plan in the repo.
+
 Do not paste your OpenAI key into the workout app, GitHub, or `workouts.json`.
 
 ## Deploy on GitHub Pages
@@ -178,7 +191,7 @@ https://rosscrossapplesauce.github.io/ross-workout-app/
 ## Notes
 
 - Progress is saved in the browser with `localStorage`.
-- Plan setup, goal preferences, and preferred alternatives are saved in `localStorage`.
-- Current plan data still comes from `workouts.json`; the setup flow stores generation constraints for future plan generation.
+- Plan setup, goal preferences, generated plans, and preferred alternatives are saved in `localStorage`.
+- The original plan data still comes from `workouts.json`; generated plans are a local override created through Apps Script/OpenAI.
 - If Google Sheets sync fails, records stay queued locally until the next successful sync attempt.
 - Edit `workouts.json` only when you are ready to change the workout plan.
