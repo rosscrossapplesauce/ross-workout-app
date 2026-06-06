@@ -10,6 +10,8 @@ let planMessageScope = "all";
 let overviewMode = "list";
 let monthMessage = "";
 let holdTimer = null;
+let planProgress = null;
+let planProgressTimer = null;
 
 const $ = id => document.getElementById(id);
 const key = () => getPlanSource() === "generated" ? `rossWorkout.v1.generated.w${weekIndex}.d${dayIndex}` : `rossWorkout.v1.w${weekIndex}.d${dayIndex}`;
@@ -28,6 +30,53 @@ const USER_STATS_KEY = "rossWorkout.v1.userStats";
 function setPlanMessage(message, scope = "all"){
   planMessage = message;
   planMessageScope = scope;
+}
+function startPlanProgress(label){
+  stopPlanProgress(false);
+  planProgress = {
+    percent: 4,
+    label,
+    detail: "Starting the private generator..."
+  };
+  planProgressTimer = setInterval(tickPlanProgress, 900);
+}
+function tickPlanProgress(){
+  if(!planProgress) return;
+  const next = planProgress.percent < 55 ? planProgress.percent + 7 : planProgress.percent < 82 ? planProgress.percent + 3 : planProgress.percent < 94 ? planProgress.percent + 1 : 94;
+  planProgress.percent = Math.min(next, 94);
+  planProgress.detail = planProgress.percent < 30 ? "Reading your goals and stats..." : planProgress.percent < 65 ? "Building the week-by-week structure..." : planProgress.percent < 90 ? "Checking exercise details and progression..." : "Almost done. Waiting for the final plan...";
+  updatePlanProgressUi();
+}
+function stopPlanProgress(render = true){
+  clearInterval(planProgressTimer);
+  planProgressTimer = null;
+  planProgress = null;
+  if(render) updatePlanProgressUi();
+}
+function updatePlanProgressUi(){
+  const percent = document.getElementById("planProgressPercent");
+  const bar = document.getElementById("planProgressBar");
+  const detail = document.getElementById("planProgressDetail");
+  if(!planProgress){
+    const card = document.getElementById("planProgressCard");
+    if(card) card.remove();
+    return;
+  }
+  if(percent) percent.innerText = `${planProgress.percent}%`;
+  if(bar) bar.style.width = `${planProgress.percent}%`;
+  if(detail) detail.innerText = planProgress.detail;
+}
+function planProgressMarkup(){
+  if(!planProgress) return "";
+  return `
+    <div class="planProgressCard" id="planProgressCard" aria-live="polite">
+      <div class="planProgressTop">
+        <span>${escapeHtml(planProgress.label)}</span>
+        <strong id="planProgressPercent">${escapeHtml(planProgress.percent)}%</strong>
+      </div>
+      <div class="planProgressTrack"><div id="planProgressBar" style="width:${escapeHtml(planProgress.percent)}%"></div></div>
+      <div class="planProgressDetail" id="planProgressDetail">${escapeHtml(planProgress.detail)}</div>
+    </div>`;
 }
 
 async function init(){
@@ -309,6 +358,7 @@ function renderHome(){
         <button class="textBtn" onclick="renderPlanStart()">Create a new plan</button>
       </div>
       ${planMessage && planMessageScope !== "settings" ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
+      ${planProgressMarkup()}
       ${pendingPlan ? pendingPlanSummary(pendingPlan) : ""}
     </section>`;
 }
@@ -866,6 +916,7 @@ function generatePersonalPlan(){
     renderHome();
     return;
   }
+  startPlanProgress("Creating your plan preview");
   setPlanMessage("Creating your plan preview...");
   renderHome();
   const callback = `rossWorkoutPlan${Date.now()}`;
@@ -877,6 +928,7 @@ function generatePersonalPlan(){
     script.remove();
   };
   window[callback] = payload => {
+    stopPlanProgress(false);
     if(payload && payload.ok && isValidPlan(payload.plan)){
       const plan = normalizeGeneratedPlan(payload.plan);
       plan.previewType = "new";
@@ -903,14 +955,16 @@ function generatePersonalPlan(){
   script.src = `${getSyncUrl()}${separator}${params.toString()}`;
   script.onerror = () => {
     cleanup();
+    stopPlanProgress(false);
     setPlanMessage("Could not reach the plan generator.");
     renderHome();
   };
   timeout = setTimeout(() => {
     cleanup();
-    setPlanMessage("Plan generation timed out. Try again in a minute.");
+    stopPlanProgress(false);
+    setPlanMessage("Plan generation timed out. If this keeps happening, redeploy Apps Script after pushing and confirm the OpenAI key is set.");
     renderHome();
-  }, 45000);
+  }, 120000);
   document.body.appendChild(script);
 }
 function activatePendingPlan(){
@@ -965,6 +1019,7 @@ function addAnotherMonth(){
     return;
   }
   monthMessage = "Building the next month...";
+  startPlanProgress("Building the next month");
   overviewOpen = true;
   render();
   const callback = `rossWorkoutExtend${Date.now()}`;
@@ -976,6 +1031,7 @@ function addAnotherMonth(){
     script.remove();
   };
   window[callback] = payload => {
+    stopPlanProgress(false);
     if(payload && payload.ok && isValidPlan(payload.plan)){
       const extension = normalizeGeneratedPlan(payload.plan);
       const combined = appendPlanMonth(activePlan, extension);
@@ -1004,14 +1060,16 @@ function addAnotherMonth(){
   script.src = `${getSyncUrl()}${separator}${params.toString()}`;
   script.onerror = () => {
     cleanup();
+    stopPlanProgress(false);
     monthMessage = "Could not reach the plan generator.";
     render();
   };
   timeout = setTimeout(() => {
     cleanup();
-    monthMessage = "Adding another month timed out. Try again in a minute.";
+    stopPlanProgress(false);
+    monthMessage = "Adding another month timed out. If this keeps happening, redeploy Apps Script after pushing and confirm the OpenAI key is set.";
     render();
-  }, 45000);
+  }, 120000);
   document.body.appendChild(script);
 }
 function ensurePlanSettings(plan){
@@ -1308,6 +1366,7 @@ function renderOverview(day, items){
           <button type="button" onclick="toggleOverviewMode()">Calendar view</button>
         </div>
         ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
+        ${planProgressMarkup()}
       </section>`;
     saveNav();
     return;
@@ -1329,6 +1388,7 @@ function renderOverview(day, items){
         <button type="button" onclick="toggleOverviewMode()">Calendar view</button>
       </div>
       ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
+      ${planProgressMarkup()}
       <div class="overviewList">
         ${items.map((item,i)=>overviewRow(item, i, !!state.completed[itemId(item, i)], state)).join("")}
       </div>
@@ -1354,6 +1414,7 @@ function renderCalendarOverview(){
         <button type="button" onclick="toggleOverviewMode()">${escapeHtml(selectedWorkoutButtonLabel())}</button>
       </div>
       ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
+      ${planProgressMarkup()}
       <div class="calendarGrid scrollPanel">
         ${plan.weeks.map((week, wIdx) => `
           <div class="calendarWeek">
