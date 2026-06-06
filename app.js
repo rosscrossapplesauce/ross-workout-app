@@ -333,12 +333,45 @@ function planSummary(settings){
     ${settings.trainingExperience ? `<div>${escapeHtml(settings.trainingExperience)} · ${escapeHtml(settings.trainingPace || "steady pace")}</div>` : ""}
     ${settings.crossTrainingSport ? `<div>Cross-training for ${escapeHtml(settings.crossTrainingSport)}</div>` : ""}`;
 }
+function limitationOptions(){
+  return [
+    "Sore back",
+    "Knee pain",
+    "Shoulder pain",
+    "Limited equipment",
+    "Temporary gym",
+    "Avoid running",
+    "Avoid overhead pressing",
+    "Avoid heavy lower body"
+  ];
+}
+function activeLimitations(settings){
+  if(!settings || !settings.limitationsEnabled) return "";
+  const tags = Array.isArray(settings.limitationTags) ? settings.limitationTags : [];
+  return [...tags, settings.avoidMovements || ""].filter(Boolean).join("; ");
+}
+function limitationStatus(settings){
+  const text = activeLimitations(settings);
+  if(!text) return "None active";
+  const duration = settings.limitationDuration === "temporary" ? "Temporary" : "Indefinite";
+  return `${duration}: ${text}`;
+}
+function statsStatus(stats){
+  const parts = [
+    stats.weight ? `${stats.weight} lb` : "",
+    stats.height || "",
+    stats.age ? `${stats.age} years` : "",
+    stats.cardioBaseline || ""
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "Not set";
+}
 function renderSettings(){
   screenMode = "settings";
   overviewOpen = false;
   document.body.dataset.mode = "settings";
   document.body.dataset.overview = "false";
   const stats = readObject(USER_STATS_KEY, {});
+  const settings = readObject(PLAN_SETTINGS_KEY, {});
   const archive = readList(PLAN_ARCHIVE_KEY);
   $("weekLabel").innerText = "Settings";
   $("dayTitle").innerHTML = `<span>App</span><span>Settings</span>`;
@@ -354,6 +387,45 @@ function renderSettings(){
   $("screen").innerHTML = `
     <section class="settingsPanel scrollPanel">
       ${planMessage && planMessageScope !== "home" ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
+      <div class="settingsActions">
+        <button onclick="renderStatsSettings()">Current stats</button>
+        <button onclick="renderLimitationsSettings()">Limitations</button>
+        <button onclick="renderProgress()">Progress</button>
+        <button onclick="configureSync()">Sync settings</button>
+      </div>
+      <div class="planSummary">
+        <div class="summaryTitle">Current stats</div>
+        <div>${escapeHtml(statsStatus(stats))}</div>
+      </div>
+      <div class="planSummary">
+        <div class="summaryTitle">Limitations</div>
+        <div>${escapeHtml(limitationStatus(settings))}</div>
+      </div>
+      <details class="advancedSetup">
+        <summary>Inactive plans</summary>
+        ${archive.length ? archive.map(planArchiveCard).join("") : `<div class="homeText">Past plans will appear here when you replace the current plan.</div>`}
+      </details>
+    </section>`;
+}
+function renderStatsSettings(){
+  screenMode = "stats";
+  overviewOpen = false;
+  document.body.dataset.mode = "settings";
+  document.body.dataset.overview = "false";
+  const stats = readObject(USER_STATS_KEY, {});
+  $("weekLabel").innerText = "Settings";
+  $("dayTitle").innerHTML = `<span>Current</span><span>Stats</span>`;
+  $("progressText").innerText = "Profile";
+  $("scoreText").innerText = "";
+  $("progressBar").style.width = "100%";
+  $("prevBtn").style.display = "none";
+  $("nextBtn").style.display = "none";
+  $("doneBtn").style.display = "none";
+  $("homeBtn").style.display = "none";
+  $("overviewBtn").innerText = "Settings";
+  $("overviewBtn").onclick = renderSettings;
+  $("screen").innerHTML = `
+    <section class="settingsPanel scrollPanel">
       <div class="setupGroup">
         <div class="setupTitle">Current stats</div>
         <div class="setupGrid">
@@ -365,17 +437,68 @@ function renderSettings(){
           <label>Cardio baseline<input id="statCardio" placeholder="2k row, 5k, etc." value="${escapeHtml(stats.cardioBaseline || "")}"></label>
         </div>
         <button class="primary" onclick="saveUserStats()">Save stats</button>
+        <button type="button" onclick="renderSettings()">Back to settings</button>
       </div>
-      <div class="settingsActions">
-        <button onclick="renderProgress()">Progress</button>
-        <button onclick="configureSync()">Sync settings</button>
-      </div>
-      <details class="advancedSetup">
-        <summary>Inactive plans</summary>
-        ${archive.length ? archive.map(planArchiveCard).join("") : `<div class="homeText">Past plans will appear here when you replace the current plan.</div>`}
-      </details>
     </section>`;
   if(stats.sex) $("statSex").value = stats.sex;
+}
+function renderLimitationsSettings(){
+  screenMode = "limitations";
+  overviewOpen = false;
+  document.body.dataset.mode = "settings";
+  document.body.dataset.overview = "false";
+  const settings = readObject(PLAN_SETTINGS_KEY, {});
+  const enabled = !!settings.limitationsEnabled;
+  const duration = settings.limitationDuration || "temporary";
+  const tags = Array.isArray(settings.limitationTags) ? settings.limitationTags : [];
+  $("weekLabel").innerText = "Settings";
+  $("dayTitle").innerHTML = `<span>Plan</span><span>Limitations</span>`;
+  $("progressText").innerText = enabled ? "Active for plan previews" : "Off";
+  $("scoreText").innerText = "";
+  $("progressBar").style.width = enabled ? "100%" : "0%";
+  $("prevBtn").style.display = "none";
+  $("nextBtn").style.display = "none";
+  $("doneBtn").style.display = "none";
+  $("homeBtn").style.display = "none";
+  $("overviewBtn").innerText = "Settings";
+  $("overviewBtn").onclick = renderSettings;
+  $("screen").innerHTML = `
+    <section class="settingsPanel scrollPanel">
+      <label class="toggleOption">
+        <input id="limitationsEnabled" type="checkbox" ${enabled ? "checked" : ""} onchange="updateLimitationsProgress()">
+        <span><strong>Use limitations in plans</strong><small>Off is best unless something should change your training.</small></span>
+      </label>
+      <div class="setupGroup">
+        <div class="setupTitle">How long?</div>
+        <div class="segmented">
+          <label><input type="radio" name="limitationDuration" value="temporary" ${duration === "temporary" ? "checked" : ""}><span>Temporary</span></label>
+          <label><input type="radio" name="limitationDuration" value="indefinite" ${duration === "indefinite" ? "checked" : ""}><span>Indefinite</span></label>
+        </div>
+      </div>
+      <div class="setupGroup">
+        <div class="setupTitle">What should plans account for?</div>
+        <div class="checkGrid">${limitationOptions().map(option => checkOption("limitationTag", option, tags.includes(option))).join("")}</div>
+      </div>
+      <label>Extra detail<textarea id="avoidMovements" placeholder="Movements to avoid, equipment missing, what hurts, or what feels okay.">${escapeHtml(settings.avoidMovements || "")}</textarea></label>
+      <button class="primary" onclick="saveLimitationsSettings()">Save limitations</button>
+      <button type="button" onclick="renderSettings()">Back to settings</button>
+    </section>`;
+}
+function updateLimitationsProgress(){
+  const enabled = $("limitationsEnabled") && $("limitationsEnabled").checked;
+  $("progressText").innerText = enabled ? "Active for plan previews" : "Off";
+  $("progressBar").style.width = enabled ? "100%" : "0%";
+}
+function saveLimitationsSettings(){
+  const settings = readObject(PLAN_SETTINGS_KEY, {});
+  settings.limitationsEnabled = $("limitationsEnabled").checked;
+  settings.limitationDuration = document.querySelector('input[name="limitationDuration"]:checked').value;
+  settings.limitationTags = Array.from(document.querySelectorAll('input[name="limitationTag"]:checked')).map(input => input.value);
+  settings.avoidMovements = $("avoidMovements").value.trim();
+  settings.planBias = generatePlanBias(settings);
+  writeObject(PLAN_SETTINGS_KEY, settings);
+  setPlanMessage(settings.limitationsEnabled ? "Limitations saved for future plan previews." : "Limitations turned off.", "settings");
+  renderSettings();
 }
 function saveUserStats(){
   const stats = {
@@ -570,7 +693,8 @@ function renderSetup(mode, path = "guided"){
   overviewOpen = false;
   document.body.dataset.mode = "setup";
   document.body.dataset.overview = "false";
-  const current = mode === "change" ? readObject(PLAN_SETTINGS_KEY, {}) : {};
+  const savedSettings = readObject(PLAN_SETTINGS_KEY, {});
+  const current = mode === "change" ? savedSettings : {};
   const startDefault = current.startDate || (mode === "new" ? todayInputDate() : "");
   const daysDefault = current.daysPerWeek || (mode === "new" ? "5" : "");
   const lengthDefault = current.workoutLength || (mode === "new" ? "45" : "");
@@ -607,7 +731,6 @@ function renderSetup(mode, path = "guided"){
           <label>Start date<input id="startDate" type="date" required value="${escapeHtml(startDefault)}"></label>
           <label>Days/week<input id="daysPerWeek" type="number" inputmode="numeric" placeholder="5" value="${escapeHtml(daysDefault)}"></label>
           <label>Workout length<input id="workoutLength" type="number" inputmode="numeric" placeholder="45" value="${escapeHtml(lengthDefault)}"></label>
-          <label class="wideField">Limitations<input id="avoidMovements" placeholder="Injuries, machines to avoid..." value="${escapeHtml(current.avoidMovements || "")}"></label>
         </div>
       </div>
       <details class="advancedSetup" ${path === "advanced" ? "open" : ""}>
@@ -678,13 +801,14 @@ function savePlanSetup(mode){
     reps: row.querySelector(".strengthReps").value.trim(),
     rpe: row.querySelector(".strengthRpe").value.trim()
   })).filter(sample => sample.name || sample.weight || sample.reps);
+  const savedSettings = readObject(PLAN_SETTINGS_KEY, {});
   const settings = {
+    ...savedSettings,
     mode,
     goals,
     mainGoal: $("mainGoal").value,
     trainingExperience: $("trainingExperience").value,
     trainingPace: $("trainingPace").value,
-    avoidMovements: $("avoidMovements").value.trim(),
     startDate: $("startDate").value,
     crossTrainingSport: $("crossTrainingSport").value.trim(),
     gymAccess: $("gymAccess").value,
@@ -698,7 +822,10 @@ function savePlanSetup(mode){
       mainGoal:$("mainGoal").value,
       trainingExperience:$("trainingExperience").value,
       trainingPace:$("trainingPace").value,
-      avoidMovements:$("avoidMovements").value.trim(),
+      limitationsEnabled: savedSettings.limitationsEnabled,
+      limitationDuration: savedSettings.limitationDuration,
+      limitationTags: savedSettings.limitationTags,
+      avoidMovements: savedSettings.avoidMovements,
       startDate:$("startDate").value,
       crossTrainingSport:$("crossTrainingSport").value.trim(),
       strengthSamples
@@ -993,11 +1120,13 @@ function normalizeGeneratedPlan(plan){
 }
 function generatePlanBias(settings){
   const goals = settings.goals || [];
+  const limitations = activeLimitations(settings);
   return {
     mainGoal: settings.mainGoal || "",
     experience: settings.trainingExperience || "",
     pace: settings.trainingPace || "",
-    avoidMovements: settings.avoidMovements || "",
+    avoidMovements: limitations,
+    limitationDuration: limitations ? (settings.limitationDuration || "temporary") : "",
     startDate: settings.startDate || "",
     conditioning: goals.includes("Build endurance") || goals.includes("Weight loss") || goals.includes("Hybrid") ? "rowing-forward aerobic base with one hard interval day" : "moderate conditioning",
     strength: goals.includes("Build muscle") ? "progressive hypertrophy with conservative loading" : "maintenance-friendly strength progression",
@@ -1716,6 +1845,8 @@ function renderCurrentScreen(){
   else if(screenMode === "schedule") renderScheduleSetup();
   else if(screenMode === "progress") renderProgress();
   else if(screenMode === "settings") renderSettings();
+  else if(screenMode === "stats") renderStatsSettings();
+  else if(screenMode === "limitations") renderLimitationsSettings();
   else if(screenMode === "planTune") renderPlanTune();
   else render();
 }
