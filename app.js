@@ -6,6 +6,7 @@ let syncInFlight = false;
 let overviewOpen = false;
 let screenMode = "home";
 let planMessage = "";
+let planMessageScope = "all";
 let overviewMode = "list";
 let monthMessage = "";
 
@@ -22,6 +23,11 @@ const PENDING_PLAN_KEY = "rossWorkout.v1.pendingPlan";
 const PLAN_SOURCE_KEY = "rossWorkout.v1.planSource";
 const PLAN_ARCHIVE_KEY = "rossWorkout.v1.planArchive";
 const USER_STATS_KEY = "rossWorkout.v1.userStats";
+
+function setPlanMessage(message, scope = "all"){
+  planMessage = message;
+  planMessageScope = scope;
+}
 
 async function init(){
   lockViewportHeight();
@@ -294,7 +300,7 @@ function renderHome(){
         <button class="primary continueBtn" onclick="render()">Continue current plan</button>
         <button class="textBtn" onclick="renderPlanStart()">Create a new plan</button>
       </div>
-      ${planMessage ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
+      ${planMessage && planMessageScope !== "settings" ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
       ${pendingPlan ? pendingPlanSummary(pendingPlan) : ""}
     </section>`;
 }
@@ -347,7 +353,7 @@ function renderSettings(){
   $("overviewBtn").onclick = renderHome;
   $("screen").innerHTML = `
     <section class="settingsPanel scrollPanel">
-      ${planMessage ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
+      ${planMessage && planMessageScope !== "home" ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
       <div class="setupGroup">
         <div class="setupTitle">Current stats</div>
         <div class="setupGrid">
@@ -382,7 +388,7 @@ function saveUserStats(){
     updatedAt: new Date().toISOString()
   };
   writeObject(USER_STATS_KEY, stats);
-  planMessage = "Stats saved.";
+  setPlanMessage("Stats saved.", "settings");
   renderSettings();
 }
 function planArchiveCard(entry, index){
@@ -408,7 +414,7 @@ function activateArchivedPlan(index){
   itemIndex = 0;
   buildSelectors();
   saveNav();
-  planMessage = "Plan made active.";
+  setPlanMessage("Plan made active.");
   renderHome();
 }
 function renderScheduleSetup(){
@@ -452,7 +458,7 @@ function saveScheduleSetup(){
   settings.restDays = $("scheduleRestDays").value.trim();
   if(settings.planBias) settings.planBias.startDate = settings.startDate;
   writeObject(PLAN_SETTINGS_KEY, settings);
-  planMessage = "Schedule saved.";
+  setPlanMessage("Schedule saved.");
   overviewMode = "calendar";
   renderHome();
 }
@@ -552,10 +558,10 @@ function selectPlanTune(id){
   writeObject(PLAN_SETTINGS_KEY, settings);
   localStorage.removeItem(PENDING_PLAN_KEY);
   if(getSyncUrl() && navigator.onLine){
-    planMessage = `Creating preview: ${option.label}.`;
+    setPlanMessage(`Creating preview: ${option.label}.`);
     generatePersonalPlan();
   } else {
-    planMessage = "Plan edit saved. Add sync settings to create a preview.";
+    setPlanMessage("Plan edit saved. Add sync settings to create a preview.", "settings");
     renderSettings();
   }
 }
@@ -701,31 +707,31 @@ function savePlanSetup(mode){
   writeObject(PLAN_SETTINGS_KEY, settings);
   localStorage.removeItem(PENDING_PLAN_KEY);
   if(getSyncUrl() && navigator.onLine){
-    planMessage = mode === "new" ? "Creating your plan preview..." : "Updating your plan preview...";
+    setPlanMessage(mode === "new" ? "Creating your plan preview..." : "Updating your plan preview...");
     generatePersonalPlan();
   } else {
-    planMessage = "Setup saved. Add sync settings to create a plan preview.";
+    setPlanMessage("Setup saved. Add sync settings to create a plan preview.", "settings");
     renderSettings();
   }
 }
 function generatePersonalPlan(){
   const settings = readObject(PLAN_SETTINGS_KEY, null);
   if(!settings){
-    planMessage = "Save your plan setup first.";
+    setPlanMessage("Save your plan setup first.");
     renderHome();
     return;
   }
   if(!getSyncUrl()){
-    planMessage = "Add sync settings before creating a plan preview.";
+    setPlanMessage("Add sync settings before creating a plan preview.", "settings");
     renderSettings();
     return;
   }
   if(!navigator.onLine){
-    planMessage = "You're offline. Create the plan preview when your phone is back online.";
+    setPlanMessage("You're offline. Create the plan preview when your phone is back online.");
     renderHome();
     return;
   }
-  planMessage = "Creating your plan preview...";
+  setPlanMessage("Creating your plan preview...");
   renderHome();
   const callback = `rossWorkoutPlan${Date.now()}`;
   const script = document.createElement("script");
@@ -740,9 +746,9 @@ function generatePersonalPlan(){
       const plan = normalizeGeneratedPlan(payload.plan);
       plan.previewType = "new";
       writeObject(PENDING_PLAN_KEY, plan);
-      planMessage = "Plan preview ready. Review it before switching.";
+      setPlanMessage("Plan preview ready. Review it before switching.");
     } else {
-      planMessage = payload && payload.error ? payload.error : "Could not generate a plan.";
+      setPlanMessage(payload && payload.error ? payload.error : "Could not generate a plan.");
     }
     cleanup();
     renderHome();
@@ -762,12 +768,12 @@ function generatePersonalPlan(){
   script.src = `${getSyncUrl()}${separator}${params.toString()}`;
   script.onerror = () => {
     cleanup();
-    planMessage = "Could not reach the plan generator.";
+    setPlanMessage("Could not reach the plan generator.");
     renderHome();
   };
   timeout = setTimeout(() => {
     cleanup();
-    planMessage = "Plan generation timed out. Try again in a minute.";
+    setPlanMessage("Plan generation timed out. Try again in a minute.");
     renderHome();
   }, 45000);
   document.body.appendChild(script);
@@ -775,7 +781,7 @@ function generatePersonalPlan(){
 function activatePendingPlan(){
   const plan = readObject(PENDING_PLAN_KEY, null);
   if(!plan || !isValidPlan(plan)){
-    planMessage = "No plan preview is ready.";
+    setPlanMessage("No plan preview is ready.");
     renderHome();
     return;
   }
@@ -790,7 +796,7 @@ function activatePendingPlan(){
   }
   buildSelectors();
   saveNav();
-  planMessage = "Generated plan is active.";
+  setPlanMessage("Generated plan is active.");
   renderHome();
 }
 function archiveCurrentPlan(reason){
@@ -809,7 +815,7 @@ function archiveCurrentPlan(reason){
 }
 function discardPendingPlan(){
   localStorage.removeItem(PENDING_PLAN_KEY);
-  planMessage = "Kept your current plan.";
+  setPlanMessage("Kept your current plan.");
   renderHome();
 }
 function addAnotherMonth(){
@@ -841,7 +847,7 @@ function addAnotherMonth(){
       combined.previewType = "extension";
       writeObject(PENDING_PLAN_KEY, combined);
       monthMessage = "";
-      planMessage = "Next-month preview ready. Review it before switching.";
+      setPlanMessage("Next-month preview ready. Review it before switching.");
       renderHome();
     } else {
       monthMessage = payload && payload.error ? payload.error : "Could not add another month.";
