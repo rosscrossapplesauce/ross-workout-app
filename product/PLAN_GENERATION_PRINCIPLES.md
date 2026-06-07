@@ -206,6 +206,8 @@ Current stage. Keep this file as the durable product brain. No app behavior chan
 
 ### Stage 2: Prompt Integration
 
+Status: implemented in `apps-script.js` as `PLAN_GENERATION_RULESET_VERSION` and `PLAN_GENERATION_RULES`.
+
 Add a concise version of these principles to the Apps Script plan-generation prompt. The prompt should say the model must generate within the rules, not invent alternative principles.
 
 Requires:
