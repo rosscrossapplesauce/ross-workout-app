@@ -1637,12 +1637,12 @@ function showWorkoutMenu(type = "main"){
   const menuButtons = isQuickMenu ? `
       ${itemIndex > 0 ? `<button type="button" onclick="prevItem()">Previous exercise</button>` : ""}
       ${itemIndex < items.length - 1 ? `<button type="button" onclick="nextItem()">Next exercise</button>` : ""}
-      <button type="button" onclick="openWorkoutCalendar()">Calendar</button>
+      <button type="button" onclick="openWorkoutCalendar()">Change day</button>
       <button type="button" class="dangerAction" onclick="resetDayFromMenu()">Reset day</button>
       <button type="button" onclick="closeWorkoutMenu()">Cancel</button>
     ` : `
       <button type="button" onclick="openWorkoutList()">Today's list</button>
-      <button type="button" onclick="openWorkoutCalendar()">Calendar</button>
+      <button type="button" onclick="openWorkoutCalendar()">Change day</button>
       <button type="button" onclick="openSettingsFromMenu()">Settings</button>
       <button type="button" onclick="goHomeFromMenu()">Home</button>
       <button type="button" onclick="closeWorkoutMenu()">Cancel</button>
