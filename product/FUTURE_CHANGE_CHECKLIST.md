@@ -6,19 +6,24 @@ Use this before future edits.
 2. Identify the product goal behind the request.
 3. Check the request against `product/PRODUCT_GOAL.md`.
 4. Check the request against `product/UX_RULES.md`.
-5. If the request conflicts with the goal or rules, push back before coding and propose a simpler option.
-6. Identify every affected screen and flow.
-7. Implement the smallest change that keeps the full flow consistent.
-8. Do not change `workouts.json` unless the request is specifically about plan data.
-9. Run `npm run qa`.
-10. Report what passed, what failed, and what risks remain.
+5. Check the request against `product/APP_QUALITY_SYSTEM.md`.
+6. If the request conflicts with the goal or rules, push back before coding and propose a simpler option.
+7. Identify every affected screen and flow.
+8. Identify the QA level and scenarios from `product/QA_SCENARIOS.md`.
+9. Implement the smallest change that keeps the full flow consistent.
+10. Do not change `workouts.json` unless the request is specifically about plan data.
+11. State whether `apps-script.js` changed and whether deployment is needed.
+12. Run `npm run qa`.
+13. Report what passed, what failed, and what risks remain.
 
 ## Required Report Shape
 
 - Request:
 - Product goal:
 - Affected flows:
+- QA level:
 - Change made:
+- Apps Script deploy needed:
 - QA command:
 - Passed:
 - Failed:
