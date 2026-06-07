@@ -46,3 +46,25 @@ test("enabled limitations save temporary context for future plan previews", asyn
   expect(settings.planBias.avoidMovements).toContain("Limited equipment");
   expect(settings.planBias.avoidMovements).toContain("No barbell squats this month.");
 });
+
+test("settings exposes current plan adjustment without a sync surprise", async ({ page }) => {
+  await openSettings(page);
+
+  await expect(page.getByRole("button", { name: "Adjust current plan" })).toBeVisible();
+  await page.getByRole("button", { name: "Adjust current plan" }).click();
+
+  await expect(page.locator("#dayTitle")).toContainText("Edit");
+  await expect(page.locator("#dayTitle")).toContainText("Current Plan");
+  await expect(page.getByText("This keeps your logged exercise history")).toBeVisible();
+
+  await page.getByRole("button", { name: "Shorter workouts" }).click();
+
+  await expect(page.locator("#dayTitle")).toContainText("Edit");
+  await expect(page.locator("#dayTitle")).toContainText("Current Plan");
+  await expect(page.getByText("Plan edit saved. Connect generation in Settings")).toBeVisible();
+  await expect(page.getByText("Add sync settings")).toHaveCount(0);
+
+  const settings = await page.evaluate(() => JSON.parse(localStorage.getItem("rossWorkout.v1.planSettings")));
+  expect(settings.planAdjustment).toBe("Shorter workouts");
+  expect(settings.planBias.adjustment).toBe("Shorter workouts");
+});

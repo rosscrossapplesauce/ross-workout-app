@@ -61,6 +61,13 @@ const flowNotes = [
     owner: "app.js saveLimitationsSettings/generatePlanBias"
   },
   {
+    match: /current plan adjustment/i,
+    flow: "settings / adjust current plan",
+    why: "Users should find future plan changes in Settings and understand they are preview-based, not temporary workout adjustments.",
+    type: "UX/backend boundary",
+    owner: "app.js renderSettings/renderPlanTune/selectPlanTune"
+  },
+  {
     match: /continue directly into today's workout/i,
     flow: "returning user / continue current plan",
     why: "Returning users should land on today's work, not manually choose date/week.",
