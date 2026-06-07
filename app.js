@@ -499,6 +499,7 @@ function renderSettings(){
       <div class="settingsActions">
         <button onclick="renderStatsSettings()">Current stats</button>
         <button onclick="renderLimitationsSettings()">Limitations</button>
+        <button onclick="renderPlanTune()">Adjust current plan</button>
         <button onclick="renderProgress()">Progress</button>
         <button onclick="configureSync()">Sync settings</button>
       </div>
@@ -749,13 +750,16 @@ function renderPlanTune(){
   $("prevBtn").style.display = "none";
   $("nextBtn").style.display = "none";
   $("doneBtn").style.display = "none";
-  $("resetBtn").style.display = "none";
+  $("resetBtn").style.display = "block";
+  $("resetBtn").innerText = "Settings";
+  $("resetBtn").onclick = renderSettings;
   $("homeBtn").style.display = "none";
-  $("overviewBtn").innerText = "Overview";
-  $("overviewBtn").onclick = showOverview;
+  $("overviewBtn").innerText = "Home";
+  $("overviewBtn").onclick = renderHome;
   const options = planTuneOptions();
   $("screen").innerHTML = `
     <section class="setupPanel scrollPanel">
+      ${planMessage && planMessageScope === "planTune" ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
       <div class="setupHint">This keeps your logged exercise history and stats, then creates a preview before anything becomes active.</div>
       <div class="tuneGrid">
         ${options.map(option => `
@@ -799,8 +803,8 @@ function selectPlanTune(id){
     setPlanMessage(`Creating preview: ${option.label}.`);
     generatePersonalPlan();
   } else {
-    setPlanMessage("Plan edit saved. Add sync settings to create a preview.", "settings");
-    renderSettings();
+    setPlanMessage("Plan edit saved. Connect generation in Settings when you want a preview.", "planTune");
+    renderPlanTune();
   }
 }
 function renderSetup(mode, path = "guided"){
