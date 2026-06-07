@@ -40,11 +40,25 @@ const flowNotes = [
     owner: "app.js renderSetup"
   },
   {
+    match: /cross-training sport selectable/i,
+    flow: "advanced plan onboarding / sport context",
+    why: "Users should trust that sport context is a real plan input, not an ignored free-text box.",
+    type: "UX/state",
+    owner: "app.js renderSetup/generatePlanBias"
+  },
+  {
     match: /backend dependency/i,
     flow: "plan generation backend boundary",
     why: "A user should not discover sync or backend requirements only after committing to plan generation.",
     type: "UX/backend boundary",
     owner: "app.js savePlanSetup/generatePersonalPlan"
+  },
+  {
+    match: /unfinished plan generation/i,
+    flow: "plan generation recovery",
+    why: "If a user leaves during generation, the app should offer a user-facing way to recover a finished preview.",
+    type: "backend boundary",
+    owner: "app.js checkLatestPlanPreview/apps-script.js latestPlan"
   },
   {
     match: /limitations live in settings/i,

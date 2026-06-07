@@ -60,6 +60,8 @@ function doGet(e) {
     } catch (error) {
       payload = {ok: false, error: error.message || "Could not generate a training plan."};
     }
+  } else if (action === "latestPlan") {
+    payload = getLatestTrainingPlan(spreadsheet, e.parameter);
   } else if (action === "extendPlan") {
     try {
       payload = generateTrainingPlan(spreadsheet, e.parameter, true);
@@ -218,7 +220,23 @@ function generateTrainingPlan(spreadsheet, params, extendExisting) {
   const plan = callOpenAIForPlan(apiKey, model, payload, extendExisting);
   plan.generatedAt = new Date().toISOString();
   setSetting(spreadsheet, extendExisting ? "latestPlanExtension" : "latestGeneratedPlan", JSON.stringify(plan));
+  setSetting(spreadsheet, extendExisting ? "latestPlanExtensionMeta" : "latestGeneratedPlanMeta", JSON.stringify({
+    requestId: payload.requestId || "",
+    generatedAt: plan.generatedAt
+  }));
   return {ok: true, plan};
+}
+
+function getLatestTrainingPlan(spreadsheet, params) {
+  const planText = getSetting(spreadsheet, "latestGeneratedPlan");
+  const meta = parseJson(getSetting(spreadsheet, "latestGeneratedPlanMeta") || "{}");
+  if (!planText) return {ok: true, ready: false};
+  if (params.requestId && meta.requestId && params.requestId !== meta.requestId) {
+    return {ok: true, ready: false};
+  }
+  const plan = parseJson(planText);
+  if (!plan || !plan.weeks) return {ok: true, ready: false};
+  return {ok: true, ready: true, plan, generatedAt: meta.generatedAt || plan.generatedAt || ""};
 }
 
 function parseJson(value) {
