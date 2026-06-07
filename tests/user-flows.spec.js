@@ -58,7 +58,7 @@ test("workout menu reaches list, calendar, settings, and home", async ({ page })
   await page.getByRole("button", { name: "Menu" }).click();
 
   await expect(page.getByRole("button", { name: "Today's list" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Calendar" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Change day" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Home" })).toBeVisible();
 
@@ -69,7 +69,7 @@ test("workout menu reaches list, calendar, settings, and home", async ({ page })
 test("calendar highlights today and offers a path back to workout", async ({ page }) => {
   await page.getByRole("button", { name: "Continue current plan" }).click();
   await page.getByRole("button", { name: "Menu" }).click();
-  await page.getByRole("button", { name: "Calendar" }).click();
+  await page.getByRole("button", { name: "Change day" }).click();
 
   await expect(page.locator(".calendarToday")).toHaveCount(1);
   await expect(page.locator(".calendarToday")).toContainText("Today");

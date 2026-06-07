@@ -28,7 +28,7 @@ test("quick action menu exposes recovery paths without cluttering the page", asy
   await page.getByRole("button", { name: "Continue current plan" }).click();
   await page.locator("main").click({ button: "right" });
 
-  await expect(page.getByRole("button", { name: "Calendar" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Change day" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Reset day" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Cancel" })).toBeVisible();
 });
