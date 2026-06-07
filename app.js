@@ -225,7 +225,7 @@ function render(){
   const items = getItems(day);
   if(itemIndex >= items.length) itemIndex = Math.max(0, items.length-1);
   $("weekLabel").innerText = `${getPlanSource() === "generated" ? "Custom" : "Week"} ${plan.weeks[weekIndex].week || weekIndex+1}`;
-  $("dayTitle").innerHTML = `<span>${escapeHtml(day.day)}</span><span>${escapeHtml(day.title)}</span>`;
+  $("dayTitle").innerHTML = `<span>${escapeHtml(workoutDayHeading(day))}</span><span>${escapeHtml(day.title)}</span>`;
   $("weekSelect").value = weekIndex;
   $("daySelect").value = dayIndex;
   $("doneBtn").style.display = items.length ? "block" : "none";
@@ -354,13 +354,22 @@ function renderHome(){
         <div class="homeText">${escapeHtml(activePlan.summary || "Fat-loss hybrid training with rowing, conservative strength progression, upper/shoulder emphasis, lower-body work, one easy run, and Sunday rest.")}</div>
       </div>
       <div class="homeActions">
-        <button class="primary continueBtn" onclick="render()">Continue current plan</button>
+        <button class="primary continueBtn" onclick="continueCurrentPlan()">Continue current plan</button>
         <button class="textBtn" onclick="renderPlanStart()">Create a new plan</button>
       </div>
       ${planMessage && planMessageScope !== "settings" ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
       ${planProgressMarkup()}
       ${pendingPlan ? pendingPlanSummary(pendingPlan) : ""}
     </section>`;
+}
+function continueCurrentPlan(){
+  goToTodayInPlan();
+  overviewOpen = false;
+  overviewMode = "list";
+  itemIndex = 0;
+  buildDaySelector();
+  saveNav();
+  render();
 }
 function pendingPlanSummary(plan){
   return `
@@ -1428,21 +1437,64 @@ function renderCalendarOverview(){
 function calendarDay(day, weekIdx, dayIdx, state){
   const focus = dayFocus(day);
   const current = weekIdx === weekIndex && dayIdx === dayIndex;
+  const today = isPlanToday(weekIdx, dayIdx);
   const dateLabel = planDateLabel(weekIdx, dayIdx);
-  const label = dateLabel ? `${dateLabel} · ${day.day || `Day ${dayIdx + 1}`}` : (day.day || `Day ${dayIdx + 1}`);
+  const label = dateLabel ? `${today ? "Today · " : ""}${dateLabel}` : (day.day || `Day ${dayIdx + 1}`);
   return `
-    <button class="calendarDay ${current ? "calendarCurrent" : ""}" onclick="jumpToDay(${weekIdx}, ${dayIdx})">
+    <button class="calendarDay ${today ? "calendarToday" : ""} ${current ? "calendarCurrent" : ""}" onclick="jumpToDay(${weekIdx}, ${dayIdx})">
       <span>${escapeHtml(label)}</span>
       <strong>${escapeHtml(focus)}</strong>
     </button>`;
 }
-function planDateLabel(weekIdx, dayIdx){
-  const settings = readObject(PLAN_SETTINGS_KEY, null);
-  if(!settings || !settings.startDate) return "";
-  const date = new Date(`${settings.startDate}T00:00:00`);
-  if(Number.isNaN(date.getTime())) return "";
+function workoutDayHeading(day){
+  return planDateLabel(weekIndex, dayIndex) || day.day || "Workout";
+}
+function planDate(weekIdx, dayIdx){
+  const start = planStartDate();
+  if(!start) return null;
+  const date = new Date(start);
   date.setDate(date.getDate() + weekIdx * 7 + dayIdx);
-  return date.toLocaleDateString(undefined, {month:"short", day:"numeric"});
+  return date;
+}
+function planDateLabel(weekIdx, dayIdx){
+  const date = planDate(weekIdx, dayIdx);
+  if(!date) return "";
+  return date.toLocaleDateString(undefined, {weekday:"short", month:"short", day:"numeric"});
+}
+function planStartDate(){
+  const settings = readObject(PLAN_SETTINGS_KEY, null);
+  const savedStart = parseLocalDate(settings && settings.startDate);
+  if(savedStart) return savedStart;
+  const today = startOfLocalDay(new Date());
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  return monday;
+}
+function parseLocalDate(value){
+  if(!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : startOfLocalDay(date);
+}
+function startOfLocalDay(date){
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+function isSameLocalDay(a, b){
+  return !!(a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate());
+}
+function isPlanToday(weekIdx, dayIdx){
+  return isSameLocalDay(planDate(weekIdx, dayIdx), startOfLocalDay(new Date()));
+}
+function goToTodayInPlan(){
+  const plan = getActivePlan();
+  const start = planStartDate();
+  if(!start || !plan.weeks.length) return;
+  const today = startOfLocalDay(new Date());
+  const offset = Math.floor((today - start) / 86400000);
+  const lastWeekIndex = plan.weeks.length - 1;
+  const targetWeek = Math.max(0, Math.min(lastWeekIndex, Math.floor(offset / 7)));
+  const targetDay = Math.max(0, offset - targetWeek * 7);
+  weekIndex = targetWeek;
+  dayIndex = Math.min(targetDay, plan.weeks[weekIndex].days.length - 1);
 }
 function selectedWorkoutButtonLabel(){
   const day = getDay();
@@ -1543,6 +1595,7 @@ function showWorkoutMenu(type = "main"){
     ` : `
       <button type="button" onclick="openWorkoutList()">Today's list</button>
       <button type="button" onclick="openWorkoutCalendar()">Calendar</button>
+      <button type="button" onclick="openSettingsFromMenu()">Settings</button>
       <button type="button" onclick="goHomeFromMenu()">Home</button>
       <button type="button" onclick="closeWorkoutMenu()">Cancel</button>
     `;
@@ -1572,6 +1625,10 @@ function openWorkoutCalendar(){
   overviewMode = "calendar";
   overviewOpen = true;
   render();
+}
+function openSettingsFromMenu(){
+  closeWorkoutMenu();
+  renderSettings();
 }
 function goHomeFromMenu(){
   closeWorkoutMenu();
