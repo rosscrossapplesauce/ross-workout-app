@@ -71,6 +71,23 @@ test("workout menu reaches list, calendar, settings, and home", async ({ page })
   await expect(page.getByText("Sync settings")).toBeVisible();
 });
 
+test("today's list highlights the currently selected exercise", async ({ page }) => {
+  await makeFirstPlanDayToday(page);
+  await page.getByRole("button", { name: "Continue current plan" }).click();
+  await page.getByRole("button", { name: "Menu" }).click();
+  await page.getByRole("button", { name: "Today's list" }).click();
+
+  await expect(page.locator(".overviewCurrent")).toHaveCount(1);
+  await expect(page.locator(".overviewCurrent")).toContainText("Chest Press Machine");
+
+  await page.getByRole("button", { name: /2 Seated Row Machine/ }).click();
+  await page.getByRole("button", { name: "Menu" }).click();
+  await page.getByRole("button", { name: "Today's list" }).click();
+
+  await expect(page.locator(".overviewCurrent")).toHaveCount(1);
+  await expect(page.locator(".overviewCurrent")).toContainText("Seated Row Machine");
+});
+
 test("calendar highlights today and offers a path back to workout", async ({ page }) => {
   await page.getByRole("button", { name: "Continue current plan" }).click();
   await page.getByRole("button", { name: "Menu" }).click();

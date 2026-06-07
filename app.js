@@ -1564,7 +1564,7 @@ function renderOverview(day, items){
       ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
       ${planProgressMarkup()}
       <div class="overviewList">
-        ${items.map((item,i)=>overviewRow(item, i, !!state.completed[itemId(item, i)], state)).join("")}
+        ${items.map((item,i)=>overviewRow(item, i, !!state.completed[itemId(item, i)], state, i === itemIndex)).join("")}
       </div>
     </section>`;
   saveNav();
@@ -1684,7 +1684,7 @@ function jumpToDay(nextWeekIndex, nextDayIndex){
   saveNav();
   render();
 }
-function overviewRow(item, index, done, state){
+function overviewRow(item, index, done, state, current = false){
   const id = itemId(item, index);
   const exercise = item.kind === "exercise" ? effectiveExercise(item, id, state) : item;
   const title = item.kind === "exercise" ? exercise.name : (item.type || "Rest");
@@ -1697,7 +1697,7 @@ function overviewRow(item, index, done, state){
         ? `${item.distance} · ${item.pace}`
         : item.text;
   return `
-    <button class="overviewItem ${done ? "overviewDone" : ""}" onclick="jumpToItem(${index})">
+    <button class="overviewItem ${done ? "overviewDone" : ""} ${current ? "overviewCurrent" : ""}" onclick="jumpToItem(${index})" ${current ? 'aria-current="true"' : ""}>
       <span class="overviewCheck">${done ? "✓" : index + 1}</span>
       <span class="overviewBody">
         <span class="overviewName">${escapeHtml(title)}</span>
