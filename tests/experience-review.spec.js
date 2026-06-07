@@ -45,9 +45,31 @@ test("quick action menu exposes recovery paths without cluttering the page", asy
   await page.locator("main").click({ button: "right" });
 
   await expect(page.getByRole("button", { name: "Change day" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Adjust today" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Skip exercise (DNC)" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Reset day" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Cancel" })).toBeVisible();
+});
+
+test("user can temporarily shorten today's lifting work", async ({ page }) => {
+  await makeFirstPlanDayToday(page);
+  await page.getByRole("button", { name: "Continue current plan" }).click();
+
+  await expect(page.locator(".prescription")).not.toContainText("2 ×");
+  await page.locator("main").click({ button: "right" });
+  await page.getByRole("button", { name: "Adjust today" }).click();
+  await page.getByRole("button", { name: "Short on time" }).click();
+
+  await expect(page.locator(".prescription")).toContainText("2 ×");
+  await expect(page.getByText("Today adjusted: Short on time")).toBeVisible();
+  await expect(page.getByText("Add sync settings")).toHaveCount(0);
+  await expect(page.locator("footer button:visible")).toHaveCount(1);
+
+  const adjustment = await page.evaluate(() => {
+    const state = JSON.parse(localStorage.getItem("rossWorkout.v1.w0.d0"));
+    return state.workoutAdjustment;
+  });
+  expect(adjustment.type).toBe("short_time");
 });
 
 test("user can skip an exercise from the quick menu and keep moving", async ({ page }) => {
