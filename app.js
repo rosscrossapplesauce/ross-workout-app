@@ -81,8 +81,16 @@ function planProgressMarkup(){
 
 async function init(){
   lockViewportHeight();
-  const res = await fetch("workouts.json");
-  data = await res.json();
+  try {
+    const res = await fetch("workouts.json");
+    data = await res.json();
+  } catch {
+    data = null;
+  }
+  if(!isValidPlan(getActivePlan())){
+    renderPlanRecovery();
+    return;
+  }
   buildSelectors();
   renderHome();
   loadRemoteHistory();
@@ -98,6 +106,7 @@ function lockViewportHeight(){
 }
 function buildSelectors(){
   const plan = getActivePlan();
+  if(!isValidPlan(plan)) return;
   $("weekSelect").innerHTML = plan.weeks.map((w,i)=>`<option value="${i}">Week ${w.week}</option>`).join("");
   buildDaySelector();
   $("weekSelect").value = weekIndex;
@@ -145,11 +154,41 @@ function hasGeneratedPlan(){
 }
 function getItems(day){
   const arr = [];
-  day.exercises.forEach((x,idx)=> arr.push({kind:"exercise", idx, ...x}));
+  (day.exercises || []).forEach((x,idx)=> arr.push({kind:"exercise", idx, ...x}));
   if(day.row) arr.push({kind:"row", ...day.row});
   if(day.run) arr.push({kind:"run", ...day.run});
   if(day.recovery) arr.push({kind:"rest", text:day.recovery});
   return arr;
+}
+function renderPlanRecovery(){
+  screenMode = "home";
+  overviewOpen = false;
+  document.body.dataset.mode = "home";
+  document.body.dataset.overview = "false";
+  $("weekLabel").innerText = "Workout";
+  $("dayTitle").innerHTML = `<span>Plan</span><span>Unavailable</span>`;
+  $("progressText").innerText = "Recovery";
+  $("scoreText").innerText = "";
+  $("progressBar").style.width = "0%";
+  $("prevBtn").style.display = "none";
+  $("nextBtn").style.display = "none";
+  $("doneBtn").style.display = "none";
+  $("resetBtn").style.display = "none";
+  $("homeBtn").style.display = "none";
+  $("overviewBtn").innerText = "⚙";
+  $("overviewBtn").onclick = renderSettings;
+  $("screen").innerHTML = `
+    <section class="homePanel scrollPanel">
+      <div>
+        <div class="homeTitle">Workout plan unavailable</div>
+        <div class="homeText">The app could not load a usable workout plan. Core progress is still saved locally when a plan is available.</div>
+      </div>
+      <div class="homeActions">
+        <button class="primary continueBtn" onclick="location.reload()">Try again</button>
+        <button class="textBtn" onclick="renderSettings()">Settings</button>
+      </div>
+      <div class="planMessage">Next best action: retry the plan load, or open Settings if you need to check sync or plan setup.</div>
+    </section>`;
 }
 function getState(){
   return JSON.parse(localStorage.getItem(key()) || '{"completed":{},"weights":{},"setWeights":{},"notes":{}}');
@@ -1760,6 +1799,100 @@ function readAlternatives(){
 function writeAlternatives(value){
   localStorage.setItem(ALTERNATIVES_KEY, JSON.stringify(value));
 }
+function localAlternativesFor(item){
+  const name = String(item.name || "").toLowerCase();
+  const defaults = {sets: item.sets, reps: item.reps, suggestedWeight: item.suggestedWeight, unit: item.unit || "lb"};
+  const make = (altName, how, why, weight = item.suggestedWeight) => ({
+    ...defaults,
+    name: altName,
+    suggestedWeight: weight,
+    how,
+    why
+  });
+
+  if(name.includes("chest press") || name.includes("bench")){
+    return [
+      make("Dumbbell Bench Press", "Use a flat bench and controlled reps.", "Same horizontal press pattern for chest and triceps.", Math.max(0, Math.round((Number(item.suggestedWeight) || 40) / 2))),
+      make("Push-Up", "Use bodyweight or elevate hands if needed.", "Keeps the same press intent with no machine needed.", 0),
+      make("Cable Chest Press", "Set handles around chest height and press forward.", "Similar movement with adjustable load.")
+    ];
+  }
+  if(name.includes("row")){
+    return [
+      make("One-Arm Dumbbell Row", "Brace on a bench and row one side at a time.", "Keeps the horizontal pull intent.", Math.max(0, Math.round((Number(item.suggestedWeight) || 50) / 2))),
+      make("Cable Row", "Use a neutral or close grip and pull to ribs.", "Similar back-focused pull with easy setup."),
+      make("Chest-Supported Dumbbell Row", "Lie chest-down on an incline bench and row.", "Reduces lower-back demand while training the same pattern.")
+    ];
+  }
+  if(name.includes("pulldown") || name.includes("pull down")){
+    return [
+      make("Assisted Pull-Up", "Use assistance that lets reps stay smooth.", "Same vertical pull intent.", 0),
+      make("Single-Arm Cable Pulldown", "Kneel or sit and pull elbow toward ribs.", "Keeps lat focus if the pulldown station is busy."),
+      make("Band Lat Pulldown", "Anchor a band high and pull down with control.", "Simple fallback for vertical pulling.", 0)
+    ];
+  }
+  if(name.includes("shoulder press") || name.includes("overhead")){
+    return [
+      make("Dumbbell Shoulder Press", "Press seated or standing with controlled range.", "Same overhead press intent.", Math.max(0, Math.round((Number(item.suggestedWeight) || 40) / 2))),
+      make("Landmine Press", "Press one side at a time from shoulder height.", "Similar shoulder press with a friendlier angle."),
+      make("Machine Lateral Raise", "Use slow reps and stop short of discomfort.", "Keeps shoulder emphasis if overhead press is not a fit.")
+    ];
+  }
+  if(name.includes("lateral raise")){
+    return [
+      make("Cable Lateral Raise", "Set cable low and raise to shoulder height.", "Same side-delt target with steady tension."),
+      make("Machine Lateral Raise", "Use the machine pads and controlled reps.", "Same shoulder isolation intent."),
+      make("Lean-Away Dumbbell Lateral Raise", "Hold a stable post and raise one arm.", "Keeps the movement simple with dumbbells.")
+    ];
+  }
+  if(name.includes("tricep") || name.includes("triceps")){
+    return [
+      make("Cable Triceps Pressdown", "Keep elbows pinned and press down.", "Same triceps isolation intent."),
+      make("Dumbbell Overhead Triceps Extension", "Use one dumbbell and slow reps.", "Still trains elbow extension with common equipment."),
+      make("Close-Grip Push-Up", "Keep elbows closer to the body.", "Bodyweight triceps fallback.", 0)
+    ];
+  }
+  if(name.includes("curl") || name.includes("bicep")){
+    return [
+      make("Dumbbell Curl", "Curl with palms up and controlled lowering.", "Same elbow-flexion intent."),
+      make("Cable Curl", "Use a straight or rope attachment.", "Similar arm work with adjustable load."),
+      make("Preacher Curl Machine", "Use light, controlled reps.", "Keeps biceps isolated if dumbbells are busy.")
+    ];
+  }
+  if(name.includes("leg press")){
+    return [
+      make("Goblet Squat", "Hold one dumbbell and squat to comfortable depth.", "Keeps squat pattern with simpler equipment."),
+      make("Hack Squat Machine", "Use controlled depth and steady reps.", "Similar leg press intent on another machine."),
+      make("Walking Lunge", "Use bodyweight or light dumbbells.", "Keeps lower-body work available without the leg press.", 0)
+    ];
+  }
+  if(name.includes("leg curl")){
+    return [
+      make("Lying Leg Curl", "Use another curl machine if available.", "Same hamstring curl intent."),
+      make("Stability Ball Hamstring Curl", "Bridge hips and curl ball toward you.", "Hamstring fallback without a machine.", 0),
+      make("Romanian Deadlift", "Hinge with soft knees and light load.", "Keeps hamstring emphasis with a different pattern.")
+    ];
+  }
+  if(name.includes("leg extension")){
+    return [
+      make("Goblet Squat", "Use controlled reps and stay comfortable.", "Keeps quad work available."),
+      make("Step-Up", "Use a stable box and alternate legs.", "Simple quad-focused fallback.", 0),
+      make("Split Squat", "Use bodyweight or light dumbbells.", "Trains quads without the extension machine.", 0)
+    ];
+  }
+  if(name.includes("calf")){
+    return [
+      make("Standing Calf Raise", "Use bodyweight, dumbbells, or a machine.", "Same calf raise intent."),
+      make("Leg Press Calf Press", "Press through the balls of your feet.", "Uses common equipment if the calf machine is busy."),
+      make("Single-Leg Calf Raise", "Use a wall for balance.", "No-machine calf fallback.", 0)
+    ];
+  }
+  return [
+    make("Dumbbell version", "Use the same movement pattern with dumbbells if possible.", "Keeps the workout moving with common equipment."),
+    make("Cable version", "Use a cable station and match the movement direction.", "Keeps adjustable resistance available."),
+    make("Bodyweight version", "Use a controlled bodyweight option for the same area.", "Fallback when equipment is limited.", 0)
+  ];
+}
 function renderAlternativesPanel(state, alternatives){
   let panel = $("alternativesPanel");
   if(!panel){
@@ -1859,11 +1992,11 @@ function loadAlternatives(){
     return;
   }
   if(!getSyncUrl()){
-    renderAlternativesPanel("error", "Tap Pending Sync first and add your Apps Script Web App URL.");
+    renderAlternativesPanel("ready", localAlternativesFor(item));
     return;
   }
   if(!navigator.onLine){
-    renderAlternativesPanel("error", "Offline. Try alternatives when you are back online.");
+    renderAlternativesPanel("ready", localAlternativesFor(item));
     return;
   }
   renderAlternativesPanel("loading");
