@@ -24,6 +24,7 @@ const PLAN_SETTINGS_KEY = "rossWorkout.v1.planSettings";
 const EXERCISE_PREFS_KEY = "rossWorkout.v1.exercisePreferences";
 const GENERATED_PLAN_KEY = "rossWorkout.v1.generatedPlan";
 const PENDING_PLAN_KEY = "rossWorkout.v1.pendingPlan";
+const PLAN_REQUEST_KEY = "rossWorkout.v1.planRequest";
 const PLAN_SOURCE_KEY = "rossWorkout.v1.planSource";
 const PLAN_ARCHIVE_KEY = "rossWorkout.v1.planArchive";
 const USER_STATS_KEY = "rossWorkout.v1.userStats";
@@ -377,6 +378,7 @@ function renderHome(){
   document.body.dataset.mode = "home";
   document.body.dataset.overview = "false";
   const pendingPlan = readObject(PENDING_PLAN_KEY, null);
+  const pendingRequest = readObject(PLAN_REQUEST_KEY, null);
   const activePlan = getActivePlan();
   $("weekLabel").innerText = "Workout";
   $("dayTitle").innerHTML = `<span>Ross Workout</span><span>Coach</span>`;
@@ -401,8 +403,20 @@ function renderHome(){
       </div>
       ${planMessage && planMessageScope !== "settings" ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
       ${planProgressMarkup()}
+      ${pendingRequest && !pendingPlan ? planRequestRecoveryMarkup(pendingRequest) : ""}
       ${pendingPlan ? pendingPlanSummary(pendingPlan) : ""}
     </section>`;
+}
+function planRequestRecoveryMarkup(request){
+  return `
+    <div class="planSummary previewPlan">
+      <div class="summaryTitle">Plan Preview</div>
+      <div>${escapeHtml(request.label || "A plan preview may still be finishing.")}</div>
+      <div class="previewActions">
+        <button class="primary" onclick="checkLatestPlanPreview()">Check for preview</button>
+        <button onclick="cancelPlanRequest()">Dismiss</button>
+      </div>
+    </div>`;
 }
 function continueCurrentPlan(){
   goToTodayInPlan();
@@ -426,6 +440,63 @@ function pendingPlanSummary(plan){
         <button onclick="discardPendingPlan()">Keep current plan</button>
       </div>
     </div>`;
+}
+function checkLatestPlanPreview(){
+  const request = readObject(PLAN_REQUEST_KEY, null);
+  if(!request || !request.id){
+    setPlanMessage("No unfinished plan preview was found.");
+    renderHome();
+    return;
+  }
+  if(!getSyncUrl()){
+    setPlanMessage("Connect generation in Settings before checking for a preview.");
+    renderHome();
+    return;
+  }
+  if(!navigator.onLine){
+    setPlanMessage("You're offline. Check for the preview when your phone is back online.");
+    renderHome();
+    return;
+  }
+  setPlanMessage("Checking for your plan preview...");
+  renderHome();
+  const callback = `rossWorkoutLatestPlan${Date.now()}`;
+  const script = document.createElement("script");
+  const cleanup = () => {
+    delete window[callback];
+    script.remove();
+  };
+  window[callback] = payload => {
+    if(payload && payload.ok && payload.ready && isValidPlan(payload.plan)){
+      const plan = normalizeGeneratedPlan(payload.plan);
+      plan.previewType = "new";
+      writeObject(PENDING_PLAN_KEY, plan);
+      localStorage.removeItem(PLAN_REQUEST_KEY);
+      setPlanMessage("Plan preview ready. Review it before switching.");
+    } else {
+      setPlanMessage("Your plan preview is not ready yet. Keep this page open while it finishes.");
+    }
+    cleanup();
+    renderHome();
+  };
+  const separator = getSyncUrl().includes("?") ? "&" : "?";
+  const params = new URLSearchParams({
+    action:"latestPlan",
+    callback,
+    requestId: request.id
+  });
+  script.src = `${getSyncUrl()}${separator}${params.toString()}`;
+  script.onerror = () => {
+    cleanup();
+    setPlanMessage("Could not check your preview. Try again while connected.");
+    renderHome();
+  };
+  document.body.appendChild(script);
+}
+function cancelPlanRequest(){
+  localStorage.removeItem(PLAN_REQUEST_KEY);
+  setPlanMessage("Dismissed the unfinished preview.");
+  renderHome();
 }
 function generatedPlanSummary(plan){
   return `
@@ -815,6 +886,8 @@ function renderSetup(mode, path = "guided"){
   document.body.dataset.overview = "false";
   const savedSettings = readObject(PLAN_SETTINGS_KEY, {});
   const current = mode === "change" ? savedSettings : {};
+  const sportValue = current.crossTrainingSport || "";
+  const sportSelected = selectedCrossTrainingSport(sportValue);
   const startDefault = current.startDate || (mode === "new" ? todayInputDate() : "");
   const daysDefault = current.daysPerWeek || (mode === "new" ? "5" : "");
   const lengthDefault = current.workoutLength || (mode === "new" ? "45" : "");
@@ -873,7 +946,13 @@ function renderSetup(mode, path = "guided"){
           <label>Rest days<input id="restDays" placeholder="Sunday, Thursday" value="${escapeHtml(current.restDays || "")}"></label>
         </div>
         <div class="checkGrid">${goalOptions().map(goal => checkOption("goal", goal, (current.goals || []).includes(goal))).join("")}</div>
-        <input id="crossTrainingSport" class="setupInput" placeholder="Sport/activity for cross training" value="${escapeHtml(current.crossTrainingSport || "")}">
+        <div class="setupGrid">
+          <label class="wideField">Cross-training sport<select id="crossTrainingSport">
+            <option></option>
+            ${crossTrainingSportOptions().map(option => `<option ${sportSelected === option ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}
+          </select></label>
+          <input id="crossTrainingSportDetail" class="setupInput wideField" placeholder="Optional detail, team, event, or specific sport" value="${escapeHtml(crossTrainingSportDetail(sportValue, sportSelected))}">
+        </div>
       </details>
       <details class="advancedSetup" ${path === "advanced" ? "open" : ""}>
         <summary>Add starting weights</summary>
@@ -888,6 +967,24 @@ function renderSetup(mode, path = "guided"){
 }
 function goalOptions(){
   return ["Returning to activity", "Maintenance", "Cross training", "Build endurance", "Build muscle", "Hybrid", "Weight loss"];
+}
+function crossTrainingSportOptions(){
+  return ["Running", "Rowing", "Cycling", "Swimming", "Tennis", "Basketball", "Soccer", "Golf", "Pickleball", "Other"];
+}
+function selectedCrossTrainingSport(value){
+  if(!value) return "";
+  const match = crossTrainingSportOptions().find(option => option.toLowerCase() === String(value).toLowerCase());
+  return match || "Other";
+}
+function crossTrainingSportDetail(value, selected){
+  if(!value || (selected && selected !== "Other")) return "";
+  return value;
+}
+function readCrossTrainingSport(){
+  const selected = $("crossTrainingSport") ? $("crossTrainingSport").value : "";
+  const detail = $("crossTrainingSportDetail") ? $("crossTrainingSportDetail").value.trim() : "";
+  if(selected === "Other") return detail;
+  return [selected, detail].filter(Boolean).join(": ");
 }
 function checkOption(name, value, checked){
   return `<label class="checkOption"><input type="checkbox" name="${name}" value="${escapeHtml(value)}" ${checked ? "checked" : ""}>${escapeHtml(value)}</label>`;
@@ -931,7 +1028,7 @@ function savePlanSetup(mode){
     trainingExperience: $("trainingExperience").value,
     trainingPace: $("trainingPace").value,
     startDate: $("startDate").value,
-    crossTrainingSport: $("crossTrainingSport").value.trim(),
+    crossTrainingSport: readCrossTrainingSport(),
     gymAccess: $("gymAccess").value,
     workoutLength: $("workoutLength").value.trim(),
     daysPerWeek: $("daysPerWeek").value.trim(),
@@ -948,7 +1045,7 @@ function savePlanSetup(mode){
       limitationTags: savedSettings.limitationTags,
       avoidMovements: savedSettings.avoidMovements,
       startDate:$("startDate").value,
-      crossTrainingSport:$("crossTrainingSport").value.trim(),
+      crossTrainingSport:readCrossTrainingSport(),
       strengthSamples
     })
   };
@@ -980,8 +1077,15 @@ function generatePersonalPlan(){
     return;
   }
   startPlanProgress("Creating your plan preview");
-  setPlanMessage("Creating your plan preview...");
+  setPlanMessage("Creating your plan preview. Keep this page open until the preview is ready.");
   renderHome();
+  const requestId = `plan-${Date.now()}`;
+  writeObject(PLAN_REQUEST_KEY, {
+    id: requestId,
+    type: "new",
+    label: "Your plan preview may still be finishing.",
+    createdAt: new Date().toISOString()
+  });
   const callback = `rossWorkoutPlan${Date.now()}`;
   const script = document.createElement("script");
   let timeout;
@@ -996,9 +1100,10 @@ function generatePersonalPlan(){
       const plan = normalizeGeneratedPlan(payload.plan);
       plan.previewType = "new";
       writeObject(PENDING_PLAN_KEY, plan);
+      localStorage.removeItem(PLAN_REQUEST_KEY);
       setPlanMessage("Plan preview ready. Review it before switching.");
     } else {
-      setPlanMessage(payload && payload.error ? payload.error : "Could not generate a plan.");
+      setPlanMessage(planGenerationErrorMessage(payload && payload.error));
     }
     cleanup();
     renderHome();
@@ -1008,7 +1113,8 @@ function generatePersonalPlan(){
     settings,
     stats: readObject(USER_STATS_KEY, {}),
     preferences: readObject(EXERCISE_PREFS_KEY, {}),
-    history: compactGenerationHistory()
+    history: compactGenerationHistory(),
+    requestId
   };
   const params = new URLSearchParams({
     action:"generatePlan",
@@ -1019,16 +1125,23 @@ function generatePersonalPlan(){
   script.onerror = () => {
     cleanup();
     stopPlanProgress(false);
-    setPlanMessage("Could not reach the plan generator.");
+    setPlanMessage("Keep this page open while your preview is created. If you left and came back, use Check for preview.");
     renderHome();
   };
   timeout = setTimeout(() => {
     cleanup();
     stopPlanProgress(false);
-    setPlanMessage("Plan generation timed out. If this keeps happening, redeploy Apps Script after pushing and confirm the OpenAI key is set.");
+    setPlanMessage("This is taking longer than expected. Keep this page open, or use Check for preview if you left and came back.");
     renderHome();
   }, 120000);
   document.body.appendChild(script);
+}
+function planGenerationErrorMessage(error){
+  if(!error) return "Plan preview could not be created. Check generation settings, then try again.";
+  if(/key|openai|property|backend|script|deploy/i.test(error)){
+    return "Plan preview could not be created. Check generation settings, then try again.";
+  }
+  return error;
 }
 function activatePendingPlan(){
   const plan = readObject(PENDING_PLAN_KEY, null);
