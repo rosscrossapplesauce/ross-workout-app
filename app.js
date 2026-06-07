@@ -5,6 +5,7 @@ let itemIndex = Number(localStorage.getItem("itemIndex") || 0);
 let syncInFlight = false;
 let overviewOpen = false;
 let screenMode = "home";
+let activeSetupPath = "guided";
 let planMessage = "";
 let planMessageScope = "all";
 let overviewMode = "list";
@@ -796,6 +797,7 @@ function selectPlanTune(id){
 }
 function renderSetup(mode, path = "guided"){
   screenMode = "setup";
+  activeSetupPath = path;
   overviewOpen = false;
   document.body.dataset.mode = "setup";
   document.body.dataset.overview = "false";
@@ -822,6 +824,7 @@ function renderSetup(mode, path = "guided"){
   $("overviewBtn").onclick = renderHome;
   $("screen").innerHTML = `
     <section class="setupPanel scrollPanel">
+      ${planMessage && planMessageScope === "setup" ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
       <div class="setupHint">${path === "advanced" ? "Use this only where you have a real preference. Blank fields are fine." : "The app will fill in the rest, start conservatively, and adjust from what you log."}</div>
       <div class="setupGroup">
         <div class="setupTitle">Plan basics</div>
@@ -943,8 +946,8 @@ function savePlanSetup(mode){
     setPlanMessage(mode === "new" ? "Creating your plan preview..." : "Updating your plan preview...");
     generatePersonalPlan();
   } else {
-    setPlanMessage("Setup saved. Add sync settings to create a plan preview.", "settings");
-    renderSettings();
+    setPlanMessage("Setup saved. Connect generation in Settings when you want a custom plan preview.", "setup");
+    renderSetup(mode, activeSetupPath);
   }
 }
 function generatePersonalPlan(){
@@ -955,8 +958,8 @@ function generatePersonalPlan(){
     return;
   }
   if(!getSyncUrl()){
-    setPlanMessage("Add sync settings before creating a plan preview.", "settings");
-    renderSettings();
+    setPlanMessage("Connect generation in Settings before creating a custom plan preview.", "setup");
+    renderSetup(settings.mode || "new", activeSetupPath);
     return;
   }
   if(!navigator.onLine){
