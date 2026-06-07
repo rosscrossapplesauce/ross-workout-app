@@ -1556,7 +1556,6 @@ function renderOverview(day, items){
           <div class="overviewTitle">${escapeHtml(day.day)}: ${escapeHtml(day.title)}</div>
         </div>
         <div class="overviewTools">
-          <button id="syncStatus" class="status pending" type="button" onclick="configureSync()">Pending Sync</button>
           <div class="overviewCount">${completedCount}/${items.length}</div>
         </div>
       </div>
@@ -1570,7 +1569,6 @@ function renderOverview(day, items){
       </div>
     </section>`;
   saveNav();
-  updateSyncStatus();
 }
 function renderCalendarOverview(){
   const plan = getActivePlan();
@@ -1581,9 +1579,6 @@ function renderCalendarOverview(){
         <div>
           <div class="kicker">Calendar View</div>
           <div class="overviewTitle">${escapeHtml(plan.name || "Workout Plan")}</div>
-        </div>
-        <div class="overviewTools">
-          <button id="syncStatus" class="status pending" type="button" onclick="configureSync()">Pending Sync</button>
         </div>
       </div>
       <div class="overviewActions">
@@ -1599,7 +1594,6 @@ function renderCalendarOverview(){
           </div>`).join("")}
       </div>
     </section>`;
-  updateSyncStatus();
 }
 function calendarDay(day, weekIdx, dayIdx, state){
   const focus = dayFocus(day);
