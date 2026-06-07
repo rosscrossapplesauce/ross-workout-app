@@ -16,7 +16,9 @@ Also consider whether high-quality personalized plan generation needs a real bac
 
 ### Science-Backed Plan Principles
 
-Consider creating a durable planning guide that every generated plan and plan modification must satisfy.
+Status: pulled forward into `product/PLAN_GENERATION_PRINCIPLES.md` as a draft product rulebook.
+
+Continue developing a durable planning guide that every generated plan and plan modification must satisfy.
 
 The guide should work like a product "brain" for training decisions:
 
