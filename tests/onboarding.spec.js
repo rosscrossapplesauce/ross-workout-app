@@ -54,5 +54,7 @@ test("guided preview does not surprise user with backend dependency", async ({ p
 
   await expect(page.locator("#dayTitle")).not.toContainText("App");
   await expect(page.locator("#dayTitle")).not.toContainText("Settings");
+  await expect(page.locator("#progressText")).toContainText("Only answer what matters");
+  await expect(page.getByText("Setup saved. Connect generation in Settings")).toBeVisible();
   await expect(page.getByText("Add sync settings")).toHaveCount(0);
 });
