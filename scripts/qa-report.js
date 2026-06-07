@@ -19,6 +19,34 @@ const flowNotes = [
     owner: "app.js renderHome/init"
   },
   {
+    match: /new plan onboarding presents clear paths/i,
+    flow: "new plan onboarding choice",
+    why: "A new user should understand the available plan paths before entering setup.",
+    type: "UX",
+    owner: "app.js renderPlanStart"
+  },
+  {
+    match: /guided onboarding/i,
+    flow: "guided plan onboarding",
+    why: "The easiest setup path should stay calm, minimal, and low-decision.",
+    type: "UX",
+    owner: "app.js renderSetup"
+  },
+  {
+    match: /advanced onboarding/i,
+    flow: "advanced plan onboarding",
+    why: "Extra plan controls should appear only after the user chooses a detailed setup path.",
+    type: "UX",
+    owner: "app.js renderSetup"
+  },
+  {
+    match: /backend dependency/i,
+    flow: "plan generation backend boundary",
+    why: "A user should not discover sync or backend requirements only after committing to plan generation.",
+    type: "UX/backend boundary",
+    owner: "app.js savePlanSetup/generatePersonalPlan"
+  },
+  {
     match: /continue directly into today's workout/i,
     flow: "returning user / continue current plan",
     why: "Returning users should land on today's work, not manually choose date/week.",
