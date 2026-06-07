@@ -45,6 +45,29 @@ Then open:
 http://localhost:8000
 ```
 
+## QA / Product Review
+
+The product guardrails live in:
+
+- `product/PRODUCT_GOAL.md`
+- `product/UX_RULES.md`
+- `product/QA_SCENARIOS.md`
+- `product/FUTURE_CHANGE_CHECKLIST.md`
+
+Run the repeatable QA review with:
+
+```sh
+npm run qa
+```
+
+The command starts a local server, runs the browser flow tests, and writes a readable report to:
+
+```text
+qa-results/last-run.md
+```
+
+If QA fails, read the failed flow and product reason before changing code.
+
 ## Install on iPhone
 
 1. Open the live site in Safari.

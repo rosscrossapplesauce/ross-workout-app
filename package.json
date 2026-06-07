@@ -1,5 +1,7 @@
 {
   "scripts": {
+    "qa": "node scripts/qa-report.js",
+    "test:browser": "playwright test",
     "apps-script:login": "clasp login",
     "apps-script:status": "clasp status",
     "apps-script:push": "clasp push",
@@ -7,6 +9,7 @@
     "apps-script:deploy": "clasp deploy"
   },
   "devDependencies": {
-    "@google/clasp": "^3.3.0"
+    "@google/clasp": "^3.3.0",
+    "@playwright/test": "^1.54.2"
   }
 }
