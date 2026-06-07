@@ -74,6 +74,7 @@ test("calendar highlights today and offers a path back to workout", async ({ pag
   await expect(page.locator(".calendarToday")).toHaveCount(1);
   await expect(page.locator(".calendarToday")).toContainText("Today");
   await expect(page.locator(".overviewActions button")).toContainText("workout");
+  await expect(page.getByText("Pending Sync")).toHaveCount(0);
 });
 
 test("exercise alternatives are reachable from workout mode", async ({ page }) => {
