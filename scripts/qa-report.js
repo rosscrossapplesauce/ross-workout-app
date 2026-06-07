@@ -47,6 +47,20 @@ const flowNotes = [
     owner: "app.js savePlanSetup/generatePersonalPlan"
   },
   {
+    match: /limitations live in settings/i,
+    flow: "settings / optional limitations",
+    why: "Most users should not see limitation controls unless they choose to manage them.",
+    type: "UX/state",
+    owner: "app.js renderSettings/renderLimitationsSettings"
+  },
+  {
+    match: /enabled limitations save/i,
+    flow: "settings / plan limitations",
+    why: "Temporary or indefinite constraints should update future plan previews without cluttering workout mode.",
+    type: "state/plan generation boundary",
+    owner: "app.js saveLimitationsSettings/generatePlanBias"
+  },
+  {
     match: /continue directly into today's workout/i,
     flow: "returning user / continue current plan",
     why: "Returning users should land on today's work, not manually choose date/week.",

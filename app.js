@@ -575,18 +575,21 @@ function renderLimitationsSettings(){
         <input id="limitationsEnabled" type="checkbox" ${enabled ? "checked" : ""} onchange="updateLimitationsProgress()">
         <span><strong>Use limitations in plans</strong><small>Off is best unless something should change your training.</small></span>
       </label>
-      <div class="setupGroup">
-        <div class="setupTitle">How long?</div>
-        <div class="segmented">
-          <label><input type="radio" name="limitationDuration" value="temporary" ${duration === "temporary" ? "checked" : ""}><span>Temporary</span></label>
-          <label><input type="radio" name="limitationDuration" value="indefinite" ${duration === "indefinite" ? "checked" : ""}><span>Indefinite</span></label>
+      <div id="limitationsOffHint" class="setupHint" ${enabled ? `style="display:none"` : ""}>Leave this off unless a temporary issue, equipment limit, or long-term restriction should affect future plan previews.</div>
+      <div id="limitationsDetail" class="limitationsDetail" ${enabled ? "" : `style="display:none"`}>
+        <div class="setupGroup">
+          <div class="setupTitle">How long?</div>
+          <div class="segmented">
+            <label><input type="radio" name="limitationDuration" value="temporary" ${duration === "temporary" ? "checked" : ""}><span>Temporary</span></label>
+            <label><input type="radio" name="limitationDuration" value="indefinite" ${duration === "indefinite" ? "checked" : ""}><span>Indefinite</span></label>
+          </div>
         </div>
+        <div class="setupGroup">
+          <div class="setupTitle">What should plans account for?</div>
+          <div class="checkGrid">${limitationOptions().map(option => checkOption("limitationTag", option, tags.includes(option))).join("")}</div>
+        </div>
+        <label>Extra detail<textarea id="avoidMovements" placeholder="Movements to avoid, equipment missing, what hurts, or what feels okay.">${escapeHtml(settings.avoidMovements || "")}</textarea></label>
       </div>
-      <div class="setupGroup">
-        <div class="setupTitle">What should plans account for?</div>
-        <div class="checkGrid">${limitationOptions().map(option => checkOption("limitationTag", option, tags.includes(option))).join("")}</div>
-      </div>
-      <label>Extra detail<textarea id="avoidMovements" placeholder="Movements to avoid, equipment missing, what hurts, or what feels okay.">${escapeHtml(settings.avoidMovements || "")}</textarea></label>
       <button class="primary" onclick="saveLimitationsSettings()">Save limitations</button>
       <button type="button" onclick="renderSettings()">Back to settings</button>
     </section>`;
@@ -595,13 +598,16 @@ function updateLimitationsProgress(){
   const enabled = $("limitationsEnabled") && $("limitationsEnabled").checked;
   $("progressText").innerText = enabled ? "Active for plan previews" : "Off";
   $("progressBar").style.width = enabled ? "100%" : "0%";
+  if($("limitationsDetail")) $("limitationsDetail").style.display = enabled ? "flex" : "none";
+  if($("limitationsOffHint")) $("limitationsOffHint").style.display = enabled ? "none" : "block";
 }
 function saveLimitationsSettings(){
   const settings = readObject(PLAN_SETTINGS_KEY, {});
   settings.limitationsEnabled = $("limitationsEnabled").checked;
-  settings.limitationDuration = document.querySelector('input[name="limitationDuration"]:checked').value;
+  const selectedDuration = document.querySelector('input[name="limitationDuration"]:checked');
+  settings.limitationDuration = selectedDuration ? selectedDuration.value : "temporary";
   settings.limitationTags = Array.from(document.querySelectorAll('input[name="limitationTag"]:checked')).map(input => input.value);
-  settings.avoidMovements = $("avoidMovements").value.trim();
+  settings.avoidMovements = $("avoidMovements") ? $("avoidMovements").value.trim() : (settings.avoidMovements || "");
   settings.planBias = generatePlanBias(settings);
   writeObject(PLAN_SETTINGS_KEY, settings);
   setPlanMessage(settings.limitationsEnabled ? "Limitations saved for future plan previews." : "Limitations turned off.", "settings");
