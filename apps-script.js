@@ -236,13 +236,136 @@ function generateTrainingPlan(spreadsheet, params, extendExisting) {
 
   const model = PropertiesService.getScriptProperties().getProperty("OPENAI_MODEL") || "gpt-5.4-mini";
   const plan = callOpenAIForPlan(apiKey, model, payload, extendExisting);
+  const validation = validateGeneratedPlan(plan, settings);
+  if (!validation.ok) {
+    return {ok: false, error: `Generated plan did not pass planning checks: ${validation.issues.join("; ")}. Try creating the preview again.`};
+  }
   plan.generatedAt = new Date().toISOString();
+  plan.validation = {
+    ruleset: PLAN_GENERATION_RULESET_VERSION,
+    checkedAt: plan.generatedAt,
+    issues: []
+  };
   setSetting(spreadsheet, extendExisting ? "latestPlanExtension" : "latestGeneratedPlan", JSON.stringify(plan));
   setSetting(spreadsheet, extendExisting ? "latestPlanExtensionMeta" : "latestGeneratedPlanMeta", JSON.stringify({
     requestId: payload.requestId || "",
     generatedAt: plan.generatedAt
   }));
   return {ok: true, plan};
+}
+
+function validateGeneratedPlan(plan, settings) {
+  const issues = [];
+  const weeks = plan && Array.isArray(plan.weeks) ? plan.weeks : [];
+  if (weeks.length !== 4) {
+    issues.push("plan must contain exactly 4 weeks");
+  }
+
+  const requestedDays = requestedTrainingDays(settings);
+  const requestedMinutes = requestedWorkoutMinutes(settings);
+  const avoidTerms = explicitAvoidTerms(settings);
+
+  weeks.forEach((week, weekIndex) => {
+    const days = Array.isArray(week.days) ? week.days : [];
+    if (!days.length) {
+      issues.push(`week ${weekIndex + 1} has no training days`);
+      return;
+    }
+
+    const trainingDays = days.filter(hasTrainingWork).length;
+    const hasRecovery = days.some(day => String(day.recovery || "").trim() || !hasTrainingWork(day));
+    if (!hasRecovery) {
+      issues.push(`week ${weekIndex + 1} has no recovery opportunity`);
+    }
+    if (requestedDays && trainingDays > requestedDays) {
+      issues.push(`week ${weekIndex + 1} has ${trainingDays} training days but user requested ${requestedDays}`);
+    }
+
+    days.forEach((day, dayIndex) => {
+      const estimatedMinutes = estimateWorkoutMinutes(day);
+      if (requestedMinutes && estimatedMinutes > requestedMinutes + 25) {
+        issues.push(`week ${weekIndex + 1} day ${dayIndex + 1} is too long for requested workout length`);
+      }
+
+      avoidTerms.forEach(term => {
+        if (dayContradictsAvoidTerm(day, term)) {
+          issues.push(`week ${weekIndex + 1} day ${dayIndex + 1} includes ${term.label}`);
+        }
+      });
+    });
+  });
+
+  return {ok: issues.length === 0, issues: issues.slice(0, 6)};
+}
+
+function requestedTrainingDays(settings) {
+  const value = Number(settings && settings.daysPerWeek);
+  return Number.isFinite(value) && value >= 1 && value <= 7 ? value : 0;
+}
+
+function requestedWorkoutMinutes(settings) {
+  const match = String(settings && settings.workoutLength || "").match(/\d+/);
+  if (!match) return 0;
+  const value = Number(match[0]);
+  return Number.isFinite(value) && value >= 15 ? value : 0;
+}
+
+function hasTrainingWork(day) {
+  return !!(day && (day.row || day.run || (Array.isArray(day.exercises) && day.exercises.length)));
+}
+
+function estimateWorkoutMinutes(day) {
+  if (!day) return 0;
+  const exerciseMinutes = Array.isArray(day.exercises)
+    ? day.exercises.reduce((total, exercise) => total + Math.max(4, Number(exercise.sets) || 1) * 3, 0)
+    : 0;
+  return exerciseMinutes + cardioMinutes(day.row) + cardioMinutes(day.run);
+}
+
+function cardioMinutes(cardio) {
+  if (!cardio) return 0;
+  const text = [cardio.duration, cardio.pace, cardio.intensity].filter(Boolean).join(" ");
+  const minuteMatch = text.match(/(\d+)\s*(?:min|minute)/i);
+  if (minuteMatch) return Number(minuteMatch[1]) || 0;
+  const rangeMatch = text.match(/(\d+)\s*[-–]\s*(\d+)/);
+  if (rangeMatch) return Number(rangeMatch[2]) || 0;
+  return 0;
+}
+
+function explicitAvoidTerms(settings) {
+  const terms = [];
+  const tags = Array.isArray(settings && settings.limitationTags) ? settings.limitationTags : [];
+  const text = String(settings && settings.avoidMovements || "").toLowerCase();
+  const active = !!(settings && settings.limitationsEnabled);
+  if (!active) return terms;
+
+  if (tags.includes("Avoid running") || /\b(?:avoid|no)\s+running\b/.test(text)) {
+    terms.push({label: "running", patterns: [/\brun(?:ning)?\b/i]});
+  }
+  if (tags.includes("Avoid overhead pressing") || /\b(?:avoid|no)\s+(?:overhead|shoulder|military)\s+press/i.test(text)) {
+    terms.push({label: "overhead pressing", patterns: [/\boverhead press\b/i, /\bshoulder press\b/i, /\bmilitary press\b/i]});
+  }
+  if (tags.includes("Avoid heavy lower body") || /\b(?:avoid|no)\s+(?:heavy\s+)?(?:squat|deadlift|leg press)/i.test(text)) {
+    terms.push({label: "heavy lower body work", patterns: [/\bback squat\b/i, /\bbarbell squat\b/i, /\bdeadlift\b/i, /\bleg press\b/i]});
+  }
+  if (/\b(?:avoid|no)\s+(?:barbell\s+)?squats?\b/i.test(text)) {
+    terms.push({label: "squats", patterns: [/\bsquat\b/i]});
+  }
+
+  return terms;
+}
+
+function dayContradictsAvoidTerm(day, term) {
+  const pieces = [];
+  if (day.run && term.label === "running") return true;
+  if (day.title) pieces.push(day.title);
+  if (day.recovery) pieces.push(day.recovery);
+  (day.exercises || []).forEach(exercise => {
+    pieces.push(exercise.name || "");
+    pieces.push(exercise.notes || "");
+  });
+  const text = pieces.join(" ");
+  return term.patterns.some(pattern => pattern.test(text));
 }
 
 function getLatestTrainingPlan(spreadsheet, params) {

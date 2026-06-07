@@ -218,6 +218,8 @@ Requires:
 
 ### Stage 3: Deterministic Validator
 
+Status: started in `apps-script.js` with conservative preview rejection checks for recovery, requested training days, rough workout length, and explicit limitation contradictions.
+
 Create a local or Apps Script validator that checks generated plans before preview.
 
 Potential checks:
