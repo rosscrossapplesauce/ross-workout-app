@@ -124,6 +124,13 @@ const flowNotes = [
     owner: "app.js skipCurrentExercise/showWorkoutMenu"
   },
   {
+    match: /temporarily shorten/i,
+    flow: "temporary workout adjustment",
+    why: "A user should be able to make today's workout fit time, soreness, or equipment without permanently changing the plan.",
+    type: "UX/state",
+    owner: "app.js showWorkoutAdjustMenu/effectiveExercise"
+  },
+  {
     match: /empty workout data/i,
     flow: "missing or empty workout data",
     why: "Bad data should fail softly instead of stranding the user.",

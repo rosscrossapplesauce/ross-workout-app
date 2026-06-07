@@ -285,6 +285,7 @@ function render(){
   const state = getState();
   const completedCount = items.filter((_,i)=>state.completed[itemId(items[i], i)]).length;
   const total = items.length;
+  const workoutAdjustment = activeWorkoutAdjustment(state);
   $("progressText").innerText = total ? `${itemIndex+1} of ${total} · ${completedCount} done` : "Rest day";
   $("scoreText").innerText = total ? `${Math.round(completedCount/total*100)}%` : "";
   $("progressBar").style.width = total ? `${completedCount/total*100}%` : "0%";
@@ -315,6 +316,7 @@ function render(){
           ${originalName}
           <div class="prescription">${escapeHtml(exercise.sets)} × ${escapeHtml(exercise.reps)}</div>
           <div class="bigWeight">${escapeHtml(exercise.suggestedWeight)}<span class="unit"> ${escapeHtml(exercise.unit)}</span></div>
+          ${workoutAdjustment ? `<div class="lastWeek">Today adjusted: ${escapeHtml(workoutAdjustment.label)}</div>` : ""}
           ${history}
           <button class="altBtn" onclick="loadAlternatives()">Alternatives</button>
         </div>
@@ -1639,6 +1641,7 @@ function showWorkoutMenu(type = "main"){
       ${itemIndex > 0 ? `<button type="button" onclick="prevItem()">Previous exercise</button>` : ""}
       ${itemIndex < items.length - 1 ? `<button type="button" onclick="nextItem()">Next exercise</button>` : ""}
       <button type="button" onclick="openWorkoutCalendar()">Change day</button>
+      <button type="button" onclick="showWorkoutAdjustMenu()">Adjust today</button>
       ${item && item.kind === "exercise" ? `<button type="button" onclick="skipExerciseFromMenu()">Skip exercise (DNC)</button>` : ""}
       <button type="button" class="dangerAction" onclick="resetDayFromMenu()">Reset day</button>
       <button type="button" onclick="closeWorkoutMenu()">Cancel</button>
@@ -1663,6 +1666,44 @@ function showWorkoutMenu(type = "main"){
 function closeWorkoutMenu(){
   const existing = document.getElementById("workoutMenu");
   if(existing) existing.remove();
+}
+function showWorkoutAdjustMenu(){
+  closeWorkoutMenu();
+  const current = activeWorkoutAdjustment(getState());
+  const sheet = document.createElement("div");
+  sheet.id = "workoutMenu";
+  sheet.className = "actionSheet";
+  sheet.innerHTML = `
+    <button class="sheetBackdrop" type="button" aria-label="Close menu" onclick="closeWorkoutMenu()"></button>
+    <div class="sheetPanel" role="dialog" aria-modal="true" aria-label="Adjust today">
+      <div class="sheetHandle"></div>
+      <button type="button" onclick="applyWorkoutAdjustment('short_time')">Short on time</button>
+      <button type="button" onclick="applyWorkoutAdjustment('sore_today')">Sore today</button>
+      <button type="button" onclick="applyWorkoutAdjustment('equipment_crowded')">Equipment crowded</button>
+      ${current ? `<button type="button" onclick="clearWorkoutAdjustment()">Clear today's adjustment</button>` : ""}
+      <button type="button" onclick="closeWorkoutMenu()">Cancel</button>
+    </div>`;
+  document.body.appendChild(sheet);
+}
+function applyWorkoutAdjustment(type){
+  const adjustment = workoutAdjustmentFor(type);
+  if(!adjustment) return;
+  const state = getState();
+  state.workoutAdjustment = {...adjustment, createdAt: new Date().toISOString()};
+  setState(state);
+  closeWorkoutMenu();
+  render();
+  if(type === "equipment_crowded"){
+    const item = getItems(getDay())[itemIndex];
+    if(item && item.kind === "exercise") loadAlternatives();
+  }
+}
+function clearWorkoutAdjustment(){
+  const state = getState();
+  delete state.workoutAdjustment;
+  setState(state);
+  closeWorkoutMenu();
+  render();
 }
 function openWorkoutList(){
   closeWorkoutMenu();
@@ -1703,8 +1744,7 @@ function getAppliedAlternative(state, id){
 }
 function effectiveExercise(item, id, state = getState()){
   const alternative = getAppliedAlternative(state, id);
-  if(!alternative) return item;
-  return {
+  const base = alternative ? {
     ...item,
     name: alternative.name || item.name,
     sets: Number(alternative.sets) || item.sets,
@@ -1712,7 +1752,45 @@ function effectiveExercise(item, id, state = getState()){
     suggestedWeight: alternative.suggestedWeight !== undefined && alternative.suggestedWeight !== "" ? Number(alternative.suggestedWeight) : item.suggestedWeight,
     unit: alternative.unit || item.unit,
     notes: alternative.notes || alternative.how || item.notes || ""
+  } : item;
+  return adjustedExercise(base, activeWorkoutAdjustment(state));
+}
+function activeWorkoutAdjustment(state = getState()){
+  return state && state.workoutAdjustment && state.workoutAdjustment.type ? state.workoutAdjustment : null;
+}
+function workoutAdjustmentFor(type){
+  const options = {
+    short_time: {
+      type,
+      label: "Short on time",
+      detail: "Lifting sets capped at 2 for today."
+    },
+    sore_today: {
+      type,
+      label: "Sore today",
+      detail: "Suggested lifting weights reduced 15% for today."
+    },
+    equipment_crowded: {
+      type,
+      label: "Equipment crowded",
+      detail: "Use alternatives for crowded stations today."
+    }
   };
+  return options[type] || null;
+}
+function adjustedExercise(item, adjustment){
+  if(!adjustment) return item;
+  if(adjustment.type === "short_time"){
+    return {...item, sets: Math.min(getSetCount(item), 2)};
+  }
+  if(adjustment.type === "sore_today"){
+    const current = Number(item.suggestedWeight);
+    if(!Number.isFinite(current)) return item;
+    const step = String(item.unit || "").toLowerCase() === "kg" ? 2.5 : 5;
+    const reduced = Math.max(0, Math.round((current * 0.85) / step) * step);
+    return {...item, suggestedWeight: reduced};
+  }
+  return item;
 }
 function getSetCount(item){
   const count = Number(item.sets);
