@@ -117,6 +117,13 @@ const flowNotes = [
     owner: "app.js attachWorkoutHoldMenu/showWorkoutMenu"
   },
   {
+    match: /skip an exercise/i,
+    flow: "skip unavailable exercise",
+    why: "A user should be able to keep moving when an exercise is not doable without editing the whole plan.",
+    type: "UX/state",
+    owner: "app.js skipCurrentExercise/showWorkoutMenu"
+  },
+  {
     match: /empty workout data/i,
     flow: "missing or empty workout data",
     why: "Bad data should fail softly instead of stranding the user.",

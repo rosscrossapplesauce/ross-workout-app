@@ -1633,11 +1633,13 @@ function showWorkoutMenu(type = "main"){
   if(screenMode !== "workout") return;
   closeWorkoutMenu();
   const items = getItems(getDay());
+  const item = items[itemIndex];
   const isQuickMenu = type === "quick";
   const menuButtons = isQuickMenu ? `
       ${itemIndex > 0 ? `<button type="button" onclick="prevItem()">Previous exercise</button>` : ""}
       ${itemIndex < items.length - 1 ? `<button type="button" onclick="nextItem()">Next exercise</button>` : ""}
       <button type="button" onclick="openWorkoutCalendar()">Change day</button>
+      ${item && item.kind === "exercise" ? `<button type="button" onclick="skipExerciseFromMenu()">Skip exercise (DNC)</button>` : ""}
       <button type="button" class="dangerAction" onclick="resetDayFromMenu()">Reset day</button>
       <button type="button" onclick="closeWorkoutMenu()">Cancel</button>
     ` : `
@@ -1685,6 +1687,10 @@ function goHomeFromMenu(){
 function resetDayFromMenu(){
   closeWorkoutMenu();
   resetDay();
+}
+function skipExerciseFromMenu(){
+  closeWorkoutMenu();
+  skipCurrentExercise();
 }
 function itemId(item, i){
   if(item.kind === "exercise") return `exercise-${item.idx}`;
@@ -2228,6 +2234,26 @@ function nextItem(){
 function prevItem(){
   overviewOpen = false;
   itemIndex = Math.max(0, itemIndex-1);
+  render();
+  $("screen").focus({preventScroll:true});
+}
+function skipCurrentExercise(){
+  const items = getItems(getDay());
+  const item = items[itemIndex];
+  if(!item || item.kind !== "exercise") return;
+  const id = itemId(item, itemIndex);
+  const state = getState();
+  const exercise = effectiveExercise(item, id, state);
+  if(!state.setWeights) state.setWeights = {};
+  if(!state.weights) state.weights = {};
+  if(!state.notes) state.notes = {};
+  state.setWeights[id] = Array.from({length:getSetCount(exercise)}, () => "DNC");
+  state.weights[id] = compactSetWeights(state.setWeights[id]).join(" / ");
+  state.completed[id] = true;
+  state.notes[id] = state.notes[id] || "Skipped exercise.";
+  setState(state);
+  saveLogRecord(makeLogRecord(item, id, true));
+  if(itemIndex < items.length - 1) itemIndex++;
   render();
   $("screen").focus({preventScroll:true});
 }
