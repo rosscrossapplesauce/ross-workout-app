@@ -319,7 +319,6 @@ function render(){
           <div class="bigWeight">${escapeHtml(exercise.suggestedWeight)}<span class="unit"> ${escapeHtml(exercise.unit)}</span></div>
           ${workoutAdjustment ? `<div class="lastWeek">Today adjusted: ${escapeHtml(workoutAdjustment.label)}</div>` : ""}
           ${history}
-          <button class="altBtn" onclick="loadAlternatives()">Alternatives</button>
         </div>
         <div>
           <label>Completed weight by set</label>
@@ -1753,12 +1752,17 @@ function showWorkoutMenu(type = "main"){
       ${itemIndex < items.length - 1 ? `<button type="button" onclick="nextItem()">Next exercise</button>` : ""}
       <button type="button" onclick="openWorkoutCalendar()">Change day</button>
       <button type="button" onclick="showWorkoutAdjustMenu()">Adjust today</button>
+      ${item && item.kind === "exercise" ? `<button type="button" onclick="showAlternativesFromMenu()">Alternatives</button>` : ""}
       ${item && item.kind === "exercise" ? `<button type="button" onclick="skipExerciseFromMenu()">Skip exercise (DNC)</button>` : ""}
       <button type="button" class="dangerAction" onclick="resetDayFromMenu()">Reset day</button>
       <button type="button" onclick="closeWorkoutMenu()">Cancel</button>
     ` : `
       <button type="button" onclick="openWorkoutList()">Today's list</button>
       <button type="button" onclick="openWorkoutCalendar()">Change day</button>
+      <button type="button" onclick="showWorkoutAdjustMenu()">Adjust today</button>
+      ${item && item.kind === "exercise" ? `<button type="button" onclick="showAlternativesFromMenu()">Alternatives</button>` : ""}
+      ${item && item.kind === "exercise" ? `<button type="button" onclick="skipExerciseFromMenu()">Skip exercise (DNC)</button>` : ""}
+      <button type="button" class="dangerAction" onclick="resetDayFromMenu()">Reset day</button>
       <button type="button" onclick="openSettingsFromMenu()">Settings</button>
       <button type="button" onclick="goHomeFromMenu()">Home</button>
       <button type="button" onclick="closeWorkoutMenu()">Cancel</button>
@@ -1843,6 +1847,10 @@ function resetDayFromMenu(){
 function skipExerciseFromMenu(){
   closeWorkoutMenu();
   skipCurrentExercise();
+}
+function showAlternativesFromMenu(){
+  closeWorkoutMenu();
+  loadAlternatives();
 }
 function itemId(item, i){
   if(item.kind === "exercise") return `exercise-${item.idx}`;

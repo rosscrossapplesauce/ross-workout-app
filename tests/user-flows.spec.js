@@ -54,11 +54,16 @@ test("user can complete an item and advance through the workout", async ({ page 
 });
 
 test("workout menu reaches list, calendar, settings, and home", async ({ page }) => {
+  await makeFirstPlanDayToday(page);
   await page.getByRole("button", { name: "Continue current plan" }).click();
   await page.getByRole("button", { name: "Menu" }).click();
 
   await expect(page.getByRole("button", { name: "Today's list" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Change day" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Adjust today" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Alternatives" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Skip exercise (DNC)" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Reset day" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Home" })).toBeVisible();
 
@@ -81,6 +86,8 @@ test("exercise alternatives are reachable from workout mode", async ({ page }) =
   await makeFirstPlanDayToday(page);
   await page.getByRole("button", { name: "Continue current plan" }).click();
 
+  await expect(page.locator(".card").getByRole("button", { name: "Alternatives" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Menu" }).click();
   const alternatives = page.getByRole("button", { name: "Alternatives" });
   await expect(alternatives).toBeVisible();
   await alternatives.click();
