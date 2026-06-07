@@ -34,6 +34,24 @@ const PR_HEADERS = [
 
 const SETTINGS_HEADERS = ["key", "value"];
 
+const PLAN_GENERATION_RULESET_VERSION = "plan-principles-v0.1";
+
+const PLAN_GENERATION_RULES = [
+  `Ruleset: ${PLAN_GENERATION_RULESET_VERSION}`,
+  "Generate within these rules. Do not invent a different training philosophy.",
+  "Use both aerobic and muscle-strengthening work unless the user clearly requests a short-term narrow goal.",
+  "For general fitness, trend toward 150-300 minutes per week of moderate aerobic work or equivalent plus strength work on at least 2 days per week, but beginners and returning users may start below that and progress gradually.",
+  "Use conservative starting loads from user samples, prior history, or clearly marked suggestions. Do not require 1RM testing.",
+  "Prefer repeatable sets with good form. Do not train every set to failure by default. Failure or near-failure work only fits experienced users with controlled volume and recovery.",
+  "For hybrid strength/cardio plans, manage interference risk through volume, intensity, modality, order, and recovery. When strength or hypertrophy is important, place hard strength before hard endurance in the same session when practical or separate hard sessions across days.",
+  "Progress running more cautiously than low-impact cardio when lower-body strength, soreness, or limitations are relevant.",
+  "Include recovery opportunities every week. Do not remove rest days or double the next workout to make up for missed work.",
+  "Apply enabled limitations as constraints. Temporary limitations should affect near-term work; indefinite limitations should persist until the user turns them off.",
+  "Exercise substitutions must preserve movement pattern, primary muscle group, equipment context, set/rep intent, and fatigue cost.",
+  "Do not provide medical advice, diagnosis, injury treatment, or certainty where evidence is mixed.",
+  "Generated plans must respect requested days per week and realistic workout length, include recovery structure, apply sport context, and stay usable as an optional local plan preview."
+].join("\n");
+
 function doGet(e) {
   e = e || {parameter: {}};
   e.parameter = e.parameter || {};
@@ -252,13 +270,15 @@ function callOpenAIForPlan(apiKey, model, payload, extendExisting) {
   const prompt = [
     extendExisting ? "Create the next 4 weeks of this gym-friendly training plan as JSON." : "Create a conservative, gym-friendly training plan as JSON.",
     "The user is active but returning to lifting after time away. Favor safe starting weights, gradual progression, and simple execution.",
-    "Do not provide medical advice. Avoid injury diagnosis. Encourage easing up if pain appears.",
     "Keep workouts efficient and minimal. One day should fit the requested workout length.",
     "Use rowing, running, strength, and rest according to the user's goals and notes.",
     "If weight-loss timing is mentioned, keep it realistic and training-focused rather than promising fat loss.",
     "Return 4 weeks. Use the requested days per week when provided, otherwise 5 days per week.",
     "For strength exercises, suggest conservative numeric starting weights in pounds. Use 0 only for bodyweight movements.",
     "Each training day may include row, run, exercises, recovery, or a combination.",
+    "",
+    "Plan generation rules:",
+    PLAN_GENERATION_RULES,
     "",
     "User setup:",
     JSON.stringify(settings),
