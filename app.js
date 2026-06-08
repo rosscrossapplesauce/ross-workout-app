@@ -307,7 +307,7 @@ function render(){
   if(!items.length){
     $("screen").innerHTML = `
       <div class="workoutStack">
-        ${dayMomentumMarkup(day, items, state, completedCount, total)}
+        ${workoutCompassDockMarkup(day, items, state, completedCount, total)}
         <div class="card rest"><div><div class="exerciseName">Rest Day</div><div class="hint">${day.recovery || "No workout today."}</div></div></div>
       </div>`;
     attachWorkoutHoldMenu();
@@ -329,16 +329,15 @@ function render(){
     const weightLabel = item.source === "extra" ? "Last logged" : "Suggested";
     $("screen").innerHTML = `
       <div class="workoutStack">
-      ${dayMomentumMarkup(day, items, state, completedCount, total)}
-      ${workoutCarouselMarkup(items, state, `<section class="card ${fitClass} ${done ? "completed":""}">
+      ${workoutCompassDockMarkup(day, items, state, completedCount, total)}
+      <section class="card workoutCard ${fitClass} ${done ? "completed":""}">
         ${done ? completedCueMarkup() : ""}
         <div>
           <div class="kicker"><span>Exercise ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
           <div class="exerciseName">${escapeHtml(exercise.name)}</div>
           ${originalName}
           <div class="prescription">${escapeHtml(exercise.sets)} × ${escapeHtml(exercise.reps)}</div>
-          <div class="weightLabel">${escapeHtml(weightLabel)}</div>
-          <div class="bigWeight">${escapeHtml(exercise.suggestedWeight)}<span class="unit"> ${escapeHtml(exercise.unit)}</span></div>
+          <div class="suggestedLine"><span>${escapeHtml(weightLabel)}</span><strong>${escapeHtml(exercise.suggestedWeight)} ${escapeHtml(exercise.unit)}</strong></div>
           ${workoutAdjustment ? `<div class="lastWeek">Today adjusted: ${escapeHtml(workoutAdjustment.label)}</div>` : ""}
           ${history}
         </div>
@@ -347,24 +346,22 @@ function render(){
           <div class="setGrid">
             ${setWeights.map((weight,setIndex)=>setWeightRow(exercise, setIndex, weight)).join("")}
           </div>
-          <button class="suggestedBtn" onclick="useSuggested()">Use suggested for all sets</button>
-          <details class="notesFold" ${notes ? "open" : ""}>
-            <summary>Notes</summary>
-            <textarea id="noteInput" placeholder="Optional">${notes}</textarea>
-          </details>
+          <div class="workoutCardActions">
+            <button class="suggestedBtn" onclick="useSuggested()">Use suggested for all sets</button>
+            <button class="notesBtn ${notes ? "hasNote" : ""}" onclick="showNotesSheet()">${notes ? "Note saved" : "Notes"}</button>
+          </div>
         </div>
-      </section>`)}
+      </section>
       </div>`;
     setTimeout(()=>{
       document.querySelectorAll(".setWeightInput").forEach(input => input.oninput = saveInputs);
-      $("noteInput").oninput = saveInputs;
       attachWorkoutHoldMenu();
     },0);
   } else if(item.kind === "row"){
     $("screen").innerHTML = `
       <div class="workoutStack">
-      ${dayMomentumMarkup(day, items, state, completedCount, total)}
-      ${workoutCarouselMarkup(items, state, `<section class="card ${done ? "completed":""}">
+      ${workoutCompassDockMarkup(day, items, state, completedCount, total)}
+      <section class="card workoutCard ${done ? "completed":""}">
         ${done ? completedCueMarkup() : ""}
         <div>
           <div class="kicker"><span>Cardio ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
@@ -373,14 +370,14 @@ function render(){
           <div class="prescription">${escapeHtml(item.intensity || "")}</div>
           ${item.pace ? `<div class="smallDetail">${escapeHtml(item.pace)}</div>` : ""}
         </div>
-      </section>`)}
+      </section>
       </div>`;
     attachWorkoutHoldMenu();
   } else if(item.kind === "run"){
     $("screen").innerHTML = `
       <div class="workoutStack">
-      ${dayMomentumMarkup(day, items, state, completedCount, total)}
-      ${workoutCarouselMarkup(items, state, `<section class="card ${done ? "completed":""}">
+      ${workoutCompassDockMarkup(day, items, state, completedCount, total)}
+      <section class="card workoutCard ${done ? "completed":""}">
         ${done ? completedCueMarkup() : ""}
         <div>
           <div class="kicker"><span>Run ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
@@ -388,14 +385,14 @@ function render(){
           <div class="bigWeight" style="font-size:76px">${escapeHtml(item.distance || item.duration || "")}</div>
           <div class="prescription">${escapeHtml(item.pace || item.intensity || "")}</div>
         </div>
-      </section>`)}
+      </section>
       </div>`;
     attachWorkoutHoldMenu();
   } else {
     $("screen").innerHTML = `
       <div class="workoutStack">
-        ${dayMomentumMarkup(day, items, state, completedCount, total)}
-        ${workoutCarouselMarkup(items, state, `<section class="card rest ${done ? "completed":""}">${done ? completedCueMarkup() : ""}<div><div class="exerciseName">Rest Day</div><div class="hint">${item.text}</div></div></section>`)}
+        ${workoutCompassDockMarkup(day, items, state, completedCount, total)}
+        <section class="card workoutCard rest ${done ? "completed":""}">${done ? completedCueMarkup() : ""}<div><div class="exerciseName">Rest Day</div><div class="hint">${item.text}</div></div></section>
       </div>`;
     attachWorkoutHoldMenu();
   }
@@ -435,6 +432,50 @@ function workoutCarouselMarkup(items, state, cardMarkup){
       ${cardMarkup}
       ${carouselPeekMarkup(items, state, itemIndex + 1, "right")}
     </div>`;
+}
+function workoutCompassDockMarkup(day, items, state, completedCount, total){
+  const current = total ? itemIndex + 1 : 0;
+  const label = total ? `${completedCount} of ${total} complete` : "Recovery day";
+  const cue = workoutOrderCueText(day, items, itemIndex);
+  const flash = completionFlash;
+  completionFlash = "";
+  return `
+    <section class="compassDock" aria-label="Day compass">
+      <button type="button" class="compassSummary" onclick="openWorkoutList()">
+        <span>
+          <strong>Day compass</strong>
+          <small class="${flash ? "compassFlash" : ""}">${escapeHtml(flash || cue || "Open map · choose next")}</small>
+        </span>
+        <span class="miniCompass" aria-hidden="true">
+          <i class="miniCompassDone" style="--pct:${total ? Math.max(8, completedCount / total * 100) : 100}%"></i>
+          <b>${escapeHtml(current || "R")}</b>
+        </span>
+      </button>
+      <div class="dayTrail" aria-label="${escapeHtml(label)}">
+        ${total ? items.map((item, index) => {
+          const done = !!state.completed[itemId(item, index)];
+          const currentItem = index === itemIndex;
+          return `<button type="button" class="trailDot ${done ? "done" : ""} ${currentItem ? "current" : ""}" onclick="jumpToItem(${index})" aria-label="${escapeHtml(compassItemTitle(item, index, state))}">${index + 1}</button>`;
+        }).join("") : `<span class="trailDot done current">R</span>`}
+      </div>
+    </section>`;
+}
+function compassItemTitle(item, index, state){
+  return `${index + 1}. ${carouselItemTitle(item, index, state)}`;
+}
+function workoutOrderCue(day, items, index){
+  const text = workoutOrderCueText(day, items, index);
+  return text ? `<div class="orderCue">${escapeHtml(text)}</div>` : "";
+}
+function workoutOrderCueText(day, items, index){
+  const item = items[index];
+  if(!item || !items.length) return "";
+  const hasCardio = items.some(entry => entry.kind === "row" || entry.kind === "run");
+  const strengthCount = items.filter(entry => entry.kind === "exercise").length;
+  if(item.kind === "exercise" && hasCardio && strengthCount >= 3) return "Why now: strength before hard cardio";
+  if((item.kind === "row" || item.kind === "run") && strengthCount >= 3) return "Recommended after main strength work";
+  if(item.kind === "exercise" && index === 0 && strengthCount > 1) return "Recommended early while fresh";
+  return "";
 }
 function dayMomentumMarkup(day, items, state, completedCount, total){
   const focus = dayFocus(day);
@@ -490,19 +531,34 @@ function homeWeekMarkup(model){
   if(!model || !model.week) return "";
   const doneDays = model.days.filter(entry => entry.items.length && entry.completed >= entry.items.length).length;
   const trainingDays = model.days.filter(entry => entry.items.length).length;
+  const todayEntry = model.days.find(entry => entry.today) || model.days.find(entry => entry.current) || model.days[0];
   return `
-    <section class="weekSnapshot" aria-label="This week's plan">
+    <section class="weekRoute" aria-label="This week's route">
       <div class="weekSnapshotTop">
         <div>
-          <div class="summaryTitle">This Week</div>
-          <div class="weekSnapshotTitle">Week ${escapeHtml(model.week.week || model.weekIndex + 1)}</div>
+          <div class="summaryTitle">Week ${escapeHtml(model.week.week || model.weekIndex + 1)}</div>
+          <div class="weekSnapshotTitle">Your route</div>
+          <div class="weekRouteMeta">${doneDays} of ${trainingDays || model.days.length} training days complete</div>
         </div>
-        <div class="weekSnapshotScore">${doneDays}/${trainingDays || model.days.length}</div>
       </div>
+      ${todayEntry ? homeWeekTodayCard(todayEntry) : ""}
       <div class="weekRail">
         ${model.days.map(entry => homeWeekDayMarkup(entry)).join("")}
       </div>
     </section>`;
+}
+function homeWeekTodayCard(entry){
+  const focus = dayFocus(entry.day);
+  const label = planDateLabel(entry.weekIndex, entry.dayIndex) || entry.day.day || "Today";
+  return `
+    <button type="button" class="weekTodayCard" onclick="jumpHomeToDay(${entry.weekIndex}, ${entry.dayIndex})">
+      <span>
+        <strong>${escapeHtml(entry.today ? "Today" : "Current focus")}</strong>
+        <small>${escapeHtml(label)}</small>
+      </span>
+      <b>${escapeHtml(focus)}</b>
+      <em>${entry.items.length ? `${entry.completed}/${entry.items.length}` : "Recovery"}</em>
+    </button>`;
 }
 function homeTodayMarkup(model){
   if(!model || !model.days || !model.days.length) return "";
@@ -526,14 +582,12 @@ function homeWeekDayMarkup(entry){
   const partial = entry.completed > 0 && !done;
   const label = planDateLabel(entry.weekIndex, entry.dayIndex) || entry.day.day || `Day ${entry.dayIndex + 1}`;
   const shortLabel = label.replace(/,\s*/g, " ");
+  const status = done ? "Done" : partial ? `${entry.completed}/${entry.items.length}` : entry.today ? "Today" : entry.items.length ? "Upcoming" : "Recovery";
   return `
     <button type="button" class="weekDay ${entry.today ? "today" : ""} ${done ? "done" : ""} ${partial ? "partial" : ""}" onclick="jumpHomeToDay(${entry.weekIndex}, ${entry.dayIndex})">
       <span class="weekDayLabel">${escapeHtml(entry.today ? `Today · ${shortLabel}` : shortLabel)}</span>
       <strong>${escapeHtml(focus)}</strong>
-      <span class="weekDayCount">${entry.items.length ? `${entry.completed}/${entry.items.length}` : "Rest"}</span>
-      <div class="weekDayDots" aria-hidden="true">
-        ${entry.items.length ? entry.items.map((item, index) => `<i class="${index < entry.completed ? "done" : ""}"></i>`).join("") : `<i class="done recovery"></i>`}
-      </div>
+      <span class="weekDayCount">${escapeHtml(status)}</span>
     </button>`;
 }
 function jumpHomeToDay(nextWeekIndex, nextDayIndex){
@@ -568,8 +622,8 @@ function renderHome(){
   $("overviewBtn").onclick = renderSettings;
   $("screen").innerHTML = `
     <section class="homePanel scrollPanel">
-      ${homeTodayMarkup(homeWeek)}
       ${homeWeekMarkup(homeWeek)}
+      ${homeTodayMarkup(homeWeek)}
       <div class="homeActions">
         <button class="textBtn" onclick="renderPlanStart()">Create a new plan</button>
       </div>
@@ -1727,12 +1781,12 @@ function renderOverview(day, items){
   }
 
   $("screen").innerHTML = `
-    <section class="overviewCard">
+    <section class="overviewCard compassMap">
       <div class="overviewHeader">
         <div>
-          <div class="kicker">Selected Workout</div>
-          <div class="overviewTitle">${escapeHtml(workoutDayHeading(day))}</div>
-          <div class="overviewSubtitle">${escapeHtml(dayFocus(day))}</div>
+          <div class="kicker">Day Compass</div>
+          <div class="overviewTitle">Choose next</div>
+          <div class="overviewSubtitle">${escapeHtml(dayFocus(day))} · ${escapeHtml(workoutDayHeading(day))}</div>
         </div>
         <div class="overviewTools">
           <div class="overviewCount">${completedCount}/${items.length}</div>
@@ -1743,7 +1797,7 @@ function renderOverview(day, items){
       </div>
       ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
       ${planProgressMarkup()}
-      <div class="overviewList">
+      <div class="overviewList exerciseMapGrid">
         ${items.map((item,i)=>overviewRow(item, i, !!state.completed[itemId(item, i)], state, i === itemIndex)).join("")}
       </div>
     </section>`;
@@ -1878,7 +1932,7 @@ function overviewRow(item, index, done, state, current = false){
         ? `${item.distance} · ${item.pace}`
         : item.text;
   return `
-    <button class="overviewItem ${done ? "overviewDone" : ""} ${current ? "overviewCurrent" : ""}" onclick="jumpToItem(${index})" ${current ? 'aria-current="true"' : ""}>
+    <button class="overviewItem mapItem ${done ? "overviewDone" : ""} ${current ? "overviewCurrent" : ""}" onclick="jumpToItem(${index})" ${current ? 'aria-current="true"' : ""}>
       <span class="overviewCheck">${done ? "✓" : index + 1}</span>
       <span class="overviewBody">
         <span class="overviewName">${escapeHtml(title)}</span>
@@ -1900,7 +1954,6 @@ function jumpToItem(index){
 function attachWorkoutHoldMenu(){
   const screen = $("screen");
   if(!screen) return;
-  attachCarouselNavigation();
   screen.onpointerdown = event => {
     if(screenMode !== "workout" || overviewOpen || event.target.closest("button,input,textarea,select,summary,details")) return;
     clearTimeout(holdTimer);
@@ -1952,25 +2005,18 @@ function showWorkoutMenu(type = "main"){
   closeWorkoutMenu();
   const items = getItems(getDay());
   const item = items[itemIndex];
-  const isQuickMenu = type === "quick";
-  const menuButtons = isQuickMenu ? `
-      ${itemIndex > 0 ? `<button type="button" onclick="prevItem()">Previous exercise</button>` : ""}
-      ${itemIndex < items.length - 1 ? `<button type="button" onclick="nextItem()">Next exercise</button>` : ""}
-      <button type="button" onclick="openWorkoutCalendar()">Change day</button>
-      <button type="button" onclick="showWorkoutAdjustMenu()">Adjust today</button>
+  const menuButtons = type === "more" ? `
       <button type="button" onclick="addExerciseFromMenu()">Add exercise</button>
-      ${item && item.kind === "exercise" ? `<button type="button" onclick="showAlternativesFromMenu()">Alternatives</button>` : ""}
+      ${item && item.kind === "exercise" ? `<button type="button" onclick="showAlternativesFromMenu()">Swap / alternatives</button>` : ""}
       ${item && item.kind === "exercise" ? `<button type="button" onclick="skipExerciseFromMenu()">Skip exercise (DNC)</button>` : ""}
+      <button type="button" onclick="showNotesSheet()">Notes</button>
       <button type="button" class="dangerAction" onclick="resetDayFromMenu()">Reset day</button>
-      <button type="button" onclick="closeWorkoutMenu()">Cancel</button>
+      <button type="button" onclick="showWorkoutMenu('main')">Back</button>
     ` : `
-      <button type="button" onclick="openWorkoutList()">Today's list</button>
+      <button type="button" onclick="openWorkoutList()">Choose exercise</button>
       <button type="button" onclick="openWorkoutCalendar()">Change day</button>
       <button type="button" onclick="showWorkoutAdjustMenu()">Adjust today</button>
-      <button type="button" onclick="addExerciseFromMenu()">Add exercise</button>
-      ${item && item.kind === "exercise" ? `<button type="button" onclick="showAlternativesFromMenu()">Alternatives</button>` : ""}
-      ${item && item.kind === "exercise" ? `<button type="button" onclick="skipExerciseFromMenu()">Skip exercise (DNC)</button>` : ""}
-      <button type="button" class="dangerAction" onclick="resetDayFromMenu()">Reset day</button>
+      <button type="button" onclick="showWorkoutMenu('more')">More actions</button>
       <button type="button" onclick="openSettingsFromMenu()">Settings</button>
       <button type="button" onclick="goHomeFromMenu()">Home</button>
       <button type="button" onclick="closeWorkoutMenu()">Cancel</button>
@@ -1982,6 +2028,7 @@ function showWorkoutMenu(type = "main"){
     <button class="sheetBackdrop" type="button" aria-label="Close menu" onclick="closeWorkoutMenu()"></button>
     <div class="sheetPanel" role="dialog" aria-modal="true" aria-label="Workout menu">
       <div class="sheetHandle"></div>
+      <div class="sheetTitle">${type === "more" ? "More actions" : "Workout menu"}</div>
       ${menuButtons}
     </div>`;
   document.body.appendChild(sheet);
@@ -2007,6 +2054,39 @@ function showWorkoutAdjustMenu(){
       <button type="button" onclick="closeWorkoutMenu()">Cancel</button>
     </div>`;
   document.body.appendChild(sheet);
+}
+function showNotesSheet(){
+  saveInputs();
+  closeWorkoutMenu();
+  const items = getItems(getDay());
+  const item = items[itemIndex];
+  if(!item) return;
+  const id = itemId(item, itemIndex);
+  const state = getState();
+  const note = state.notes && state.notes[id] || "";
+  const sheet = document.createElement("div");
+  sheet.id = "workoutMenu";
+  sheet.className = "actionSheet";
+  sheet.innerHTML = `
+    <button class="sheetBackdrop" type="button" aria-label="Close notes" onclick="closeWorkoutMenu(); render()"></button>
+    <div class="sheetPanel notesSheet" role="dialog" aria-modal="true" aria-label="Exercise notes">
+      <div class="sheetHandle"></div>
+      <div class="sheetTitle">Notes</div>
+      <textarea id="noteInput" placeholder="Optional">${escapeHtml(note)}</textarea>
+      <button type="button" class="primary" onclick="saveNotesFromSheet()">Save note</button>
+      <button type="button" onclick="closeWorkoutMenu(); render()">Cancel</button>
+    </div>`;
+  document.body.appendChild(sheet);
+  const input = $("noteInput");
+  if(input){
+    input.focus({preventScroll:true});
+    input.oninput = saveInputs;
+  }
+}
+function saveNotesFromSheet(){
+  saveInputs();
+  closeWorkoutMenu();
+  render();
 }
 function applyWorkoutAdjustment(type){
   const adjustment = workoutAdjustmentFor(type);
