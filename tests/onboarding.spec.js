@@ -87,3 +87,27 @@ test("guided preview does not surprise user with backend dependency", async ({ p
   await expect(page.getByText("Setup saved. Connect generation in Settings")).toBeVisible();
   await expect(page.getByText("Add sync settings")).toHaveCount(0);
 });
+
+test("validation rejection is explained in user language", async ({ page }) => {
+  await page.route("https://generator.test/**", route => {
+    const url = new URL(route.request().url());
+    const callback = url.searchParams.get("callback");
+    route.fulfill({
+      contentType: "application/javascript",
+      body: `${callback}(${JSON.stringify({
+        ok: false,
+        error: "Generated plan did not pass planning checks: week 1 has no recovery opportunity."
+      })});`
+    });
+  });
+
+  await page.evaluate(() => {
+    localStorage.setItem("rossWorkout.v1.syncUrl", "https://generator.test/exec");
+  });
+  await openNewPlan(page);
+  await page.getByRole("button", { name: /Build me a plan/i }).click();
+  await page.getByRole("button", { name: "Create preview" }).click();
+
+  await expect(page.getByText("That preview did not meet your plan rules")).toBeVisible();
+  await expect(page.getByText("planning checks")).toHaveCount(0);
+});
