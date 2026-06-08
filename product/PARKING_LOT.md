@@ -25,6 +25,23 @@ Important boundary:
 - Do not punish missed days or frame recovery as failure.
 - Keep core workout mode simple; richer goal editing should live in a separate page or settings-style flow.
 
+### Free Gym Day And Standalone Exercise Tracking
+
+Consider a fuller mode for workouts that are not based on the active plan.
+
+Potential shape:
+
+- Start a free gym day from home or the workout menu.
+- Add one or more exercises, each with sets, reps, and optional notes.
+- Show the last logged weight for that exercise as the anchor instead of a plan suggestion.
+- Save those exercises into history so future planned and unplanned workouts can reference them.
+
+Important boundary:
+
+- The first version should not rewrite the active plan.
+- Free gym should not make normal workout mode busier.
+- Keep adding a single unplanned exercise available from the workout menu for quick real-world use.
+
 ### Apple Health Context
 
 Consider Apple Health / HealthKit later for optional recovery, activity, cardio baseline, body-weight, and sleep context.
