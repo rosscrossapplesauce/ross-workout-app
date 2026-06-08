@@ -75,6 +75,7 @@ test("workout menu reaches list, calendar, settings, and home", async ({ page })
   await expect(page.getByRole("button", { name: "Today's list" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Change day" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Adjust today" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add exercise" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Alternatives" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Skip exercise (DNC)" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Reset day" })).toBeVisible();

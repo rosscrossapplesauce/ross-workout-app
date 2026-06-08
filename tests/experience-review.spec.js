@@ -121,6 +121,38 @@ test("equipment crowded opens alternatives and selected alternative resets set i
   await expect(page.locator(".setWeightInput").first()).toHaveAttribute("placeholder", "45");
 });
 
+test("user can add an unplanned exercise using last logged weight", async ({ page }) => {
+  await makeFirstPlanDayToday(page);
+  await page.evaluate(() => {
+    localStorage.setItem("rossWorkout.v1.history", JSON.stringify([
+      {
+        exercise: "Face Pull",
+        context: "generated.w0.d0.extra-old",
+        timestamp: new Date(Date.now() - 86400000).toISOString(),
+        completed: true,
+        completedWeight: "30 / 35",
+        setWeights: "30 / 35",
+        unit: "lb"
+      }
+    ]));
+  });
+  const answers = ["Face Pull", "2", "12"];
+  page.on("dialog", dialog => dialog.accept(answers.shift() || ""));
+
+  await page.getByRole("button", { name: "Continue today" }).click();
+  await page.getByRole("button", { name: "Menu" }).click();
+  await page.getByRole("button", { name: "Add exercise" }).click();
+
+  await expect(page.locator("#screen")).toContainText("Face Pull");
+  await expect(page.locator("#screen")).toContainText("Last logged");
+  await expect(page.locator(".bigWeight")).toContainText("35");
+  await expect(page.locator(".setWeightInput")).toHaveCount(2);
+
+  const state = await page.evaluate(() => JSON.parse(localStorage.getItem("rossWorkout.v1.w0.d0")));
+  expect(state.extraExercises[0].name).toBe("Face Pull");
+  expect(state.extraExercises[0].suggestedWeight).toBe(35);
+});
+
 test("user can skip an exercise from the quick menu and keep moving", async ({ page }) => {
   await makeFirstPlanDayToday(page);
   await page.getByRole("button", { name: "Continue today" }).click();

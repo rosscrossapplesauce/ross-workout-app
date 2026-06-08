@@ -156,9 +156,12 @@ function hasGeneratedPlan(){
   const plan = readObject(GENERATED_PLAN_KEY, null);
   return isValidPlan(plan);
 }
-function getItems(day){
+function getItems(day, state = getState()){
   const arr = [];
   (day.exercises || []).forEach((x,idx)=> arr.push({kind:"exercise", idx, ...x}));
+  if(Array.isArray(state.extraExercises)){
+    state.extraExercises.forEach((x,idx)=> arr.push({kind:"exercise", idx, extraId:x.id || idx, source:"extra", ...x}));
+  }
   if(day.row) arr.push({kind:"row", ...day.row});
   if(day.run) arr.push({kind:"run", ...day.run});
   if(day.recovery) arr.push({kind:"rest", text:day.recovery});
@@ -248,8 +251,9 @@ function getContextId(id){
   return `${getPlanSource()}.w${weekIndex}.d${dayIndex}.${id}`;
 }
 function getLastHistory(exName, currentContext){
+  const name = String(exName || "").trim().toLowerCase();
   return readList(HISTORY_KEY)
-    .filter(record => record.exercise === exName && record.context !== currentContext && record.completed && record.completedWeight !== "")
+    .filter(record => String(record.exercise || "").trim().toLowerCase() === name && record.context !== currentContext && record.completed && record.completedWeight !== "")
     .sort((a,b)=> new Date(b.timestamp) - new Date(a.timestamp))[0] || null;
 }
 function historySummary(item, id){
@@ -322,6 +326,7 @@ function render(){
     const notes = state.notes[id] || "";
     const originalName = exercise.name === item.name ? "" : `<div class="altApplied">Original: ${escapeHtml(item.name)}</div>`;
     const fitClass = setWeights.length >= 4 ? "manySets" : "";
+    const weightLabel = item.source === "extra" ? "Last logged" : "Suggested";
     $("screen").innerHTML = `
       <div class="workoutStack">
       ${dayMomentumMarkup(day, items, state, completedCount, total)}
@@ -332,6 +337,7 @@ function render(){
           <div class="exerciseName">${escapeHtml(exercise.name)}</div>
           ${originalName}
           <div class="prescription">${escapeHtml(exercise.sets)} × ${escapeHtml(exercise.reps)}</div>
+          <div class="weightLabel">${escapeHtml(weightLabel)}</div>
           <div class="bigWeight">${escapeHtml(exercise.suggestedWeight)}<span class="unit"> ${escapeHtml(exercise.unit)}</span></div>
           ${workoutAdjustment ? `<div class="lastWeek">Today adjusted: ${escapeHtml(workoutAdjustment.label)}</div>` : ""}
           ${history}
@@ -439,7 +445,7 @@ function homeWeekOverview(plan){
   const week = plan.weeks[activeWeek] || plan.weeks[0];
   const days = (week.days || []).map((day, dIdx) => {
     const state = readDayState(activeWeek, dIdx);
-    const items = getItems(day);
+    const items = getItems(day, state);
     const completed = items.filter((item, index) => state.completed[itemId(item, index)]).length;
     return {
       day,
@@ -1836,7 +1842,7 @@ function overviewRow(item, index, done, state, current = false){
   const title = item.kind === "exercise" ? exercise.name : (item.type || "Rest");
   const setWeights = item.kind === "exercise" ? compactSetWeights(getSetWeights(state, id, exercise)) : [];
   const detail = item.kind === "exercise"
-    ? `${exercise.sets} × ${exercise.reps} · suggested ${exercise.suggestedWeight} ${exercise.unit}${setWeights.length ? ` · sets ${setWeights.join(" / ")} ${exercise.unit}` : ""}`
+    ? `${exercise.sets} × ${exercise.reps} · ${item.source === "extra" ? "last" : "suggested"} ${exercise.suggestedWeight} ${exercise.unit}${setWeights.length ? ` · sets ${setWeights.join(" / ")} ${exercise.unit}` : ""}`
     : item.kind === "row"
       ? `${item.duration} · ${item.intensity}${item.pace ? ` · ${item.pace}` : ""}`
       : item.kind === "run"
@@ -1898,6 +1904,7 @@ function showWorkoutMenu(type = "main"){
       ${itemIndex < items.length - 1 ? `<button type="button" onclick="nextItem()">Next exercise</button>` : ""}
       <button type="button" onclick="openWorkoutCalendar()">Change day</button>
       <button type="button" onclick="showWorkoutAdjustMenu()">Adjust today</button>
+      <button type="button" onclick="addExerciseFromMenu()">Add exercise</button>
       ${item && item.kind === "exercise" ? `<button type="button" onclick="showAlternativesFromMenu()">Alternatives</button>` : ""}
       ${item && item.kind === "exercise" ? `<button type="button" onclick="skipExerciseFromMenu()">Skip exercise (DNC)</button>` : ""}
       <button type="button" class="dangerAction" onclick="resetDayFromMenu()">Reset day</button>
@@ -1906,6 +1913,7 @@ function showWorkoutMenu(type = "main"){
       <button type="button" onclick="openWorkoutList()">Today's list</button>
       <button type="button" onclick="openWorkoutCalendar()">Change day</button>
       <button type="button" onclick="showWorkoutAdjustMenu()">Adjust today</button>
+      <button type="button" onclick="addExerciseFromMenu()">Add exercise</button>
       ${item && item.kind === "exercise" ? `<button type="button" onclick="showAlternativesFromMenu()">Alternatives</button>` : ""}
       ${item && item.kind === "exercise" ? `<button type="button" onclick="skipExerciseFromMenu()">Skip exercise (DNC)</button>` : ""}
       <button type="button" class="dangerAction" onclick="resetDayFromMenu()">Reset day</button>
@@ -1998,7 +2006,36 @@ function showAlternativesFromMenu(){
   closeWorkoutMenu();
   loadAlternatives();
 }
+function addExerciseFromMenu(){
+  closeWorkoutMenu();
+  const name = prompt("Exercise name:");
+  const cleanName = String(name || "").trim();
+  if(!cleanName) return;
+  const setsInput = prompt("Sets:", "3");
+  const repsInput = prompt("Reps:", "8-12");
+  const sets = Math.max(1, Math.min(8, Number(setsInput) || 3));
+  const reps = String(repsInput || "8-12").trim() || "8-12";
+  const last = getLastHistory(cleanName, "");
+  const lastWeight = last ? finalWeight(last.setWeights || last.completedWeight) : null;
+  const suggestedWeight = Number.isFinite(lastWeight) ? lastWeight : 0;
+  const state = getState();
+  if(!Array.isArray(state.extraExercises)) state.extraExercises = [];
+  const id = `extra-${Date.now()}`;
+  state.extraExercises.push({
+    id,
+    name: cleanName,
+    sets,
+    reps,
+    suggestedWeight,
+    unit: "lb",
+    notes: last ? "Added outside the plan. Starting from last logged weight." : "Added outside the plan."
+  });
+  setState(state);
+  itemIndex = Math.max(0, getItems(getDay()).findIndex(item => item.extraId === id));
+  render();
+}
 function itemId(item, i){
+  if(item.extraId) return `extra-${item.extraId}`;
   if(item.kind === "exercise") return `exercise-${item.idx}`;
   return `${item.kind}-${i}`;
 }
