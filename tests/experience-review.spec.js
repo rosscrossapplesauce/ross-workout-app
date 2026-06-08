@@ -15,6 +15,68 @@ async function makeFirstPlanDayToday(page) {
   await page.reload();
 }
 
+async function expectWorkoutVisualFit(page) {
+  const fit = await page.evaluate(() => {
+    const visible = element => {
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return !element.closest("details:not([open])") && style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+    };
+    const heightOverflowSelectors = [
+      ".card",
+      ".dayMomentum",
+      ".setGrid",
+      ".setWeightRow",
+      ".suggestedBtn"
+    ];
+    const widthOverflowSelectors = [
+      ".exerciseName",
+      ".prescription",
+      ".bigWeight",
+      ".lastWeek",
+      ".setWeightRow",
+      ".suggestedBtn",
+      ".momentumFocus",
+      ".momentumCount"
+    ];
+    const heightOverflows = Array.from(document.querySelectorAll(heightOverflowSelectors.join(",")))
+      .filter(visible)
+      .filter(node => node.scrollHeight > node.clientHeight + 2)
+      .map(node => ({
+        selector: node.className || node.tagName,
+        text: node.textContent.trim().replace(/\s+/g, " ").slice(0, 80),
+        clientHeight: node.clientHeight,
+        scrollHeight: node.scrollHeight
+      }));
+    const widthOverflows = Array.from(document.querySelectorAll(widthOverflowSelectors.join(",")))
+      .filter(visible)
+      .filter(node => node.scrollWidth > node.clientWidth + 2)
+      .map(node => ({
+        selector: node.className || node.tagName,
+        text: node.textContent.trim().replace(/\s+/g, " ").slice(0, 80),
+        clientWidth: node.clientWidth,
+        scrollWidth: node.scrollWidth
+      }));
+    const card = document.querySelector(".card");
+    const footer = document.querySelector("footer");
+    const cardRect = card && card.getBoundingClientRect();
+    const footerRect = footer && footer.getBoundingClientRect();
+    const cardHiddenBehindFooter = !!(cardRect && footerRect && cardRect.bottom > footerRect.top + 1);
+    const clippedChildren = card ? Array.from(card.querySelectorAll("*"))
+      .filter(visible)
+      .filter(node => {
+        const rect = node.getBoundingClientRect();
+        return rect.bottom > cardRect.bottom + 2 || rect.right > cardRect.right + 2 || rect.left < cardRect.left - 2;
+      })
+      .map(node => ({
+        selector: node.className || node.tagName,
+        text: node.textContent.trim().replace(/\s+/g, " ").slice(0, 80)
+      })) : [];
+    return { heightOverflows, widthOverflows, clippedChildren, cardHiddenBehindFooter };
+  });
+  expect(fit).toEqual({ heightOverflows: [], widthOverflows: [], clippedChildren: [], cardHiddenBehindFooter: false });
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => localStorage.clear());
@@ -29,6 +91,21 @@ test("mobile workout screen keeps the primary action visible and uncluttered", a
 
   expect(visibleHeaderButtons.map(text => text.trim())).toEqual(["Menu"]);
   expect(visibleFooterButtons.map(text => text.trim())).toEqual(["Done ✓"]);
+});
+
+test("workout cards visually fit across the default training day", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 667 });
+  await makeFirstPlanDayToday(page);
+  await page.getByRole("button", { name: "Continue today" }).click();
+
+  const itemCount = await page.evaluate(() => getItems(getDay()).length);
+  for(let index = 0; index < itemCount; index += 1) {
+    await page.evaluate(nextIndex => {
+      itemIndex = nextIndex;
+      render();
+    }, index);
+    await expectWorkoutVisualFit(page);
+  }
 });
 
 test("core workout use does not require sync setup", async ({ page }) => {
