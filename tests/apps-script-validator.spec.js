@@ -7,7 +7,7 @@ function loadAppsScriptValidator() {
   const script = fs.readFileSync(path.join(__dirname, "..", "apps-script.js"), "utf8");
   const sandbox = {};
   vm.createContext(sandbox);
-  vm.runInContext(`${script}\nthis.__validator = { validateGeneratedPlan };`, sandbox);
+  vm.runInContext(`${script}\nthis.__validator = { validateGeneratedPlan, PLAN_GENERATION_RULESET_VERSION, PLAN_GENERATION_RULES };`, sandbox);
   return sandbox.__validator;
 }
 
@@ -123,4 +123,13 @@ test("generated plan validator rejects explicit limitation contradictions", asyn
 
   expect(result.ok).toBe(false);
   expect(result.issues.join(" ")).toContain("running");
+});
+
+test("plan generation rules include exercise selection constraints", async () => {
+  const { PLAN_GENERATION_RULESET_VERSION, PLAN_GENERATION_RULES } = loadAppsScriptValidator();
+
+  expect(PLAN_GENERATION_RULESET_VERSION).toBe("plan-principles-v0.2");
+  expect(PLAN_GENERATION_RULES).toContain("Select exercises by evidence-backed constraints");
+  expect(PLAN_GENERATION_RULES).toContain("Do not claim an exercise is universally best");
+  expect(PLAN_GENERATION_RULES).toContain("alternatives must preserve the original training intent");
 });

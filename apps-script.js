@@ -34,7 +34,7 @@ const PR_HEADERS = [
 
 const SETTINGS_HEADERS = ["key", "value"];
 
-const PLAN_GENERATION_RULESET_VERSION = "plan-principles-v0.1";
+const PLAN_GENERATION_RULESET_VERSION = "plan-principles-v0.2";
 
 const PLAN_GENERATION_RULES = [
   `Ruleset: ${PLAN_GENERATION_RULESET_VERSION}`,
@@ -48,6 +48,9 @@ const PLAN_GENERATION_RULES = [
   "Include recovery opportunities every week. Do not remove rest days or double the next workout to make up for missed work.",
   "Apply enabled limitations as constraints. Temporary limitations should affect near-term work; indefinite limitations should persist until the user turns them off.",
   "Exercise substitutions must preserve movement pattern, primary muscle group, equipment context, set/rep intent, and fatigue cost.",
+  "Select exercises by evidence-backed constraints: intended movement pattern, target muscle or capacity, user skill, equipment access, loadability, range of motion, fatigue cost, and consistency. Do not claim an exercise is universally best.",
+  "For beginners and returning users, prefer simple, common, loggable movements unless experience, sport context, limitations, or preferences justify something more specific.",
+  "When equipment is crowded or unavailable, alternatives must preserve the original training intent and update sets, reps, suggested weight, and logging expectations for the chosen substitute.",
   "Do not provide medical advice, diagnosis, injury treatment, or certainty where evidence is mixed.",
   "Generated plans must respect requested days per week and realistic workout length, include recovery structure, apply sport context, and stay usable as an optional local plan preview."
 ].join("\n");
