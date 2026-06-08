@@ -72,6 +72,53 @@ test("user can temporarily shorten today's lifting work", async ({ page }) => {
   expect(adjustment.type).toBe("short_time");
 });
 
+test("user can mark an exercise done without entering every set weight", async ({ page }) => {
+  await makeFirstPlanDayToday(page);
+  await page.getByRole("button", { name: "Continue current plan" }).click();
+
+  await expect(page.locator(".setWeightInput")).toHaveCount(3);
+  await page.getByRole("button", { name: "Done ✓" }).click();
+
+  await expect(page.locator("#progressText")).toContainText("1 done");
+  await expect(page.locator("#screen")).toContainText("Seated Row Machine");
+
+  const state = await page.evaluate(() => JSON.parse(localStorage.getItem("rossWorkout.v1.w0.d0")));
+  expect(state.completed["exercise-0"]).toBe(true);
+  expect(state.setWeights["exercise-0"].every(value => value === "")).toBe(true);
+});
+
+test("equipment crowded opens alternatives and selected alternative resets set inputs", async ({ page }) => {
+  await makeFirstPlanDayToday(page);
+  await page.evaluate(() => {
+    localStorage.setItem("rossWorkout.v1.alternatives", JSON.stringify({
+      "v2|Chest Press Machine|3|8": [
+        {
+          name: "Cable Chest Press",
+          sets: 2,
+          reps: "10",
+          suggestedWeight: 45,
+          unit: "lb",
+          how: "Set handles around chest height and press forward.",
+          why: "Same press intent when the machine is busy."
+        }
+      ]
+    }));
+  });
+  await page.getByRole("button", { name: "Continue current plan" }).click();
+
+  await page.getByRole("button", { name: "Menu" }).click();
+  await page.getByRole("button", { name: "Adjust today" }).click();
+  await page.getByRole("button", { name: "Equipment crowded" }).click();
+
+  await expect(page.locator("#alternativesPanel")).toBeVisible();
+  await page.getByRole("button", { name: "Just this time" }).click();
+
+  await expect(page.locator("#screen")).toContainText("Cable Chest Press");
+  await expect(page.locator(".prescription")).toContainText("2 × 10");
+  await expect(page.locator(".setWeightInput")).toHaveCount(2);
+  await expect(page.locator(".setWeightInput").first()).toHaveAttribute("placeholder", "45");
+});
+
 test("user can skip an exercise from the quick menu and keep moving", async ({ page }) => {
   await makeFirstPlanDayToday(page);
   await page.getByRole("button", { name: "Continue current plan" }).click();

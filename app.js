@@ -2165,9 +2165,10 @@ function applyAlternativeToCurrent(alternative){
   const state = getState();
   if(!state.alternatives) state.alternatives = {};
   state.alternatives[id] = alternative;
-  if(state.setWeights && state.setWeights[id]){
-    state.setWeights[id] = state.setWeights[id].slice(0, Number(alternative.sets) || 1);
-  }
+  if(!state.setWeights) state.setWeights = {};
+  if(!state.weights) state.weights = {};
+  state.setWeights[id] = Array.from({length:getSetCount(alternative)}, () => "");
+  state.weights[id] = "";
   setState(state);
 }
 function useAlternativeThisTime(index){
@@ -2409,14 +2410,6 @@ function markDone(){
   const id = itemId(item,itemIndex);
   const s = getState();
   const willComplete = !s.completed[id];
-  if(item.kind === "exercise" && willComplete){
-    const setWeights = getSetWeights(s, id, effectiveExercise(item, id, s));
-    if(!setWeights.every(isSetComplete)){
-      alert("Enter a weight or tap DNC for every set before marking this exercise done.");
-      render();
-      return;
-    }
-  }
   s.completed[id] = willComplete;
   setState(s);
   saveLogRecord(makeLogRecord(item, id, !!s.completed[id]));
