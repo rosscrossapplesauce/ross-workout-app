@@ -113,7 +113,8 @@ test("workout carousel shows nearby exercises and completed color state", async 
   await page.getByRole("button", { name: "Continue today" }).click();
 
   await expect(page.locator(".exerciseCarousel")).toBeVisible();
-  await expect(page.locator(".carouselPeek.right")).toContainText("Seated Row Machine");
+  await expect(page.locator(".carouselPeek.right")).toContainText("2");
+  await expect(page.locator(".carouselPeek.right")).toHaveAttribute("aria-label", /Seated Row Machine/);
   const box = await page.locator(".exerciseCarousel").boundingBox();
   await page.mouse.move(box.x + box.width * .72, box.y + box.height / 2);
   await page.mouse.down();
@@ -122,7 +123,7 @@ test("workout carousel shows nearby exercises and completed color state", async 
   await expect(page.locator(".card")).toContainText("Seated Row Machine");
 
   await page.getByRole("button", { name: "Done ✓" }).click();
-  await expect(page.locator(".carouselPeek.left")).toContainText("Seated Row Machine");
+  await expect(page.locator(".carouselPeek.left")).toContainText("2");
   await expect(page.locator(".carouselPeek.left")).toHaveClass(/peekDone/);
 
   await page.locator(".carouselPeek.left").click();

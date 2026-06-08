@@ -422,10 +422,10 @@ function carouselPeekMarkup(items, state, index, side){
   if(!item) return `<div class="carouselPeek carouselPeekEmpty ${side}" aria-hidden="true"></div>`;
   const id = itemId(item, index);
   const done = !!state.completed[id];
+  const title = carouselItemTitle(item, index, state);
   return `
-    <button type="button" class="carouselPeek ${side} ${done ? "peekDone" : ""}" onclick="${side === "left" ? "prevItem()" : "nextItem()"}" aria-label="${side === "left" ? "Previous exercise" : "Next exercise"}">
+    <button type="button" class="carouselPeek ${side} ${done ? "peekDone" : ""}" onclick="${side === "left" ? "prevItem()" : "nextItem()"}" aria-label="${side === "left" ? "Previous exercise" : "Next exercise"}: ${escapeHtml(title)}">
       <span>${escapeHtml(index + 1)}</span>
-      <strong>${escapeHtml(carouselItemTitle(item, index, state))}</strong>
     </button>`;
 }
 function workoutCarouselMarkup(items, state, cardMarkup){
