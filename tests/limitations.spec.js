@@ -1,7 +1,7 @@
 const { test, expect } = require("@playwright/test");
 
 async function openSettings(page) {
-  await page.getByRole("button", { name: "Continue current plan" }).click();
+  await page.getByRole("button", { name: "Continue today" }).click();
   await page.getByRole("button", { name: "Menu" }).click();
   await page.getByRole("button", { name: "Settings" }).click();
 }

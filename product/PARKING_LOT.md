@@ -8,6 +8,33 @@ Use `product/FUTURE_CHANGE_CHECKLIST.md` before the next app change, then run `n
 
 ## Parked Ideas
 
+### Visual Milestones And Suggested Goals
+
+Consider adding a lightweight goal layer that gives users a bigger picture without turning the app into a noisy achievement system.
+
+Potential shape:
+
+- Suggested, editable goals based on the active plan, such as weekly completion, rowing base, strength consistency, or conservative load progression.
+- SMART-style goals where the target, timeline, and measurement are visible and modifiable.
+- Daily and weekly visual milestones that show progress toward the goal without cluttering exercise pages.
+- Motivational context that explains why today's work matters inside the current week or training block.
+
+Important boundary:
+
+- Keep goals supportive and optional.
+- Do not punish missed days or frame recovery as failure.
+- Keep core workout mode simple; richer goal editing should live in a separate page or settings-style flow.
+
+### Apple Health Context
+
+Consider Apple Health / HealthKit later for optional recovery, activity, cardio baseline, body-weight, and sleep context.
+
+Important boundary:
+
+- This likely requires a native iOS wrapper or native app path; the current web app cannot simply read Apple Health directly.
+- Health data needs clear permission, privacy, and "what this changes in the plan" explanations.
+- Do not make Apple Health required for core app use.
+
 ### Optional Private Account Sync And High-Quality Plan Generation
 
 Consider adding optional accounts so users can privately back up generated plans, workout history, preferences, limitations, and progress without Google Sheets.
