@@ -105,6 +105,12 @@ function planProgressMarkup(){
       <div class="planProgressDetail" id="planProgressDetail">${escapeHtml(planProgress.detail)}</div>
     </div>`;
 }
+function planGenerationSoftTimeoutMs(){
+  return Number(window.__ROSS_PLAN_SOFT_TIMEOUT_MS) || 45000;
+}
+function planGenerationHardTimeoutMs(){
+  return Number(window.__ROSS_PLAN_HARD_TIMEOUT_MS) || 330000;
+}
 
 async function init(){
   lockViewportHeight();
@@ -1406,13 +1412,18 @@ function generatePersonalPlan(){
   });
   const callback = `rossWorkoutPlan${Date.now()}`;
   const script = document.createElement("script");
-  let timeout;
+  let softTimeout;
+  let hardTimeout;
+  let finished = false;
   const cleanup = () => {
-    clearTimeout(timeout);
+    clearTimeout(softTimeout);
+    clearTimeout(hardTimeout);
     delete window[callback];
     script.remove();
   };
   window[callback] = payload => {
+    if(finished) return;
+    finished = true;
     stopPlanProgress(false);
     if(payload && payload.ok && isValidPlan(payload.plan)){
       const plan = normalizeGeneratedPlan(payload.plan);
@@ -1442,17 +1453,27 @@ function generatePersonalPlan(){
   });
   script.src = `${getSyncUrl()}${separator}${params.toString()}`;
   script.onerror = () => {
+    if(finished) return;
+    finished = true;
     cleanup();
     stopPlanProgress(false);
     setPlanMessage("Keep this page open while your preview is created. If you left and came back, use Check for preview.");
     renderHome();
   };
-  timeout = setTimeout(() => {
+  softTimeout = setTimeout(() => {
+    if(finished) return;
+    stopPlanProgress(false);
+    setPlanMessage("The generator is still working. Keep this page open, or use Check for preview if you leave and come back.");
+    renderHome();
+  }, planGenerationSoftTimeoutMs());
+  hardTimeout = setTimeout(() => {
+    if(finished) return;
+    finished = true;
     cleanup();
     stopPlanProgress(false);
-    setPlanMessage("This is taking longer than expected. Keep this page open, or use Check for preview if you left and came back.");
+    setPlanMessage("The generator is taking too long. Try again, then use Check for preview if it finishes after you leave this page.");
     renderHome();
-  }, 120000);
+  }, planGenerationHardTimeoutMs());
   document.body.appendChild(script);
 }
 function planGenerationErrorMessage(error){
@@ -1522,13 +1543,18 @@ function addAnotherMonth(){
   render();
   const callback = `rossWorkoutExtend${Date.now()}`;
   const script = document.createElement("script");
-  let timeout;
+  let softTimeout;
+  let hardTimeout;
+  let finished = false;
   const cleanup = () => {
-    clearTimeout(timeout);
+    clearTimeout(softTimeout);
+    clearTimeout(hardTimeout);
     delete window[callback];
     script.remove();
   };
   window[callback] = payload => {
+    if(finished) return;
+    finished = true;
     stopPlanProgress(false);
     if(payload && payload.ok && isValidPlan(payload.plan)){
       const extension = normalizeGeneratedPlan(payload.plan);
@@ -1557,17 +1583,27 @@ function addAnotherMonth(){
   });
   script.src = `${getSyncUrl()}${separator}${params.toString()}`;
   script.onerror = () => {
+    if(finished) return;
+    finished = true;
     cleanup();
     stopPlanProgress(false);
     monthMessage = "Could not reach the plan generator.";
     render();
   };
-  timeout = setTimeout(() => {
+  softTimeout = setTimeout(() => {
+    if(finished) return;
+    stopPlanProgress(false);
+    monthMessage = "The generator is still working. Keep this page open, or check again in a moment.";
+    render();
+  }, planGenerationSoftTimeoutMs());
+  hardTimeout = setTimeout(() => {
+    if(finished) return;
+    finished = true;
     cleanup();
     stopPlanProgress(false);
-    monthMessage = "Adding another month timed out. If this keeps happening, redeploy Apps Script after pushing and confirm the OpenAI key is set.";
+    monthMessage = "Adding another month is taking too long. Try again in a moment.";
     render();
-  }, 120000);
+  }, planGenerationHardTimeoutMs());
   document.body.appendChild(script);
 }
 function ensurePlanSettings(plan){
