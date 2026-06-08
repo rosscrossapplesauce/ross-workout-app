@@ -23,11 +23,12 @@ async function expectWorkoutVisualFit(page) {
       return !element.closest("details:not([open])") && style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
     };
     const heightOverflowSelectors = [
-      ".card",
-      ".dayMomentum",
+      ".workoutCard",
+      ".compassDock",
       ".setGrid",
       ".setWeightRow",
-      ".suggestedBtn"
+      ".suggestedBtn",
+      ".notesBtn"
     ];
     const widthOverflowSelectors = [
       ".exerciseName",
@@ -36,8 +37,10 @@ async function expectWorkoutVisualFit(page) {
       ".lastWeek",
       ".setWeightRow",
       ".suggestedBtn",
-      ".momentumFocus",
-      ".momentumCount"
+      ".notesBtn",
+      ".compassSummary",
+      ".trailDot",
+      ".orderCue"
     ];
     const heightOverflows = Array.from(document.querySelectorAll(heightOverflowSelectors.join(",")))
       .filter(visible)
@@ -108,27 +111,28 @@ test("workout cards visually fit across the default training day", async ({ page
   }
 });
 
-test("workout carousel shows nearby exercises and completed color state", async ({ page }) => {
+test("workout compass shows the day map and completed color state", async ({ page }) => {
   await makeFirstPlanDayToday(page);
   await page.getByRole("button", { name: "Continue today" }).click();
 
-  await expect(page.locator(".exerciseCarousel")).toBeVisible();
-  await expect(page.locator(".carouselPeek.right")).toContainText("2");
-  await expect(page.locator(".carouselPeek.right")).toHaveAttribute("aria-label", /Seated Row Machine/);
-  const box = await page.locator(".exerciseCarousel").boundingBox();
-  await page.mouse.move(box.x + box.width * .72, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width * .28, box.y + box.height / 2, { steps: 5 });
-  await page.mouse.up();
+  await expect(page.locator(".compassDock")).toBeVisible();
+  const itemCount = await page.evaluate(() => getItems(getDay()).length);
+  await expect(page.locator(".trailDot")).toHaveCount(itemCount);
+  await expect(page.locator(".trailDot").nth(1)).toHaveAttribute("aria-label", /Seated Row Machine/);
+  await page.locator(".trailDot").nth(1).click();
   await expect(page.locator(".card")).toContainText("Seated Row Machine");
 
   await page.getByRole("button", { name: "Done ✓" }).click();
-  await expect(page.locator(".carouselPeek.left")).toContainText("2");
-  await expect(page.locator(".carouselPeek.left")).toHaveClass(/peekDone/);
+  await expect(page.locator(".trailDot").nth(1)).toHaveClass(/done/);
 
-  await page.locator(".carouselPeek.left").click();
+  await page.locator(".trailDot").nth(1).click();
   await expect(page.locator("#screen")).toContainText("Seated Row Machine");
   await expect(page.locator(".card")).toHaveClass(/completed/);
+
+  await page.locator(".compassSummary").click();
+  await expect(page.locator(".compassMap")).toBeVisible();
+  await expect(page.locator(".mapItem")).toHaveCount(itemCount);
+  await expect(page.locator(".overviewCurrent")).toContainText("Seated Row Machine");
 });
 
 test("core workout use does not require sync setup", async ({ page }) => {
@@ -144,11 +148,16 @@ test("quick action menu exposes recovery paths without cluttering the page", asy
   await page.getByRole("button", { name: "Continue today" }).click();
   await page.locator("main").click({ button: "right" });
 
+  await expect(page.getByRole("button", { name: "Choose exercise" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Change day" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Adjust today" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "More actions" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Cancel" })).toBeVisible();
+
+  await page.getByRole("button", { name: "More actions" }).click();
   await expect(page.getByRole("button", { name: "Skip exercise (DNC)" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Reset day" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Cancel" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Back" })).toBeVisible();
 });
 
 test("user can temporarily shorten today's lifting work", async ({ page }) => {
@@ -180,7 +189,7 @@ test("user can mark an exercise done without entering every set weight", async (
   await page.getByRole("button", { name: "Done ✓" }).click();
 
   await expect(page.getByText("Chest Press Machine completed")).toBeVisible();
-  await expect(page.locator(".momentumDot.done")).toHaveCount(1);
+  await expect(page.locator(".trailDot.done")).toHaveCount(1);
   await expect(page.locator("#progressText")).toContainText("1 done");
   await expect(page.locator("#screen")).toContainText("Seated Row Machine");
 
@@ -241,11 +250,12 @@ test("user can add an unplanned exercise using last logged weight", async ({ pag
 
   await page.getByRole("button", { name: "Continue today" }).click();
   await page.getByRole("button", { name: "Menu" }).click();
+  await page.getByRole("button", { name: "More actions" }).click();
   await page.getByRole("button", { name: "Add exercise" }).click();
 
   await expect(page.locator("#screen")).toContainText("Face Pull");
   await expect(page.locator("#screen")).toContainText("Last logged");
-  await expect(page.locator(".bigWeight")).toContainText("35");
+  await expect(page.locator(".suggestedLine")).toContainText("35 lb");
   await expect(page.locator(".setWeightInput")).toHaveCount(2);
 
   const state = await page.evaluate(() => JSON.parse(localStorage.getItem("rossWorkout.v1.w0.d0")));
@@ -259,6 +269,7 @@ test("user can skip an exercise from the quick menu and keep moving", async ({ p
 
   const firstProgress = await page.locator("#progressText").innerText();
   await page.locator("main").click({ button: "right" });
+  await page.getByRole("button", { name: "More actions" }).click();
   await page.getByRole("button", { name: "Skip exercise (DNC)" }).click();
 
   await expect(page.locator("#progressText")).not.toHaveText(firstProgress);

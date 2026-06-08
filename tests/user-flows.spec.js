@@ -22,10 +22,10 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("app loads to the current plan without requiring sync or AI", async ({ page }) => {
-  await expect(page.locator(".todaySnapshot")).toBeVisible();
-  await expect(page.locator(".todaySnapshot")).toContainText("Today");
-  await expect(page.locator(".weekSnapshot")).toBeVisible();
+  await expect(page.locator(".weekRoute")).toBeVisible();
+  await expect(page.locator(".weekRoute")).toContainText("Your route");
   await expect(page.locator(".weekDay")).toHaveCount(7);
+  await expect(page.locator(".todaySnapshot")).toContainText("Today");
   await expect(page.getByRole("button", { name: "Continue today" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Create a new plan" })).toBeVisible();
   await expect(page.getByText("Add sync settings")).toHaveCount(0);
@@ -93,8 +93,8 @@ test("returning user can continue directly into today's workout", async ({ page 
   await expect(page.getByRole("button", { name: "Menu" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Done ✓" })).toBeVisible();
   await expect(page.locator(".selector")).toBeHidden();
-  await expect(page.locator(".dayMomentum")).toBeVisible();
-  await expect(page.locator(".momentumDot").first()).toBeVisible();
+  await expect(page.locator(".compassDock")).toBeVisible();
+  await expect(page.locator(".trailDot").first()).toBeVisible();
 
   const today = new Intl.DateTimeFormat("en-US", {
     weekday: "short",
@@ -119,15 +119,20 @@ test("workout menu reaches list, calendar, settings, and home", async ({ page })
   await page.getByRole("button", { name: "Continue today" }).click();
   await page.getByRole("button", { name: "Menu" }).click();
 
-  await expect(page.getByRole("button", { name: "Today's list" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Choose exercise" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Change day" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Adjust today" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Add exercise" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Alternatives" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Skip exercise (DNC)" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Reset day" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "More actions" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Home" })).toBeVisible();
+
+  await page.getByRole("button", { name: "More actions" }).click();
+  await expect(page.getByRole("button", { name: "Add exercise" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Swap / alternatives" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Skip exercise (DNC)" })).toBeVisible();
+  await expect(page.locator(".sheetPanel").getByRole("button", { name: "Notes" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Reset day" })).toBeVisible();
+  await page.getByRole("button", { name: "Back" }).click();
 
   await page.getByRole("button", { name: "Settings" }).click();
   await expect(page.getByText("Sync settings")).toBeVisible();
@@ -137,14 +142,14 @@ test("today's list highlights the currently selected exercise", async ({ page })
   await makeFirstPlanDayToday(page);
   await page.getByRole("button", { name: "Continue today" }).click();
   await page.getByRole("button", { name: "Menu" }).click();
-  await page.getByRole("button", { name: "Today's list" }).click();
+  await page.getByRole("button", { name: "Choose exercise" }).click();
 
   await expect(page.locator(".overviewCurrent")).toHaveCount(1);
   await expect(page.locator(".overviewCurrent")).toContainText("Chest Press Machine");
 
   await page.getByRole("button", { name: /2 Seated Row Machine/ }).click();
   await page.getByRole("button", { name: "Menu" }).click();
-  await page.getByRole("button", { name: "Today's list" }).click();
+  await page.getByRole("button", { name: "Choose exercise" }).click();
 
   await expect(page.locator(".overviewCurrent")).toHaveCount(1);
   await expect(page.locator(".overviewCurrent")).toContainText("Seated Row Machine");
@@ -167,7 +172,8 @@ test("exercise alternatives are reachable from workout mode", async ({ page }) =
 
   await expect(page.locator(".card").getByRole("button", { name: "Alternatives" })).toHaveCount(0);
   await page.getByRole("button", { name: "Menu" }).click();
-  const alternatives = page.getByRole("button", { name: "Alternatives" });
+  await page.getByRole("button", { name: "More actions" }).click();
+  const alternatives = page.getByRole("button", { name: "Swap / alternatives" });
   await expect(alternatives).toBeVisible();
   await alternatives.click();
 
