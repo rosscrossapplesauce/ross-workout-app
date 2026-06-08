@@ -15,7 +15,8 @@ let planProgress = null;
 let planProgressTimer = null;
 
 const $ = id => document.getElementById(id);
-const key = () => getPlanSource() === "generated" ? `rossWorkout.v1.generated.w${weekIndex}.d${dayIndex}` : `rossWorkout.v1.w${weekIndex}.d${dayIndex}`;
+const stateKeyFor = (wIdx, dIdx) => getPlanSource() === "generated" ? `rossWorkout.v1.generated.w${wIdx}.d${dIdx}` : `rossWorkout.v1.w${wIdx}.d${dIdx}`;
+const key = () => stateKeyFor(weekIndex, dayIndex);
 const HISTORY_KEY = "rossWorkout.v1.history";
 const PENDING_KEY = "rossWorkout.v1.pendingSync";
 const SYNC_URL_KEY = "rossWorkout.v1.syncUrl";
@@ -198,6 +199,13 @@ function getState(){
 function setState(s){
   localStorage.setItem(key(), JSON.stringify(s));
 }
+function readDayState(wIdx, dIdx){
+  try {
+    return JSON.parse(localStorage.getItem(stateKeyFor(wIdx, dIdx)) || '{"completed":{},"weights":{},"setWeights":{},"notes":{}}');
+  } catch {
+    return {completed:{}, weights:{}, setWeights:{}, notes:{}};
+  }
+}
 function readList(storageKey){
   try {
     return JSON.parse(localStorage.getItem(storageKey) || "[]");
@@ -292,7 +300,11 @@ function render(){
   $("progressBar").style.width = total ? `${completedCount/total*100}%` : "0%";
 
   if(!items.length){
-    $("screen").innerHTML = `<div class="card rest"><div><div class="exerciseName">Rest Day</div><div class="hint">${day.recovery || "No workout today."}</div></div></div>`;
+    $("screen").innerHTML = `
+      <div class="workoutStack">
+        ${dayMomentumMarkup(day, items, state, completedCount, total)}
+        <div class="card rest"><div><div class="exerciseName">Rest Day</div><div class="hint">${day.recovery || "No workout today."}</div></div></div>
+      </div>`;
     attachWorkoutHoldMenu();
     return;
   }
@@ -310,6 +322,8 @@ function render(){
     const originalName = exercise.name === item.name ? "" : `<div class="altApplied">Original: ${escapeHtml(item.name)}</div>`;
     const fitClass = setWeights.length >= 4 ? "manySets" : "";
     $("screen").innerHTML = `
+      <div class="workoutStack">
+      ${dayMomentumMarkup(day, items, state, completedCount, total)}
       <section class="card ${fitClass} ${done ? "completed":""}">
         <div>
           <div class="kicker"><span>Exercise ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
@@ -331,7 +345,8 @@ function render(){
             <textarea id="noteInput" placeholder="Optional">${notes}</textarea>
           </details>
         </div>
-      </section>`;
+      </section>
+      </div>`;
     setTimeout(()=>{
       document.querySelectorAll(".setWeightInput").forEach(input => input.oninput = saveInputs);
       $("noteInput").oninput = saveInputs;
@@ -339,6 +354,8 @@ function render(){
     },0);
   } else if(item.kind === "row"){
     $("screen").innerHTML = `
+      <div class="workoutStack">
+      ${dayMomentumMarkup(day, items, state, completedCount, total)}
       <section class="card ${done ? "completed":""}">
         <div>
           <div class="kicker"><span>Cardio ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
@@ -347,10 +364,13 @@ function render(){
           <div class="prescription">${item.intensity}</div>
           <div class="smallDetail">${item.pace}</div>
         </div>
-      </section>`;
+      </section>
+      </div>`;
     attachWorkoutHoldMenu();
   } else if(item.kind === "run"){
     $("screen").innerHTML = `
+      <div class="workoutStack">
+      ${dayMomentumMarkup(day, items, state, completedCount, total)}
       <section class="card ${done ? "completed":""}">
         <div>
           <div class="kicker"><span>Run ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
@@ -358,10 +378,15 @@ function render(){
           <div class="bigWeight" style="font-size:76px">${item.distance}</div>
           <div class="prescription">${item.pace}</div>
         </div>
-      </section>`;
+      </section>
+      </div>`;
     attachWorkoutHoldMenu();
   } else {
-    $("screen").innerHTML = `<section class="card rest ${done ? "completed":""}"><div><div class="exerciseName">Rest Day</div><div class="hint">${item.text}</div></div></section>`;
+    $("screen").innerHTML = `
+      <div class="workoutStack">
+        ${dayMomentumMarkup(day, items, state, completedCount, total)}
+        <section class="card rest ${done ? "completed":""}"><div><div class="exerciseName">Rest Day</div><div class="hint">${item.text}</div></div></section>
+      </div>`;
     attachWorkoutHoldMenu();
   }
   saveNav();
@@ -371,6 +396,96 @@ function setNavArrow(button, enabled){
   button.style.visibility = enabled ? "visible" : "hidden";
   button.disabled = !enabled;
 }
+function dayMomentumMarkup(day, items, state, completedCount, total){
+  const focus = dayFocus(day);
+  const label = total ? `${completedCount} of ${total} complete` : "Recovery day";
+  return `
+    <section class="dayMomentum" aria-label="Today's progress">
+      <div>
+        <div class="momentumKicker">Today</div>
+        <div class="momentumFocus">${escapeHtml(focus)}</div>
+      </div>
+      <div class="momentumRight">
+        <div class="momentumCount">${escapeHtml(label)}</div>
+        <div class="momentumDots">
+          ${items.length ? items.map((item, index) => {
+            const done = !!state.completed[itemId(item, index)];
+            const current = index === itemIndex;
+            return `<span class="momentumDot ${done ? "done" : ""} ${current ? "current" : ""}" aria-label="${done ? "Done" : current ? "Current" : "Planned"} item ${index + 1}"></span>`;
+          }).join("") : `<span class="momentumDot recovery done" aria-label="Recovery"></span>`}
+        </div>
+      </div>
+    </section>`;
+}
+function homeWeekOverview(plan){
+  const today = startOfLocalDay(new Date());
+  const fallbackWeek = Math.min(weekIndex, Math.max(0, plan.weeks.length - 1));
+  let activeWeek = fallbackWeek;
+  plan.weeks.forEach((week, wIdx) => {
+    (week.days || []).forEach((_, dIdx) => {
+      if(isSameLocalDay(planDate(wIdx, dIdx), today)) activeWeek = wIdx;
+    });
+  });
+  const week = plan.weeks[activeWeek] || plan.weeks[0];
+  const days = (week.days || []).map((day, dIdx) => {
+    const state = readDayState(activeWeek, dIdx);
+    const items = getItems(day);
+    const completed = items.filter((item, index) => state.completed[itemId(item, index)]).length;
+    return {
+      day,
+      weekIndex: activeWeek,
+      dayIndex: dIdx,
+      items,
+      completed,
+      today: isSameLocalDay(planDate(activeWeek, dIdx), today),
+      current: activeWeek === weekIndex && dIdx === dayIndex
+    };
+  });
+  return {week, weekIndex: activeWeek, days};
+}
+function homeWeekMarkup(model){
+  if(!model || !model.week) return "";
+  const doneDays = model.days.filter(entry => entry.items.length && entry.completed >= entry.items.length).length;
+  const trainingDays = model.days.filter(entry => entry.items.length).length;
+  return `
+    <section class="weekSnapshot" aria-label="This week's plan">
+      <div class="weekSnapshotTop">
+        <div>
+          <div class="summaryTitle">This Week</div>
+          <div class="weekSnapshotTitle">Week ${escapeHtml(model.week.week || model.weekIndex + 1)}</div>
+        </div>
+        <div class="weekSnapshotScore">${doneDays}/${trainingDays || model.days.length}</div>
+      </div>
+      <div class="weekRail">
+        ${model.days.map(entry => homeWeekDayMarkup(entry)).join("")}
+      </div>
+    </section>`;
+}
+function homeWeekDayMarkup(entry){
+  const focus = dayFocus(entry.day);
+  const done = entry.items.length && entry.completed >= entry.items.length;
+  const partial = entry.completed > 0 && !done;
+  const label = planDateLabel(entry.weekIndex, entry.dayIndex) || entry.day.day || `Day ${entry.dayIndex + 1}`;
+  const shortLabel = label.split(",")[0].replace(/\s+\d+$/, "");
+  return `
+    <button type="button" class="weekDay ${entry.today ? "today" : ""} ${done ? "done" : ""} ${partial ? "partial" : ""}" onclick="jumpHomeToDay(${entry.weekIndex}, ${entry.dayIndex})">
+      <span>${escapeHtml(entry.today ? "Today" : shortLabel)}</span>
+      <strong>${escapeHtml(focus)}</strong>
+      <div class="weekDayDots">
+        ${entry.items.length ? entry.items.map((item, index) => `<i class="${index < entry.completed ? "done" : ""}"></i>`).join("") : `<i class="done recovery"></i>`}
+      </div>
+    </button>`;
+}
+function jumpHomeToDay(nextWeekIndex, nextDayIndex){
+  weekIndex = nextWeekIndex;
+  dayIndex = nextDayIndex;
+  itemIndex = 0;
+  overviewOpen = false;
+  overviewMode = "list";
+  buildDaySelector();
+  saveNav();
+  render();
+}
 function renderHome(){
   screenMode = "home";
   overviewOpen = false;
@@ -379,6 +494,7 @@ function renderHome(){
   const pendingPlan = readObject(PENDING_PLAN_KEY, null);
   const pendingRequest = readObject(PLAN_REQUEST_KEY, null);
   const activePlan = getActivePlan();
+  const homeWeek = homeWeekOverview(activePlan);
   $("weekLabel").innerText = "Workout";
   $("dayTitle").innerHTML = `<span>Ross Workout</span><span>Coach</span>`;
   $("progressText").innerText = hasGeneratedPlan() ? "Current plan active" : "Starter plan active";
@@ -396,8 +512,9 @@ function renderHome(){
         <div class="homeTitle">Current Plan</div>
         <div class="homeText">${escapeHtml(activePlan.summary || "Fat-loss hybrid training with rowing, conservative strength progression, upper/shoulder emphasis, lower-body work, one easy run, and Sunday rest.")}</div>
       </div>
+      ${homeWeekMarkup(homeWeek)}
       <div class="homeActions">
-        <button class="primary continueBtn" onclick="continueCurrentPlan()">Continue current plan</button>
+        <button class="primary continueBtn" onclick="continueCurrentPlan()">Continue today</button>
         <button class="textBtn" onclick="renderPlanStart()">Create a new plan</button>
       </div>
       ${planMessage && planMessageScope !== "settings" ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}

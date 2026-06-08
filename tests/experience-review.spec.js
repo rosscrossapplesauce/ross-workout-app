@@ -22,7 +22,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("mobile workout screen keeps the primary action visible and uncluttered", async ({ page }) => {
-  await page.getByRole("button", { name: "Continue current plan" }).click();
+  await page.getByRole("button", { name: "Continue today" }).click();
 
   const visibleHeaderButtons = await page.locator("header button:visible").allTextContents();
   const visibleFooterButtons = await page.locator("footer button:visible").allTextContents();
@@ -32,7 +32,7 @@ test("mobile workout screen keeps the primary action visible and uncluttered", a
 });
 
 test("core workout use does not require sync setup", async ({ page }) => {
-  await page.getByRole("button", { name: "Continue current plan" }).click();
+  await page.getByRole("button", { name: "Continue today" }).click();
   await page.getByRole("button", { name: "Done ✓" }).click();
 
   await expect(page.getByText("Add sync settings")).toHaveCount(0);
@@ -41,7 +41,7 @@ test("core workout use does not require sync setup", async ({ page }) => {
 
 test("quick action menu exposes recovery paths without cluttering the page", async ({ page }) => {
   await makeFirstPlanDayToday(page);
-  await page.getByRole("button", { name: "Continue current plan" }).click();
+  await page.getByRole("button", { name: "Continue today" }).click();
   await page.locator("main").click({ button: "right" });
 
   await expect(page.getByRole("button", { name: "Change day" })).toBeVisible();
@@ -53,7 +53,7 @@ test("quick action menu exposes recovery paths without cluttering the page", asy
 
 test("user can temporarily shorten today's lifting work", async ({ page }) => {
   await makeFirstPlanDayToday(page);
-  await page.getByRole("button", { name: "Continue current plan" }).click();
+  await page.getByRole("button", { name: "Continue today" }).click();
 
   await expect(page.locator(".prescription")).not.toContainText("2 ×");
   await page.locator("main").click({ button: "right" });
@@ -74,7 +74,7 @@ test("user can temporarily shorten today's lifting work", async ({ page }) => {
 
 test("user can mark an exercise done without entering every set weight", async ({ page }) => {
   await makeFirstPlanDayToday(page);
-  await page.getByRole("button", { name: "Continue current plan" }).click();
+  await page.getByRole("button", { name: "Continue today" }).click();
 
   await expect(page.locator(".setWeightInput")).toHaveCount(3);
   await page.getByRole("button", { name: "Done ✓" }).click();
@@ -104,7 +104,7 @@ test("equipment crowded opens alternatives and selected alternative resets set i
       ]
     }));
   });
-  await page.getByRole("button", { name: "Continue current plan" }).click();
+  await page.getByRole("button", { name: "Continue today" }).click();
 
   await page.getByRole("button", { name: "Menu" }).click();
   await page.getByRole("button", { name: "Adjust today" }).click();
@@ -121,7 +121,7 @@ test("equipment crowded opens alternatives and selected alternative resets set i
 
 test("user can skip an exercise from the quick menu and keep moving", async ({ page }) => {
   await makeFirstPlanDayToday(page);
-  await page.getByRole("button", { name: "Continue current plan" }).click();
+  await page.getByRole("button", { name: "Continue today" }).click();
 
   const firstProgress = await page.locator("#progressText").innerText();
   await page.locator("main").click({ button: "right" });

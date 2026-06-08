@@ -23,17 +23,21 @@ test.beforeEach(async ({ page }) => {
 
 test("app loads to the current plan without requiring sync or AI", async ({ page }) => {
   await expect(page.getByText("Current Plan", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Continue current plan" })).toBeVisible();
+  await expect(page.locator(".weekSnapshot")).toBeVisible();
+  await expect(page.locator(".weekDay")).toHaveCount(7);
+  await expect(page.getByRole("button", { name: "Continue today" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Create a new plan" })).toBeVisible();
   await expect(page.getByText("Add sync settings")).toHaveCount(0);
 });
 
 test("returning user can continue directly into today's workout", async ({ page }) => {
-  await page.getByRole("button", { name: "Continue current plan" }).click();
+  await page.getByRole("button", { name: "Continue today" }).click();
 
   await expect(page.getByRole("button", { name: "Menu" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Done ✓" })).toBeVisible();
   await expect(page.locator(".selector")).toBeHidden();
+  await expect(page.locator(".dayMomentum")).toBeVisible();
+  await expect(page.locator(".momentumDot").first()).toBeVisible();
 
   const today = new Intl.DateTimeFormat("en-US", {
     weekday: "short",
@@ -44,7 +48,7 @@ test("returning user can continue directly into today's workout", async ({ page 
 });
 
 test("user can complete an item and advance through the workout", async ({ page }) => {
-  await page.getByRole("button", { name: "Continue current plan" }).click();
+  await page.getByRole("button", { name: "Continue today" }).click();
 
   const firstProgress = await page.locator("#progressText").innerText();
   await page.getByRole("button", { name: "Done ✓" }).click();
@@ -55,7 +59,7 @@ test("user can complete an item and advance through the workout", async ({ page 
 
 test("workout menu reaches list, calendar, settings, and home", async ({ page }) => {
   await makeFirstPlanDayToday(page);
-  await page.getByRole("button", { name: "Continue current plan" }).click();
+  await page.getByRole("button", { name: "Continue today" }).click();
   await page.getByRole("button", { name: "Menu" }).click();
 
   await expect(page.getByRole("button", { name: "Today's list" })).toBeVisible();
@@ -73,7 +77,7 @@ test("workout menu reaches list, calendar, settings, and home", async ({ page })
 
 test("today's list highlights the currently selected exercise", async ({ page }) => {
   await makeFirstPlanDayToday(page);
-  await page.getByRole("button", { name: "Continue current plan" }).click();
+  await page.getByRole("button", { name: "Continue today" }).click();
   await page.getByRole("button", { name: "Menu" }).click();
   await page.getByRole("button", { name: "Today's list" }).click();
 
@@ -89,7 +93,7 @@ test("today's list highlights the currently selected exercise", async ({ page })
 });
 
 test("calendar highlights today and offers a path back to workout", async ({ page }) => {
-  await page.getByRole("button", { name: "Continue current plan" }).click();
+  await page.getByRole("button", { name: "Continue today" }).click();
   await page.getByRole("button", { name: "Menu" }).click();
   await page.getByRole("button", { name: "Change day" }).click();
 
@@ -101,7 +105,7 @@ test("calendar highlights today and offers a path back to workout", async ({ pag
 
 test("exercise alternatives are reachable from workout mode", async ({ page }) => {
   await makeFirstPlanDayToday(page);
-  await page.getByRole("button", { name: "Continue current plan" }).click();
+  await page.getByRole("button", { name: "Continue today" }).click();
 
   await expect(page.locator(".card").getByRole("button", { name: "Alternatives" })).toHaveCount(0);
   await page.getByRole("button", { name: "Menu" }).click();
