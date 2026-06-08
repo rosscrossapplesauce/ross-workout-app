@@ -265,7 +265,12 @@ button:active{transform:translateY(1px)}
 .sheetPanel button{width:100%;background:var(--soft)}
 .sheetPanel .dangerAction{background:rgba(180,74,86,.1);border-color:rgba(180,74,86,.28);color:var(--danger)}
 @media (max-height:740px){
-  .app{padding-top:calc(6px + env(safe-area-inset-top));padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+  .app{padding-top:calc(6px + env(safe-area-inset-top));padding-bottom:calc(82px + env(safe-area-inset-bottom))}
+  .topbar{margin-bottom:6px}
+  .progressWrap{margin-bottom:6px}
+  .workoutStack{gap:6px}
+  .dayMomentum{padding:8px}
+  .momentumFocus{font-size:20px}
   .card{padding:9px;gap:6px}
   .exerciseName{font-size:25px}
   .bigWeight{font-size:52px}
