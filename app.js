@@ -330,7 +330,7 @@ function render(){
     $("screen").innerHTML = `
       <div class="workoutStack">
       ${dayMomentumMarkup(day, items, state, completedCount, total)}
-      <section class="card ${fitClass} ${done ? "completed":""}">
+      ${workoutCarouselMarkup(items, state, `<section class="card ${fitClass} ${done ? "completed":""}">
         ${done ? completedCueMarkup() : ""}
         <div>
           <div class="kicker"><span>Exercise ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
@@ -353,7 +353,7 @@ function render(){
             <textarea id="noteInput" placeholder="Optional">${notes}</textarea>
           </details>
         </div>
-      </section>
+      </section>`)}
       </div>`;
     setTimeout(()=>{
       document.querySelectorAll(".setWeightInput").forEach(input => input.oninput = saveInputs);
@@ -364,7 +364,7 @@ function render(){
     $("screen").innerHTML = `
       <div class="workoutStack">
       ${dayMomentumMarkup(day, items, state, completedCount, total)}
-      <section class="card ${done ? "completed":""}">
+      ${workoutCarouselMarkup(items, state, `<section class="card ${done ? "completed":""}">
         ${done ? completedCueMarkup() : ""}
         <div>
           <div class="kicker"><span>Cardio ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
@@ -373,14 +373,14 @@ function render(){
           <div class="prescription">${escapeHtml(item.intensity || "")}</div>
           ${item.pace ? `<div class="smallDetail">${escapeHtml(item.pace)}</div>` : ""}
         </div>
-      </section>
+      </section>`)}
       </div>`;
     attachWorkoutHoldMenu();
   } else if(item.kind === "run"){
     $("screen").innerHTML = `
       <div class="workoutStack">
       ${dayMomentumMarkup(day, items, state, completedCount, total)}
-      <section class="card ${done ? "completed":""}">
+      ${workoutCarouselMarkup(items, state, `<section class="card ${done ? "completed":""}">
         ${done ? completedCueMarkup() : ""}
         <div>
           <div class="kicker"><span>Run ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
@@ -388,14 +388,14 @@ function render(){
           <div class="bigWeight" style="font-size:76px">${escapeHtml(item.distance || item.duration || "")}</div>
           <div class="prescription">${escapeHtml(item.pace || item.intensity || "")}</div>
         </div>
-      </section>
+      </section>`)}
       </div>`;
     attachWorkoutHoldMenu();
   } else {
     $("screen").innerHTML = `
       <div class="workoutStack">
         ${dayMomentumMarkup(day, items, state, completedCount, total)}
-        <section class="card rest ${done ? "completed":""}">${done ? completedCueMarkup() : ""}<div><div class="exerciseName">Rest Day</div><div class="hint">${item.text}</div></div></section>
+        ${workoutCarouselMarkup(items, state, `<section class="card rest ${done ? "completed":""}">${done ? completedCueMarkup() : ""}<div><div class="exerciseName">Rest Day</div><div class="hint">${item.text}</div></div></section>`)}
       </div>`;
     attachWorkoutHoldMenu();
   }
@@ -408,6 +408,33 @@ function setNavArrow(button, enabled){
 }
 function completedCueMarkup(){
   return `<div class="completedCue" aria-label="Completed">Completed</div>`;
+}
+function carouselItemTitle(item, index, state){
+  if(!item) return "";
+  if(item.kind === "exercise") return effectiveExercise(item, itemId(item, index), state).name;
+  if(item.kind === "row") return item.type || "Row";
+  if(item.kind === "run") return item.type || "Run";
+  if(item.kind === "rest") return "Rest";
+  return item.type || item.text || "Workout";
+}
+function carouselPeekMarkup(items, state, index, side){
+  const item = items[index];
+  if(!item) return `<div class="carouselPeek carouselPeekEmpty ${side}" aria-hidden="true"></div>`;
+  const id = itemId(item, index);
+  const done = !!state.completed[id];
+  return `
+    <button type="button" class="carouselPeek ${side} ${done ? "peekDone" : ""}" onclick="${side === "left" ? "prevItem()" : "nextItem()"}" aria-label="${side === "left" ? "Previous exercise" : "Next exercise"}">
+      <span>${escapeHtml(index + 1)}</span>
+      <strong>${escapeHtml(carouselItemTitle(item, index, state))}</strong>
+    </button>`;
+}
+function workoutCarouselMarkup(items, state, cardMarkup){
+  return `
+    <div class="exerciseCarousel" aria-label="Exercise carousel">
+      ${carouselPeekMarkup(items, state, itemIndex - 1, "left")}
+      ${cardMarkup}
+      ${carouselPeekMarkup(items, state, itemIndex + 1, "right")}
+    </div>`;
 }
 function dayMomentumMarkup(day, items, state, completedCount, total){
   const focus = dayFocus(day);
@@ -1873,6 +1900,7 @@ function jumpToItem(index){
 function attachWorkoutHoldMenu(){
   const screen = $("screen");
   if(!screen) return;
+  attachCarouselNavigation();
   screen.onpointerdown = event => {
     if(screenMode !== "workout" || overviewOpen || event.target.closest("button,input,textarea,select,summary,details")) return;
     clearTimeout(holdTimer);
@@ -1893,6 +1921,30 @@ function attachWorkoutHoldMenu(){
 function clearWorkoutHold(){
   clearTimeout(holdTimer);
   holdTimer = null;
+}
+function attachCarouselNavigation(){
+  const carousel = document.querySelector(".exerciseCarousel");
+  if(!carousel) return;
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+  carousel.onpointerdown = event => {
+    if(event.target.closest("button,input,textarea,select,summary,details")) return;
+    startX = event.clientX;
+    startY = event.clientY;
+    tracking = true;
+  };
+  carousel.onpointerup = event => {
+    if(!tracking) return;
+    tracking = false;
+    const dx = event.clientX - startX;
+    const dy = event.clientY - startY;
+    if(Math.abs(dx) < 44 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
+    clearWorkoutHold();
+    if(dx < 0) nextItem();
+    else prevItem();
+  };
+  carousel.onpointercancel = () => { tracking = false; };
 }
 function showWorkoutMenu(type = "main"){
   clearWorkoutHold();

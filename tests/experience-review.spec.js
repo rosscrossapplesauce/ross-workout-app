@@ -108,6 +108,28 @@ test("workout cards visually fit across the default training day", async ({ page
   }
 });
 
+test("workout carousel shows nearby exercises and completed color state", async ({ page }) => {
+  await makeFirstPlanDayToday(page);
+  await page.getByRole("button", { name: "Continue today" }).click();
+
+  await expect(page.locator(".exerciseCarousel")).toBeVisible();
+  await expect(page.locator(".carouselPeek.right")).toContainText("Seated Row Machine");
+  const box = await page.locator(".exerciseCarousel").boundingBox();
+  await page.mouse.move(box.x + box.width * .72, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * .28, box.y + box.height / 2, { steps: 5 });
+  await page.mouse.up();
+  await expect(page.locator(".card")).toContainText("Seated Row Machine");
+
+  await page.getByRole("button", { name: "Done ✓" }).click();
+  await expect(page.locator(".carouselPeek.left")).toContainText("Seated Row Machine");
+  await expect(page.locator(".carouselPeek.left")).toHaveClass(/peekDone/);
+
+  await page.locator(".carouselPeek.left").click();
+  await expect(page.locator("#screen")).toContainText("Seated Row Machine");
+  await expect(page.locator(".card")).toHaveClass(/completed/);
+});
+
 test("core workout use does not require sync setup", async ({ page }) => {
   await page.getByRole("button", { name: "Continue today" }).click();
   await page.getByRole("button", { name: "Done ✓" }).click();

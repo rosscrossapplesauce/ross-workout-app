@@ -149,6 +149,17 @@ body[data-mode="settings"] main{justify-content:flex-start}
 .momentumDot.done{background:var(--green);border-color:var(--green)}
 .momentumDot.current{box-shadow:0 0 0 3px rgba(255,111,97,.18);border-color:var(--coral)}
 .momentumDot.recovery{background:var(--teal);border-color:var(--teal)}
+.exerciseCarousel{position:relative;flex:1 1 auto;min-height:0;display:flex;align-items:stretch;justify-content:center;padding:0 52px;perspective:900px}
+.exerciseCarousel .card{position:relative;z-index:2;width:100%}
+.carouselPeek{position:absolute;top:18px;bottom:18px;z-index:3;width:44px;min-height:0;padding:8px 4px;border-radius:18px;background:rgba(255,250,244,.72);border:1px solid rgba(220,207,192,.88);box-shadow:0 12px 30px rgba(16,21,33,.1);color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;overflow:hidden;opacity:.86}
+.carouselPeek.left{left:0;transform:rotateY(28deg) scale(.96);transform-origin:right center}
+.carouselPeek.right{right:0;transform:rotateY(-28deg) scale(.96);transform-origin:left center}
+.carouselPeek span{width:24px;height:24px;border-radius:999px;display:grid;place-items:center;background:var(--soft);border:1px solid var(--line);font-size:12px;font-weight:950;color:var(--ink)}
+.carouselPeek strong{font-size:11px;line-height:1.08;font-weight:950;color:var(--muted);writing-mode:vertical-rl;text-orientation:mixed;max-height:118px;overflow:hidden;text-overflow:ellipsis}
+.carouselPeek.peekDone{background:rgba(46,139,111,.17);border-color:rgba(46,139,111,.42);color:var(--green)}
+.carouselPeek.peekDone span{background:var(--green);border-color:var(--green);color:var(--ivory)}
+.carouselPeek.peekDone strong{color:#185f4a}
+.carouselPeekEmpty{pointer-events:none;opacity:.18;box-shadow:none}
 .card{background:var(--panel);border:1px solid var(--line);box-shadow:0 18px 42px rgba(16,21,33,.1);border-radius:14px;padding:12px;max-height:100%;min-height:0;flex:1 1 auto;display:flex;flex-direction:column;justify-content:space-between;gap:8px;overflow:hidden}
 .card>div{min-height:0}
 .kicker{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--teal);font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.07em}
@@ -271,6 +282,9 @@ button:active{transform:translateY(1px)}
   .workoutStack{gap:6px}
   .dayMomentum{padding:8px}
   .momentumFocus{font-size:20px}
+  .exerciseCarousel{padding:0 48px}
+  .carouselPeek{top:14px;bottom:14px;width:40px}
+  .carouselPeek strong{font-size:10px;max-height:104px}
   .card{padding:9px;gap:6px}
   .exerciseName{font-size:25px}
   .bigWeight{font-size:52px}
@@ -278,6 +292,7 @@ button:active{transform:translateY(1px)}
   input{font-size:19px;padding:6px}
   .setWeightRow{grid-template-columns:34px 29px 1fr 29px 50px;gap:4px;padding:3px}
   .suggestedBtn{min-height:32px}
+  .notesFold:not([open]){display:none}
   .altBtn{min-height:32px}
   .overviewItem{min-height:38px;padding:6px}
   .overviewName{font-size:13px}
