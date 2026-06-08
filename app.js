@@ -1137,6 +1137,9 @@ function generatePersonalPlan(){
 }
 function planGenerationErrorMessage(error){
   if(!error) return "Plan preview could not be created. Check generation settings, then try again.";
+  if(/planning checks|did not pass|validation|validator/i.test(error)){
+    return "That preview did not meet your plan rules, so it was not shown. Adjust your setup or try again for a safer preview.";
+  }
   if(/key|openai|property|backend|script|deploy/i.test(error)){
     return "Plan preview could not be created. Check generation settings, then try again.";
   }
