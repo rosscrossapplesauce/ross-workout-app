@@ -393,6 +393,7 @@ function parseJson(value) {
 
 function callOpenAIForPlan(apiKey, model, payload, extendExisting) {
   const settings = payload.settings || {};
+  const isPlanAdjustment = !!settings.planAdjustment && !!payload.currentPlan;
   const prompt = [
     extendExisting ? "Create the next 4 weeks of this gym-friendly training plan as JSON." : "Create a conservative, gym-friendly training plan as JSON.",
     "The user is active but returning to lifting after time away. Favor safe starting weights, gradual progression, and simple execution.",
@@ -402,6 +403,7 @@ function callOpenAIForPlan(apiKey, model, payload, extendExisting) {
     "Return 4 weeks. Use the requested days per week when provided, otherwise 5 days per week.",
     "For strength exercises, suggest conservative numeric starting weights in pounds. Use 0 only for bodyweight movements.",
     "Each training day may include row, run, exercises, recovery, or a combination.",
+    isPlanAdjustment ? `This is a plan edit request: ${settings.planAdjustment}. The changes field must explain what is different from the current plan, not just summarize the new plan.` : "For a brand-new plan, the changes field may briefly say this is the initial generated plan.",
     "",
     "Plan generation rules:",
     PLAN_GENERATION_RULES,
@@ -418,10 +420,10 @@ function callOpenAIForPlan(apiKey, model, payload, extendExisting) {
     "Recent workout history:",
     JSON.stringify(payload.history || []),
     "",
-    extendExisting ? "Current plan to continue:" : "Current plan to continue: none",
+    extendExisting || payload.currentPlan ? "Current plan to compare or continue:" : "Current plan to compare or continue: none",
     JSON.stringify(payload.currentPlan || null),
     "",
-    "JSON shape: {\"plan\":{\"name\":\"...\",\"summary\":\"...\",\"notes\":\"...\",\"units\":\"lb unless noted\",\"weeks\":[...]}}"
+    "JSON shape: {\"plan\":{\"name\":\"...\",\"summary\":\"...\",\"changes\":\"...\",\"notes\":\"...\",\"units\":\"lb unless noted\",\"weeks\":[...]}}"
   ].join("\n");
 
   const response = UrlFetchApp.fetch("https://api.openai.com/v1/responses", {
@@ -483,10 +485,11 @@ function workoutPlanSchema() {
       plan: {
         type: "object",
         additionalProperties: false,
-        required: ["name", "summary", "notes", "units", "weeks"],
+        required: ["name", "summary", "changes", "notes", "units", "weeks"],
         properties: {
           name: {type: "string"},
           summary: {type: "string"},
+          changes: {type: "string"},
           notes: {type: "string"},
           units: {type: "string"},
           weeks: {
