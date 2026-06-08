@@ -30,10 +30,33 @@ const PLAN_REQUEST_KEY = "rossWorkout.v1.planRequest";
 const PLAN_SOURCE_KEY = "rossWorkout.v1.planSource";
 const PLAN_ARCHIVE_KEY = "rossWorkout.v1.planArchive";
 const USER_STATS_KEY = "rossWorkout.v1.userStats";
+const THEME_KEY = "rossWorkout.v1.theme";
+const THEME_OPTIONS = [
+  {id:"teal", label:"Deep teal"},
+  {id:"graphite", label:"Graphite"},
+  {id:"forest", label:"Forest"},
+  {id:"dark", label:"Dark"}
+];
 
 function setPlanMessage(message, scope = "all"){
   planMessage = message;
   planMessageScope = scope;
+}
+function currentTheme(){
+  const theme = localStorage.getItem(THEME_KEY) || "teal";
+  return THEME_OPTIONS.some(option => option.id === theme) ? theme : "teal";
+}
+function themeLabel(theme = currentTheme()){
+  const option = THEME_OPTIONS.find(item => item.id === theme);
+  return option ? option.label : "Deep teal";
+}
+function applyTheme(theme = currentTheme()){
+  document.body.dataset.theme = theme;
+}
+function setTheme(theme){
+  const nextTheme = THEME_OPTIONS.some(option => option.id === theme) ? theme : "teal";
+  localStorage.setItem(THEME_KEY, nextTheme);
+  applyTheme(nextTheme);
 }
 function startPlanProgress(label){
   stopPlanProgress(false);
@@ -85,6 +108,7 @@ function planProgressMarkup(){
 
 async function init(){
   lockViewportHeight();
+  applyTheme();
   try {
     const res = await fetch("workouts.json");
     data = await res.json();
@@ -158,14 +182,30 @@ function hasGeneratedPlan(){
 }
 function getItems(day, state = getState()){
   const arr = [];
+  if(shouldStartWithCardio(day)){
+    if(day.row) arr.push({kind:"row", ...day.row});
+    if(day.run) arr.push({kind:"run", ...day.run});
+  }
   (day.exercises || []).forEach((x,idx)=> arr.push({kind:"exercise", idx, ...x}));
   if(Array.isArray(state.extraExercises)){
     state.extraExercises.forEach((x,idx)=> arr.push({kind:"exercise", idx, extraId:x.id || idx, source:"extra", ...x}));
   }
-  if(day.row) arr.push({kind:"row", ...day.row});
-  if(day.run) arr.push({kind:"run", ...day.run});
+  if(!shouldStartWithCardio(day)){
+    if(day.row) arr.push({kind:"row", ...day.row});
+    if(day.run) arr.push({kind:"run", ...day.run});
+  }
   if(day.recovery) arr.push({kind:"rest", text:day.recovery});
   return arr;
+}
+function cardioText(day){
+  return `${day && day.title || ""} ${day && day.row && [day.row.type, day.row.duration, day.row.intensity, day.row.pace].filter(Boolean).join(" ") || ""} ${day && day.run && [day.run.type, day.run.distance, day.run.duration, day.run.intensity, day.run.pace].filter(Boolean).join(" ") || ""}`.toLowerCase();
+}
+function isHardOrTechnicalCardio(day){
+  const text = cardioText(day);
+  return /interval|hard|tempo|threshold|sprint|race|time trial|test|500|2k|5k|max|vo2|anaerobic/.test(text);
+}
+function shouldStartWithCardio(day){
+  return !!(day && (day.row || day.run) && isHardOrTechnicalCardio(day));
 }
 function renderPlanRecovery(){
   screenMode = "home";
@@ -289,7 +329,9 @@ function render(){
   $("homeBtn").style.display = "none";
   $("overviewBtn").innerText = "Menu";
   $("overviewBtn").onclick = () => showWorkoutMenu("main");
-  $("resetBtn").style.display = "none";
+  $("resetBtn").style.display = "block";
+  $("resetBtn").innerText = "Home";
+  $("resetBtn").onclick = renderHome;
 
   if(overviewOpen){
     renderOverview(day, items);
@@ -472,9 +514,12 @@ function workoutOrderCueText(day, items, index){
   if(!item || !items.length) return "";
   const hasCardio = items.some(entry => entry.kind === "row" || entry.kind === "run");
   const strengthCount = items.filter(entry => entry.kind === "exercise").length;
-  if(item.kind === "exercise" && hasCardio && strengthCount >= 3) return "Why now: strength before hard cardio";
-  if((item.kind === "row" || item.kind === "run") && strengthCount >= 3) return "Recommended after main strength work";
-  if(item.kind === "exercise" && index === 0 && strengthCount > 1) return "Recommended early while fresh";
+  const hardCardio = isHardOrTechnicalCardio(day);
+  if((item.kind === "row" || item.kind === "run") && hardCardio && strengthCount) return "Technique first: cardio before lifting fatigue";
+  if(item.kind === "exercise" && hardCardio && strengthCount && index > 0) return "After technical cardio: lift with controlled form";
+  if((item.kind === "row" || item.kind === "run") && strengthCount) return "Easy cardio after lifting is fine";
+  if(item.kind === "exercise" && hasCardio && strengthCount >= 3) return "Lifting first when strength is today's priority";
+  if(item.kind === "exercise" && index === 0 && strengthCount > 1) return "Start fresh for the main lift";
   return "";
 }
 function dayMomentumMarkup(day, items, state, completedCount, total){
@@ -798,6 +843,7 @@ function renderSettings(){
       <div class="settingsActions">
         <button onclick="renderStatsSettings()">Current stats</button>
         <button onclick="renderLimitationsSettings()">Limitations</button>
+        <button onclick="renderThemeSettings()">Color settings</button>
         <button onclick="renderPlanTune()">Adjust current plan</button>
         <button onclick="renderProgress()">Progress</button>
         <button onclick="configureSync()">Sync settings</button>
@@ -810,11 +856,55 @@ function renderSettings(){
         <div class="summaryTitle">Limitations</div>
         <div>${escapeHtml(limitationStatus(settings))}</div>
       </div>
+      <div class="planSummary">
+        <div class="summaryTitle">Color settings</div>
+        <div>${escapeHtml(themeLabel())}</div>
+      </div>
       <details class="advancedSetup">
         <summary>Inactive plans</summary>
         ${archive.length ? archive.map(planArchiveCard).join("") : `<div class="homeText">Past plans will appear here when you replace the current plan.</div>`}
       </details>
     </section>`;
+}
+function renderThemeSettings(){
+  screenMode = "settings";
+  overviewOpen = false;
+  document.body.dataset.mode = "settings";
+  document.body.dataset.overview = "false";
+  const selectedTheme = currentTheme();
+  $("weekLabel").innerText = "Settings";
+  $("dayTitle").innerHTML = `<span>Color</span><span>Settings</span>`;
+  $("progressText").innerText = "Display";
+  $("scoreText").innerText = "";
+  $("progressBar").style.width = "100%";
+  $("prevBtn").style.display = "none";
+  $("nextBtn").style.display = "none";
+  $("doneBtn").style.display = "none";
+  $("homeBtn").style.display = "none";
+  $("overviewBtn").innerText = "Settings";
+  $("overviewBtn").onclick = renderSettings;
+  $("screen").innerHTML = `
+    <section class="settingsPanel scrollPanel">
+      <div class="setupGroup">
+        <div class="setupTitle">Color settings</div>
+        <div class="themeGrid">
+          ${THEME_OPTIONS.map(option => `
+            <label class="themeOption themeOption-${escapeHtml(option.id)}">
+              <input type="radio" name="appTheme" value="${escapeHtml(option.id)}" ${selectedTheme === option.id ? "checked" : ""} onchange="saveThemeSettings()">
+              <span>
+                <b>${escapeHtml(option.label)}</b>
+                <i aria-hidden="true"></i>
+              </span>
+            </label>
+          `).join("")}
+        </div>
+      </div>
+      <button type="button" onclick="renderSettings()">Back to settings</button>
+    </section>`;
+}
+function saveThemeSettings(){
+  const selected = document.querySelector('input[name="appTheme"]:checked');
+  setTheme(selected ? selected.value : "teal");
 }
 function renderStatsSettings(){
   screenMode = "stats";

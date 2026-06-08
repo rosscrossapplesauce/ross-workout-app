@@ -93,7 +93,7 @@ test("mobile workout screen keeps the primary action visible and uncluttered", a
   const visibleFooterButtons = await page.locator("footer button:visible").allTextContents();
 
   expect(visibleHeaderButtons.map(text => text.trim())).toEqual(["Menu"]);
-  expect(visibleFooterButtons.map(text => text.trim())).toEqual(["Done ✓"]);
+  expect(visibleFooterButtons.map(text => text.trim())).toEqual(["Done ✓", "Home"]);
 });
 
 test("workout cards visually fit across the default training day", async ({ page }) => {
@@ -133,6 +133,8 @@ test("workout compass shows the day map and completed color state", async ({ pag
   await expect(page.locator(".compassMap")).toBeVisible();
   await expect(page.locator(".mapItem")).toHaveCount(itemCount);
   await expect(page.locator(".overviewCurrent")).toContainText("Seated Row Machine");
+  await expect(page.locator(".exerciseMapGrid")).toHaveCSS("display", "flex");
+  await expect(page.locator(".exerciseMapGrid")).toHaveCSS("flex-direction", "row");
 });
 
 test("core workout use does not require sync setup", async ({ page }) => {
@@ -140,7 +142,39 @@ test("core workout use does not require sync setup", async ({ page }) => {
   await page.getByRole("button", { name: "Done ✓" }).click();
 
   await expect(page.getByText("Add sync settings")).toHaveCount(0);
-  await expect(page.locator("footer button:visible")).toHaveCount(1);
+  await expect(page.locator("footer button:visible")).toHaveCount(2);
+});
+
+test("hard rowing starts before lifting when technique quality matters", async ({ page }) => {
+  await page.evaluate(() => {
+    const date = new Date();
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    localStorage.setItem("rossWorkout.v1.planSource", "generated");
+    localStorage.setItem("rossWorkout.v1.planSettings", JSON.stringify({ startDate: local }));
+    localStorage.setItem("rossWorkout.v1.generatedPlan", JSON.stringify({
+      name: "Technique Priority Plan",
+      weeks: [{
+        week: 1,
+        days: [{
+          day: "Monday",
+          title: "6 x 500 meters row + strength",
+          row: { type: "6 x 500 meters row", duration: "20 minutes", intensity: "Hard intervals", pace: "Hard" },
+          run: null,
+          exercises: [
+            { name: "Leg Press", sets: 3, reps: "8", suggestedWeight: 180, unit: "lb" },
+            { name: "Romanian Deadlift", sets: 3, reps: "8", suggestedWeight: 95, unit: "lb" }
+          ]
+        }]
+      }]
+    }));
+  });
+  await page.reload();
+  await page.getByRole("button", { name: "Continue today" }).click();
+
+  await expect(page.locator("#screen")).toContainText("6 x 500 meters row");
+  await expect(page.locator(".compassSummary")).toContainText("Technique first");
+  await page.locator(".trailDot").nth(1).click();
+  await expect(page.locator("#screen")).toContainText("Leg Press");
 });
 
 test("quick action menu exposes recovery paths without cluttering the page", async ({ page }) => {
@@ -172,7 +206,7 @@ test("user can temporarily shorten today's lifting work", async ({ page }) => {
   await expect(page.locator(".prescription")).toContainText("2 ×");
   await expect(page.getByText("Today adjusted: Short on time")).toBeVisible();
   await expect(page.getByText("Add sync settings")).toHaveCount(0);
-  await expect(page.locator("footer button:visible")).toHaveCount(1);
+  await expect(page.locator("footer button:visible")).toHaveCount(2);
 
   const adjustment = await page.evaluate(() => {
     const state = JSON.parse(localStorage.getItem("rossWorkout.v1.w0.d0"));
@@ -275,7 +309,7 @@ test("user can skip an exercise from the quick menu and keep moving", async ({ p
   await expect(page.locator("#progressText")).not.toHaveText(firstProgress);
   await expect(page.locator("#progressText")).toContainText("1 done");
   await expect(page.getByText("Add sync settings")).toHaveCount(0);
-  await expect(page.locator("footer button:visible")).toHaveCount(1);
+  await expect(page.locator("footer button:visible")).toHaveCount(2);
 
   const skipped = await page.evaluate(() => {
     const state = JSON.parse(localStorage.getItem("rossWorkout.v1.w0.d0"));
