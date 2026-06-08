@@ -45,6 +45,18 @@ Look for avoidable work:
 - Plan-edit controls competing with workout completion.
 - Warnings that explain a problem but do not offer a next-best action.
 
+### Visual Hierarchy
+
+Look for visual clutter before judging whether the flow works:
+
+- The first screen should answer what matters now, not describe the whole app.
+- One visual idea should dominate each screen; supporting details should be quieter.
+- Repeated items should have enough room for real workout names without clipping.
+- Progress markers should help orientation without becoming decoration.
+- Text density should stay lower on workout and home screens than on settings or review screens.
+- Color should support meaning, but labels, position, or shape should also communicate state.
+- Avoid adding more boxes inside boxes when spacing, grouping, or typography can solve the problem.
+
 ### Error And Recovery
 
 Every non-happy path should answer:
@@ -60,6 +72,7 @@ Every non-happy path should answer:
 Check phone-sized use because the app is mainly used in the gym:
 
 - Text fits without overlap.
+- Text fits without horizontal clipping in repeated cards, buttons, and week/day summaries.
 - Tap targets are comfortable.
 - Primary action is visible without hunting.
 - Important actions have clear button names.

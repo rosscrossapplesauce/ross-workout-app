@@ -471,17 +471,34 @@ function homeWeekMarkup(model){
       </div>
     </section>`;
 }
+function homeTodayMarkup(model){
+  if(!model || !model.days || !model.days.length) return "";
+  const todayEntry = model.days.find(entry => entry.today) || model.days.find(entry => entry.current) || model.days[0];
+  const focus = dayFocus(todayEntry.day);
+  const dateLabel = planDateLabel(todayEntry.weekIndex, todayEntry.dayIndex) || todayEntry.day.day || "Today";
+  const itemLabel = todayEntry.items.length ? `${todayEntry.completed}/${todayEntry.items.length} complete` : "Recovery";
+  return `
+    <section class="todaySnapshot" aria-label="Today">
+      <div>
+        <div class="summaryTitle">Today</div>
+        <div class="todayTitle">${escapeHtml(focus)}</div>
+        <div class="todayMeta">${escapeHtml(dateLabel)} · ${escapeHtml(itemLabel)}</div>
+      </div>
+      <button class="primary continueBtn" onclick="continueCurrentPlan()">Continue today</button>
+    </section>`;
+}
 function homeWeekDayMarkup(entry){
   const focus = dayFocus(entry.day);
   const done = entry.items.length && entry.completed >= entry.items.length;
   const partial = entry.completed > 0 && !done;
   const label = planDateLabel(entry.weekIndex, entry.dayIndex) || entry.day.day || `Day ${entry.dayIndex + 1}`;
-  const shortLabel = label.split(",")[0].replace(/\s+\d+$/, "");
+  const shortLabel = label.replace(/,\s*/g, " ");
   return `
     <button type="button" class="weekDay ${entry.today ? "today" : ""} ${done ? "done" : ""} ${partial ? "partial" : ""}" onclick="jumpHomeToDay(${entry.weekIndex}, ${entry.dayIndex})">
-      <span>${escapeHtml(entry.today ? "Today" : shortLabel)}</span>
+      <span class="weekDayLabel">${escapeHtml(entry.today ? `Today · ${shortLabel}` : shortLabel)}</span>
       <strong>${escapeHtml(focus)}</strong>
-      <div class="weekDayDots">
+      <span class="weekDayCount">${entry.items.length ? `${entry.completed}/${entry.items.length}` : "Rest"}</span>
+      <div class="weekDayDots" aria-hidden="true">
         ${entry.items.length ? entry.items.map((item, index) => `<i class="${index < entry.completed ? "done" : ""}"></i>`).join("") : `<i class="done recovery"></i>`}
       </div>
     </button>`;
@@ -518,13 +535,9 @@ function renderHome(){
   $("overviewBtn").onclick = renderSettings;
   $("screen").innerHTML = `
     <section class="homePanel scrollPanel">
-      <div>
-        <div class="homeTitle">Current Plan</div>
-        <div class="homeText">${escapeHtml(activePlan.summary || "Fat-loss hybrid training with rowing, conservative strength progression, upper/shoulder emphasis, lower-body work, one easy run, and Sunday rest.")}</div>
-      </div>
+      ${homeTodayMarkup(homeWeek)}
       ${homeWeekMarkup(homeWeek)}
       <div class="homeActions">
-        <button class="primary continueBtn" onclick="continueCurrentPlan()">Continue today</button>
         <button class="textBtn" onclick="renderPlanStart()">Create a new plan</button>
       </div>
       ${planMessage && planMessageScope !== "settings" ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}

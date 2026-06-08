@@ -22,12 +22,22 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("app loads to the current plan without requiring sync or AI", async ({ page }) => {
-  await expect(page.getByText("Current Plan", { exact: true })).toBeVisible();
+  await expect(page.locator(".todaySnapshot")).toBeVisible();
+  await expect(page.locator(".todaySnapshot")).toContainText("Today");
   await expect(page.locator(".weekSnapshot")).toBeVisible();
   await expect(page.locator(".weekDay")).toHaveCount(7);
   await expect(page.getByRole("button", { name: "Continue today" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Create a new plan" })).toBeVisible();
   await expect(page.getByText("Add sync settings")).toHaveCount(0);
+});
+
+test("home week overview text fits without horizontal clipping", async ({ page }) => {
+  await expect(page.locator(".weekDay strong").first()).toBeVisible();
+
+  const clipped = await page.locator(".weekDay strong").evaluateAll(nodes =>
+    nodes.some(node => node.scrollWidth > node.clientWidth + 1)
+  );
+  expect(clipped).toBe(false);
 });
 
 test("returning user can continue directly into today's workout", async ({ page }) => {
