@@ -34,10 +34,57 @@ test("app loads to the current plan without requiring sync or AI", async ({ page
 test("home week overview text fits without horizontal clipping", async ({ page }) => {
   await expect(page.locator(".weekDay strong").first()).toBeVisible();
 
-  const clipped = await page.locator(".weekDay strong").evaluateAll(nodes =>
+  const clipped = await page.locator(".weekDay strong, .weekDayLabel, .weekDayCount").evaluateAll(nodes =>
     nodes.some(node => node.scrollWidth > node.clientWidth + 1)
   );
   expect(clipped).toBe(false);
+});
+
+test("clicking a week overview day opens a clean selected workout", async ({ page }) => {
+  await page.evaluate(() => {
+    const date = new Date();
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    localStorage.setItem("rossWorkout.v1.planSource", "generated");
+    localStorage.setItem("rossWorkout.v1.planSettings", JSON.stringify({ startDate: local }));
+    localStorage.setItem("rossWorkout.v1.generatedPlan", JSON.stringify({
+      name: "QA Generated Plan",
+      weeks: [
+        {
+          week: 1,
+          days: [
+            {
+              day: "Monday",
+              title: "Strength",
+              row: null,
+              run: null,
+              exercises: [
+                { name: "Chest Press", sets: 3, reps: "8", suggestedWeight: 80, unit: "lb" }
+              ]
+            },
+            {
+              day: "Tuesday",
+              row: { type: "Easy Row", duration: "20 minutes", intensity: "Zone 2" },
+              run: null,
+              exercises: []
+            },
+            { day: "Wednesday", title: "Rest Day", row: null, run: null, exercises: [], recovery: "Rest." },
+            { day: "Thursday", title: "Strength", row: null, run: null, exercises: [{ name: "Row", sets: 3, reps: "10", suggestedWeight: 75, unit: "lb" }] },
+            { day: "Friday", title: "Run", row: null, run: { distance: "2 miles", intensity: "Easy" }, exercises: [] },
+            { day: "Saturday", title: "Recovery", row: null, run: null, exercises: [], recovery: "Mobility." },
+            { day: "Sunday", title: "Rest Day", row: null, run: null, exercises: [], recovery: "Rest." }
+          ]
+        }
+      ]
+    }));
+  });
+  await page.reload();
+
+  await page.locator(".weekDay").nth(1).click();
+
+  await expect(page.locator("#screen")).not.toContainText("undefined");
+  await expect(page.locator("#dayTitle")).not.toContainText("undefined");
+  await expect(page.locator("#dayTitle")).toContainText("20 minutes row");
+  await expect(page.locator("#screen")).toContainText("Easy Row");
 });
 
 test("returning user can continue directly into today's workout", async ({ page }) => {

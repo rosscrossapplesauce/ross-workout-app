@@ -279,7 +279,7 @@ function render(){
   const items = getItems(day);
   if(itemIndex >= items.length) itemIndex = Math.max(0, items.length-1);
   $("weekLabel").innerText = `${getPlanSource() === "generated" ? "Custom" : "Week"} ${plan.weeks[weekIndex].week || weekIndex+1}`;
-  $("dayTitle").innerHTML = `<span>${escapeHtml(workoutDayHeading(day))}</span><span>${escapeHtml(day.title)}</span>`;
+  $("dayTitle").innerHTML = `<span>${escapeHtml(workoutDayHeading(day))}</span><span>${escapeHtml(dayFocus(day))}</span>`;
   $("weekSelect").value = weekIndex;
   $("daySelect").value = dayIndex;
   $("doneBtn").style.display = items.length ? "block" : "none";
@@ -368,10 +368,10 @@ function render(){
         ${done ? completedCueMarkup() : ""}
         <div>
           <div class="kicker"><span>Cardio ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
-          <div class="exerciseName">${item.type}</div>
-          <div class="bigWeight" style="font-size:64px">${item.duration}</div>
-          <div class="prescription">${item.intensity}</div>
-          <div class="smallDetail">${item.pace}</div>
+          <div class="exerciseName">${escapeHtml(item.type || "Row")}</div>
+          <div class="bigWeight" style="font-size:64px">${escapeHtml(item.duration || "")}</div>
+          <div class="prescription">${escapeHtml(item.intensity || "")}</div>
+          ${item.pace ? `<div class="smallDetail">${escapeHtml(item.pace)}</div>` : ""}
         </div>
       </section>
       </div>`;
@@ -384,9 +384,9 @@ function render(){
         ${done ? completedCueMarkup() : ""}
         <div>
           <div class="kicker"><span>Run ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
-          <div class="exerciseName">${item.type}</div>
-          <div class="bigWeight" style="font-size:76px">${item.distance}</div>
-          <div class="prescription">${item.pace}</div>
+          <div class="exerciseName">${escapeHtml(item.type || "Run")}</div>
+          <div class="bigWeight" style="font-size:76px">${escapeHtml(item.distance || item.duration || "")}</div>
+          <div class="prescription">${escapeHtml(item.pace || item.intensity || "")}</div>
         </div>
       </section>
       </div>`;
@@ -1703,8 +1703,9 @@ function renderOverview(day, items){
     <section class="overviewCard">
       <div class="overviewHeader">
         <div>
-          <div class="kicker">Today's Workout</div>
-          <div class="overviewTitle">${escapeHtml(day.day)}: ${escapeHtml(day.title)}</div>
+          <div class="kicker">Selected Workout</div>
+          <div class="overviewTitle">${escapeHtml(workoutDayHeading(day))}</div>
+          <div class="overviewSubtitle">${escapeHtml(dayFocus(day))}</div>
         </div>
         <div class="overviewTools">
           <div class="overviewCount">${completedCount}/${items.length}</div>
@@ -1814,6 +1815,7 @@ function selectedWorkoutButtonLabel(){
   return dateLabel ? `View ${dateLabel} workout` : `View ${day.day || "selected"} workout`;
 }
 function dayFocus(day){
+  if(!day) return "Workout";
   const parts = [];
   if(day.row) parts.push(`${day.row.duration || ""} row`.trim());
   if(day.run) parts.push(`${day.run.distance || day.run.duration || ""} run`.trim());
