@@ -58,9 +58,9 @@ body[data-mode="settings"] main{justify-content:flex-start}
 .weekSnapshotTitle{font-family:Georgia,"Times New Roman",serif;font-size:23px;line-height:1;font-weight:500}
 .weekSnapshotScore{min-width:54px;text-align:center;background:var(--ink);border-radius:12px;color:var(--ivory);font-size:18px;font-weight:950;padding:8px}
 .weekRail{display:flex;flex-direction:column;gap:6px}
-.weekDay{min-height:52px;padding:8px;border-radius:12px;background:var(--soft);display:grid;grid-template-columns:minmax(72px,.8fr) minmax(0,1.6fr) auto;align-items:center;text-align:left;gap:8px;overflow:hidden}
+.weekDay{min-height:58px;padding:8px 10px;border-radius:12px;background:var(--soft);display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;text-align:left;gap:5px 10px;overflow:hidden}
 .weekDayLabel{font-size:10px;line-height:1.14;color:var(--muted);font-weight:950;text-transform:uppercase;white-space:normal}
-.weekDay strong{font-size:13px;line-height:1.12;color:var(--ink);font-weight:950;white-space:normal;overflow-wrap:anywhere}
+.weekDay strong{grid-column:1/-1;font-size:13px;line-height:1.18;color:var(--ink);font-weight:950;white-space:normal;overflow-wrap:anywhere}
 .weekDayCount{min-width:34px;text-align:right;font-size:12px;color:var(--green);font-weight:950}
 .weekDay.today{border-color:var(--teal);box-shadow:inset 0 0 0 1px rgba(49,158,166,.48);background:#fffdf9}
 .weekDay.done{background:rgba(46,139,111,.1);border-color:rgba(46,139,111,.34)}
@@ -178,6 +178,7 @@ body[data-mode="settings"] main{justify-content:flex-start}
 .overviewHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .overviewTools{display:flex;flex-direction:column;gap:6px;align-items:stretch;min-width:102px}
 .overviewTitle{font-family:Georgia,"Times New Roman",serif;font-size:24px;line-height:1.02;font-weight:500;margin-top:4px}
+.overviewSubtitle{margin-top:4px;color:var(--muted);font-size:13px;line-height:1.25;font-weight:850}
 .overviewCount{min-width:50px;text-align:center;background:var(--ink);border:1px solid var(--ink);border-radius:12px;padding:7px;font-size:16px;font-weight:950;color:var(--ivory)}
 .overviewActions{display:grid;grid-template-columns:1fr;gap:6px}
 .overviewActions button{min-height:34px;font-size:12px;padding:7px;background:var(--soft);color:var(--ink)}
