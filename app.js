@@ -432,6 +432,7 @@ function pendingPlanSummary(plan){
       <div class="summaryTitle">Plan Preview</div>
       <div>${escapeHtml(plan.name || "Generated plan")}</div>
       <div>${escapeHtml(plan.weeks.length)} weeks · ${escapeHtml(plan.weeks[0].days.length)} days/week</div>
+      ${plan.changes ? `<div><strong>What changed:</strong> ${escapeHtml(plan.changes)}</div>` : ""}
       ${plan.summary ? `<div>${escapeHtml(plan.summary)}</div>` : ""}
       ${plan.notes ? `<div>${escapeHtml(plan.notes)}</div>` : ""}
       <div class="previewActions">
@@ -502,6 +503,7 @@ function generatedPlanSummary(plan){
     <div class="summaryTitle">${escapeHtml(plan.name || "Generated plan")}</div>
     <div>${escapeHtml(plan.weeks.length)} weeks · ${escapeHtml(plan.weeks[0].days.length)} days/week</div>
     ${plan.generatedAt ? `<div>Generated ${formatDate(plan.generatedAt)}</div>` : ""}
+    ${plan.changes ? `<div><strong>What changed:</strong> ${escapeHtml(plan.changes)}</div>` : ""}
     ${plan.notes ? `<div>${escapeHtml(plan.notes)}</div>` : ""}`;
 }
 function planSummary(settings){
@@ -1113,6 +1115,7 @@ function generatePersonalPlan(){
     stats: readObject(USER_STATS_KEY, {}),
     preferences: readObject(EXERCISE_PREFS_KEY, {}),
     history: compactGenerationHistory(),
+    currentPlan: settings.planAdjustment ? compactPlanForGeneration(getActivePlan()) : null,
     requestId
   };
   const params = new URLSearchParams({

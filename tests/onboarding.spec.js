@@ -111,3 +111,68 @@ test("validation rejection is explained in user language", async ({ page }) => {
   await expect(page.getByText("That preview did not meet your plan rules")).toBeVisible();
   await expect(page.getByText("planning checks")).toHaveCount(0);
 });
+
+test("maximum gains plan edit preview explains what changed", async ({ page }) => {
+  await page.route("https://generator.test/**", async route => {
+    const url = new URL(route.request().url());
+    const callback = url.searchParams.get("callback");
+    const payload = JSON.parse(url.searchParams.get("payload"));
+    expect(payload.settings.planAdjustment).toBe("Maximum gains");
+    expect(payload.currentPlan.weeks.length).toBeGreaterThan(0);
+    route.fulfill({
+      contentType: "application/javascript",
+      body: `${callback}(${JSON.stringify({
+        ok: true,
+        plan: {
+          name: "Maximum Gains Preview",
+          summary: "A higher-output plan with recoverable strength and conditioning progress.",
+          changes: "Adds one upper-body volume block, keeps rowing aerobic, and protects recovery instead of simply adding more work.",
+          notes: "Review before switching.",
+          units: "lb unless noted",
+          weeks: Array.from({ length: 4 }, (_, weekIndex) => ({
+            week: weekIndex + 1,
+            days: [
+              {
+                day: "Monday",
+                title: "Upper Strength",
+                row: null,
+                run: null,
+                recovery: "",
+                exercises: [
+                  { name: "Chest Press Machine", sets: 3, reps: "8", suggestedWeight: 80, unit: "lb", notes: "" }
+                ]
+              },
+              {
+                day: "Tuesday",
+                title: "Recovery",
+                row: null,
+                run: null,
+                recovery: "Easy walk and mobility.",
+                exercises: []
+              },
+              {
+                day: "Wednesday",
+                title: "Row Base",
+                row: { type: "Row", duration: "20 minutes", intensity: "Easy", pace: "Conversational" },
+                run: null,
+                recovery: "",
+                exercises: []
+              }
+            ]
+          }))
+        }
+      })});`
+    });
+  });
+
+  await page.evaluate(() => {
+    localStorage.setItem("rossWorkout.v1.syncUrl", "https://generator.test/exec");
+  });
+  await openNewPlan(page);
+  await page.getByRole("button", { name: /Modify current plan/i }).click();
+  await page.getByRole("button", { name: /Maximum gains/i }).click();
+
+  await expect(page.getByText("What changed:")).toBeVisible();
+  await expect(page.getByText("Adds one upper-body volume block")).toBeVisible();
+  await expect(page.getByText("A higher-output plan with recoverable strength")).toBeVisible();
+});
