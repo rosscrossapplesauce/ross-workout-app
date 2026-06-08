@@ -394,31 +394,120 @@ body::before{display:none}
 .overviewActions button{border:0;border-radius:16px}
 .nav{background:rgba(238,241,240,.92);border-top:0}
 .primary{background:#e85d4f;border-color:#e85d4f}
+body[data-theme="teal"]{
+  --theme-page:#eef1f0; --theme-panel:#fbfaf6; --theme-soft:#f1f5f3; --theme-line:#d8d2c7;
+  --theme-ink:#182325; --theme-muted:#687174; --theme-accent:#0f766e; --theme-action:#e85d4f;
+  --theme-warm:#e0a21a; --theme-done:#d8eee7; --theme-current:#ffe2dd; --theme-dark:#182325;
+}
+body[data-theme="graphite"]{
+  --theme-page:#f1f2f2; --theme-panel:#fbfbf8; --theme-soft:#e9eceb; --theme-line:#d4d7d5;
+  --theme-ink:#1f2326; --theme-muted:#687174; --theme-accent:#3f6f79; --theme-action:#b95f4f;
+  --theme-warm:#c99528; --theme-done:#dcebea; --theme-current:#f4ddd7; --theme-dark:#20272a;
+}
+body[data-theme="forest"]{
+  --theme-page:#eef3ea; --theme-panel:#fffdf7; --theme-soft:#e5eddf; --theme-line:#d3dcc9;
+  --theme-ink:#1d2a22; --theme-muted:#687464; --theme-accent:#2f6f46; --theme-action:#c65f46;
+  --theme-warm:#c49a2b; --theme-done:#dbead9; --theme-current:#f8ded5; --theme-dark:#1e2d24;
+}
+body[data-theme="dark"]{
+  --theme-page:#101615; --theme-panel:#18211f; --theme-soft:#202c29; --theme-line:#30413d;
+  --theme-ink:#f3f4ed; --theme-muted:#a4b1ad; --theme-accent:#7bd8c8; --theme-action:#ff7568;
+  --theme-warm:#f2b84b; --theme-done:#21443f; --theme-current:#472623; --theme-dark:#0d1211;
+}
+body[data-theme]{
+  --ivory:var(--theme-panel); --panel:var(--theme-panel); --soft:var(--theme-soft); --line:var(--theme-line);
+  --ink:var(--theme-ink); --muted:var(--theme-muted); --green:var(--theme-accent); --teal:var(--theme-accent);
+  --coral:var(--theme-action); --cobalt:var(--theme-accent); --gold:var(--theme-warm);
+  background:var(--theme-page); color:var(--theme-ink);
+}
+body[data-theme] .app{background:var(--theme-page)}
+body[data-theme] .weekRoute,
+body[data-theme] .workoutCard,
+body[data-theme] .overviewCard.compassMap{background:var(--theme-panel);border-color:var(--theme-line)}
+body[data-theme] .weekTodayCard{background:var(--theme-dark);color:#fff}
+body[data-theme] .weekTodayCard b{color:#fff}
+body[data-theme] .weekTodayCard em{background:var(--theme-warm);color:var(--theme-dark)}
+body[data-theme] .weekDay::before,
+body[data-theme] .trailDot,
+body[data-theme] .miniCompass,
+body[data-theme] .mapItem .overviewCheck{background:var(--theme-panel);border-color:var(--theme-line)}
+body[data-theme] .weekRail::before{background:var(--theme-line)}
+body[data-theme] .weekDay.today,
+body[data-theme] .weekDay.partial,
+body[data-theme] .mapItem.overviewCurrent{background:var(--theme-current)}
+body[data-theme] .weekDay.today::before,
+body[data-theme] .weekDay.partial::before,
+body[data-theme] .trailDot.current,
+body[data-theme] .mapItem.overviewCurrent .overviewCheck,
+body[data-theme] .primary{background:var(--theme-action);border-color:var(--theme-action);color:#fff}
+body[data-theme] .compassDock,
+body[data-theme] .mapItem,
+body[data-theme] .setWeightRow,
+body[data-theme] .ghost,
+body[data-theme] .status,
+body[data-theme] .notesBtn{background:var(--theme-soft)}
+body[data-theme] .suggestedLine,
+body[data-theme] .suggestedBtn,
+body[data-theme] .mapItem.overviewDone{background:var(--theme-done);color:var(--theme-accent)}
+body[data-theme] .trailDot.done,
+body[data-theme] .weekDay.done::before,
+body[data-theme] .mapItem.overviewDone .overviewCheck{background:var(--theme-accent);border-color:var(--theme-accent);color:var(--theme-panel)}
+body[data-theme="dark"] input,
+body[data-theme="dark"] textarea,
+body[data-theme="dark"] .setWeightInput{background:#111816;color:var(--theme-ink);border-color:var(--theme-line)}
+body[data-mode="workout"] h1{font-family:inherit;font-size:28px;font-weight:850;line-height:1.03;letter-spacing:0}
+body[data-mode="workout"] h1 span{max-width:100%;text-overflow:ellipsis}
+body[data-mode="workout"] .topbar{align-items:flex-start}
+body[data-mode="workout"] .progressWrap{margin-bottom:6px}
+body[data-mode="workout"] .app{padding-bottom:calc(164px + env(safe-area-inset-bottom))}
+body[data-mode="workout"] .nav{gap:7px}
+body[data-mode="workout"] #resetBtn{display:flex;min-height:42px;background:var(--theme-soft);border:0;border-radius:16px;color:var(--theme-ink);font-size:15px}
+.themeGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.themeOption{display:block;text-transform:none;letter-spacing:0;color:var(--ink)}
+.themeOption input{position:absolute;opacity:0;pointer-events:none}
+.themeOption span{min-height:76px;border:2px solid transparent;border-radius:20px;background:var(--soft);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;font-size:15px;font-weight:950}
+.themeOption i{width:46px;height:34px;border-radius:999px;box-shadow:inset 16px 0 0 var(--swatch-a),inset 32px 0 0 var(--swatch-b);background:var(--swatch-c)}
+.themeOption input:checked+span{border-color:var(--green);background:var(--panel)}
+.themeOption-teal{--swatch-a:#0f766e;--swatch-b:#e0a21a;--swatch-c:#e85d4f}
+.themeOption-graphite{--swatch-a:#3f6f79;--swatch-b:#c99528;--swatch-c:#b95f4f}
+.themeOption-forest{--swatch-a:#2f6f46;--swatch-b:#c49a2b;--swatch-c:#c65f46}
+.themeOption-dark{--swatch-a:#7bd8c8;--swatch-b:#f2b84b;--swatch-c:#ff7568}
+.exerciseMapGrid{display:flex;flex-direction:row;gap:10px;overflow-x:auto;overflow-y:hidden;touch-action:pan-x;padding-bottom:4px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.mapItem{min-width:min(76%,270px);min-height:154px;scroll-snap-align:center;display:grid}
+.mapItem .overviewName{font-size:18px}
+.mapItem .overviewDetail{font-size:13px}
 @media (max-height:740px){
   .weekRoute{padding:14px;border-radius:24px;gap:9px}
   .weekTodayCard{min-height:70px;border-radius:22px}
   .weekDay{min-height:48px;padding-top:5px;padding-bottom:5px}
   .weekDay strong{font-size:15px}
   .compassDock{padding:8px;gap:6px;border-radius:24px}
-  .compassSummary{min-height:50px}
+  .compassSummary{min-height:42px;padding:4px 6px;grid-template-columns:1fr 44px;gap:7px}
   .compassSummary strong{font-size:10px}
-  .compassSummary small{font-size:13px}
-  .miniCompass{width:48px;height:48px}
-  .trailDot{width:28px;height:28px;min-height:28px;font-size:12px}
-  .workoutCard{padding:12px;border-radius:24px;gap:7px}
+  .compassSummary small{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .miniCompass{width:42px;height:42px}
+  .miniCompass::before{inset:6px;border-width:6px}
+  .miniCompass b{font-size:12px}
+  .dayTrail{gap:5px;padding-bottom:0}
+  .trailDot{width:25px;height:25px;min-height:25px;font-size:11px}
+  .workoutCard{padding:10px;border-radius:22px;gap:5px}
   .workoutCard .kicker{font-size:10px}
-  .workoutCard .exerciseName{font-size:24px;margin:5px 0 2px}
-  .workoutCard .bigWeight{font-size:42px}
-  .suggestedLine{padding:6px 9px;font-size:10px;margin-top:5px}
-  .suggestedLine strong{font-size:13px}
+  .workoutCard .exerciseName{font-size:22px;margin:3px 0 1px}
+  .workoutCard .bigWeight{font-size:38px;margin:3px 0 5px}
+  .suggestedLine{padding:5px 8px;font-size:10px;margin:3px 0 0}
+  .suggestedLine strong{font-size:12px}
   .workoutCard label{font-size:10px}
-  .setGrid{gap:4px;margin-top:3px}
+  .setGrid{gap:3px;margin-top:2px}
   .setWeightRow{grid-template-columns:37px 30px minmax(0,1fr) 30px 49px;gap:4px;padding:4px;border-radius:13px}
   .setLabel{font-size:11px}
-  .setWeightInput{min-height:34px;font-size:20px}
-  .setWeightRow .stepBtn,.missBtn{min-height:34px}
-  .orderCue{padding:7px 10px;font-size:11px}
-  .workoutCardActions{grid-template-columns:1fr}
+  .setWeightInput{min-height:32px;font-size:19px}
+  .setWeightRow .stepBtn,.missBtn{min-height:32px}
+  .orderCue{padding:6px 9px;font-size:10px;margin:5px 0 0}
+  .workoutCardActions{grid-template-columns:1fr;margin-top:4px}
   .notesBtn{display:none}
-  .suggestedBtn{min-height:34px;font-size:12px}
+  .suggestedBtn{min-height:31px;font-size:12px}
+  body[data-mode="workout"] h1{font-size:22px}
+  body[data-mode="workout"] .progressWrap{margin-bottom:3px}
+  body[data-mode="workout"] .app{padding-bottom:calc(148px + env(safe-area-inset-bottom))}
+  .mapItem{min-width:min(82%,250px)}
 }

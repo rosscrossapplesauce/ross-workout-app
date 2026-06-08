@@ -111,7 +111,7 @@ test("user can complete an item and advance through the workout", async ({ page 
   await page.getByRole("button", { name: "Done ✓" }).click();
 
   await expect(page.locator("#progressText")).not.toHaveText(firstProgress);
-  await expect(page.locator("footer button:visible")).toHaveCount(1);
+  await expect(page.locator("footer button:visible")).toHaveCount(2);
 });
 
 test("workout menu reaches list, calendar, settings, and home", async ({ page }) => {
@@ -124,7 +124,7 @@ test("workout menu reaches list, calendar, settings, and home", async ({ page })
   await expect(page.getByRole("button", { name: "Adjust today" })).toBeVisible();
   await expect(page.getByRole("button", { name: "More actions" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Home" })).toBeVisible();
+  await expect(page.locator(".sheetPanel").getByRole("button", { name: "Home" })).toBeVisible();
 
   await page.getByRole("button", { name: "More actions" }).click();
   await expect(page.getByRole("button", { name: "Add exercise" })).toBeVisible();
@@ -136,6 +136,19 @@ test("workout menu reaches list, calendar, settings, and home", async ({ page })
 
   await page.getByRole("button", { name: "Settings" }).click();
   await expect(page.getByText("Sync settings")).toBeVisible();
+});
+
+test("color settings can be changed from settings", async ({ page }) => {
+  await page.getByRole("button", { name: "⚙" }).click();
+  await page.getByRole("button", { name: "Color settings" }).click();
+  await page.getByText("Dark").click();
+
+  await expect(page.locator("body")).toHaveAttribute("data-theme", "dark");
+  const theme = await page.evaluate(() => localStorage.getItem("rossWorkout.v1.theme"));
+  expect(theme).toBe("dark");
+
+  await page.getByRole("button", { name: "Back to settings" }).click();
+  await expect(page.getByText("Dark")).toBeVisible();
 });
 
 test("today's list highlights the currently selected exercise", async ({ page }) => {
