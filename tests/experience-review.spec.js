@@ -23,7 +23,6 @@ async function expectWorkoutVisualFit(page) {
       return !element.closest("details:not([open])") && style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
     };
     const heightOverflowSelectors = [
-      ".workoutCard",
       ".compassDock",
       ".setGrid",
       ".setWeightRow",
@@ -65,8 +64,15 @@ async function expectWorkoutVisualFit(page) {
     const cardRect = card && card.getBoundingClientRect();
     const footerRect = footer && footer.getBoundingClientRect();
     const cardHiddenBehindFooter = !!(cardRect && footerRect && cardRect.bottom > footerRect.top + 1);
+    const isScrollableCardOverflow = node => {
+      const cardNode = node.closest(".workoutCard");
+      if(!cardNode) return false;
+      const style = getComputedStyle(cardNode);
+      return cardNode.scrollHeight > cardNode.clientHeight + 2 && /auto|scroll/.test(style.overflowY);
+    };
     const clippedChildren = card ? Array.from(card.querySelectorAll("*"))
       .filter(visible)
+      .filter(node => !isScrollableCardOverflow(node))
       .filter(node => {
         const rect = node.getBoundingClientRect();
         return rect.bottom > cardRect.bottom + 2 || rect.right > cardRect.right + 2 || rect.left < cardRect.left - 2;
@@ -75,9 +81,29 @@ async function expectWorkoutVisualFit(page) {
         selector: node.className || node.tagName,
         text: node.textContent.trim().replace(/\s+/g, " ").slice(0, 80)
       })) : [];
-    return { heightOverflows, widthOverflows, clippedChildren, cardHiddenBehindFooter };
+    const cardScrollFailures = Array.from(document.querySelectorAll(".workoutCard"))
+      .filter(visible)
+      .filter(node => node.scrollHeight > node.clientHeight + 2)
+      .map(node => {
+        const style = getComputedStyle(node);
+        const canScroll = /auto|scroll/.test(style.overflowY);
+        node.scrollTop = node.scrollHeight;
+        const action = node.querySelector(".workoutCardActions, .notesBtn, .suggestedBtn") || node.lastElementChild;
+        const nodeRect = node.getBoundingClientRect();
+        const actionRect = action && action.getBoundingClientRect();
+        const actionReachable = !!(actionRect && actionRect.bottom <= nodeRect.bottom + 2 && actionRect.top >= nodeRect.top - 2);
+        return canScroll && actionReachable ? null : {
+          selector: node.className || node.tagName,
+          canScroll,
+          actionReachable,
+          clientHeight: node.clientHeight,
+          scrollHeight: node.scrollHeight
+        };
+      })
+      .filter(Boolean);
+    return { heightOverflows, widthOverflows, clippedChildren, cardHiddenBehindFooter, cardScrollFailures };
   });
-  expect(fit).toEqual({ heightOverflows: [], widthOverflows: [], clippedChildren: [], cardHiddenBehindFooter: false });
+  expect(fit).toEqual({ heightOverflows: [], widthOverflows: [], clippedChildren: [], cardHiddenBehindFooter: false, cardScrollFailures: [] });
 }
 
 test.beforeEach(async ({ page }) => {
@@ -109,6 +135,48 @@ test("workout cards visually fit across the default training day", async ({ page
     }, index);
     await expectWorkoutVisualFit(page);
   }
+});
+
+test("long workout cards scroll to reveal notes and actions", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 667 });
+  await page.evaluate(() => {
+    const date = new Date();
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    localStorage.setItem("rossWorkout.v1.planSource", "generated");
+    localStorage.setItem("rossWorkout.v1.planSettings", JSON.stringify({ startDate: local }));
+    localStorage.setItem("rossWorkout.v1.generatedPlan", JSON.stringify({
+      name: "Long Card QA Plan",
+      weeks: [{
+        week: 1,
+        days: [{
+          day: "Monday",
+          title: "Long exercise card",
+          row: null,
+          run: null,
+          exercises: [{
+            name: "Single-Arm Cable Romanian Deadlift To Row Complex",
+            sets: 6,
+            reps: "8 each side with 3 second eccentric",
+            suggestedWeight: 45,
+            unit: "lb"
+          }]
+        }]
+      }]
+    }));
+  });
+  await page.reload();
+  await page.getByRole("button", { name: "Continue today" }).click();
+
+  const scrollable = await page.locator(".workoutCard").evaluate(card => card.scrollHeight > card.clientHeight + 2);
+  expect(scrollable).toBe(true);
+
+  await page.locator(".workoutCard").evaluate(card => {
+    card.scrollTop = card.scrollHeight;
+  });
+
+  await expect(page.locator(".notesBtn")).toBeVisible();
+  await expect(page.locator(".suggestedBtn")).toBeVisible();
+  await expectWorkoutVisualFit(page);
 });
 
 test("workout compass shows the day map and completed color state", async ({ page }) => {
