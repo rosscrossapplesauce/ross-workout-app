@@ -79,6 +79,8 @@ test("user can mark an exercise done without entering every set weight", async (
   await expect(page.locator(".setWeightInput")).toHaveCount(3);
   await page.getByRole("button", { name: "Done ✓" }).click();
 
+  await expect(page.getByText("Chest Press Machine completed")).toBeVisible();
+  await expect(page.locator(".momentumDot.done")).toHaveCount(1);
   await expect(page.locator("#progressText")).toContainText("1 done");
   await expect(page.locator("#screen")).toContainText("Seated Row Machine");
 

@@ -13,6 +13,7 @@ let monthMessage = "";
 let holdTimer = null;
 let planProgress = null;
 let planProgressTimer = null;
+let completionFlash = "";
 
 const $ = id => document.getElementById(id);
 const stateKeyFor = (wIdx, dIdx) => getPlanSource() === "generated" ? `rossWorkout.v1.generated.w${wIdx}.d${dIdx}` : `rossWorkout.v1.w${wIdx}.d${dIdx}`;
@@ -325,6 +326,7 @@ function render(){
       <div class="workoutStack">
       ${dayMomentumMarkup(day, items, state, completedCount, total)}
       <section class="card ${fitClass} ${done ? "completed":""}">
+        ${done ? completedCueMarkup() : ""}
         <div>
           <div class="kicker"><span>Exercise ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
           <div class="exerciseName">${escapeHtml(exercise.name)}</div>
@@ -357,6 +359,7 @@ function render(){
       <div class="workoutStack">
       ${dayMomentumMarkup(day, items, state, completedCount, total)}
       <section class="card ${done ? "completed":""}">
+        ${done ? completedCueMarkup() : ""}
         <div>
           <div class="kicker"><span>Cardio ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
           <div class="exerciseName">${item.type}</div>
@@ -372,6 +375,7 @@ function render(){
       <div class="workoutStack">
       ${dayMomentumMarkup(day, items, state, completedCount, total)}
       <section class="card ${done ? "completed":""}">
+        ${done ? completedCueMarkup() : ""}
         <div>
           <div class="kicker"><span>Run ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
           <div class="exerciseName">${item.type}</div>
@@ -385,7 +389,7 @@ function render(){
     $("screen").innerHTML = `
       <div class="workoutStack">
         ${dayMomentumMarkup(day, items, state, completedCount, total)}
-        <section class="card rest ${done ? "completed":""}"><div><div class="exerciseName">Rest Day</div><div class="hint">${item.text}</div></div></section>
+        <section class="card rest ${done ? "completed":""}">${done ? completedCueMarkup() : ""}<div><div class="exerciseName">Rest Day</div><div class="hint">${item.text}</div></div></section>
       </div>`;
     attachWorkoutHoldMenu();
   }
@@ -396,14 +400,20 @@ function setNavArrow(button, enabled){
   button.style.visibility = enabled ? "visible" : "hidden";
   button.disabled = !enabled;
 }
+function completedCueMarkup(){
+  return `<div class="completedCue" aria-label="Completed">Completed</div>`;
+}
 function dayMomentumMarkup(day, items, state, completedCount, total){
   const focus = dayFocus(day);
   const label = total ? `${completedCount} of ${total} complete` : "Recovery day";
+  const flash = completionFlash;
+  completionFlash = "";
   return `
     <section class="dayMomentum" aria-label="Today's progress">
       <div>
         <div class="momentumKicker">Today</div>
         <div class="momentumFocus">${escapeHtml(focus)}</div>
+        ${flash ? `<div class="momentumFlash">${escapeHtml(flash)}</div>` : ""}
       </div>
       <div class="momentumRight">
         <div class="momentumCount">${escapeHtml(label)}</div>
@@ -2533,9 +2543,14 @@ function markDone(){
   s.completed[id] = willComplete;
   setState(s);
   saveLogRecord(makeLogRecord(item, id, !!s.completed[id]));
+  if(willComplete) completionFlash = `${completedItemLabel(item, id, s)} completed`;
   if(s.completed[id] && itemIndex < items.length-1){ itemIndex++; }
   render();
   $("screen").focus({preventScroll:true});
+}
+function completedItemLabel(item, id, state){
+  if(item.kind === "exercise") return effectiveExercise(item, id, state).name || "Exercise";
+  return item.type || item.text || "Item";
 }
 function nextItem(){
   const items = getItems(getDay());

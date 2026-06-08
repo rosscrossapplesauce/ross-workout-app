@@ -137,6 +137,7 @@ body[data-mode="settings"] main{justify-content:flex-start}
 .dayMomentum{background:#fffdf9;border:1px solid rgba(49,158,166,.28);border-radius:14px;padding:10px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;box-shadow:0 10px 28px rgba(16,21,33,.07)}
 .momentumKicker{color:var(--teal);font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.07em}
 .momentumFocus{font-family:Georgia,"Times New Roman",serif;font-size:22px;line-height:1.02;font-weight:500;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.momentumFlash{display:inline-flex;margin-top:5px;background:rgba(46,139,111,.12);border:1px solid rgba(46,139,111,.3);border-radius:999px;color:#185f4a;font-size:12px;font-weight:950;padding:5px 8px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .momentumRight{display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:116px}
 .momentumCount{font-size:12px;color:var(--muted);font-weight:900;white-space:nowrap}
 .momentumDots{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap;max-width:132px}
@@ -211,8 +212,11 @@ textarea{font-size:14px;min-height:38px;font-weight:650;resize:none}
 .notesFold{margin-top:5px}
 .notesFold summary{color:var(--muted);font-weight:900;font-size:12px;text-transform:uppercase;list-style:none}
 .notesFold summary::-webkit-details-marker{display:none}
-.completed{border-color:rgba(46,139,111,.48);background:linear-gradient(180deg,#f5fff9,var(--panel))}
-.completed .bigWeight{color:var(--green)}
+.completed{border-color:rgba(46,139,111,.72);background:linear-gradient(180deg,#e9fbf1 0%,#f6fff9 42%,var(--panel) 100%);box-shadow:0 18px 42px rgba(46,139,111,.18),inset 0 0 0 2px rgba(46,139,111,.18)}
+.completed .exerciseName{color:#185f4a}
+.completed .bigWeight{color:#185f4a;opacity:.72}
+.completed .prescription,.completed .unit{color:#2e765f}
+.completedCue{align-self:flex-start;background:var(--green);border:1px solid var(--green);border-radius:999px;color:var(--ivory);font-size:12px;font-weight:950;letter-spacing:.07em;text-transform:uppercase;padding:6px 10px;box-shadow:0 8px 18px rgba(46,139,111,.22)}
 .doneBadge{color:var(--green);font-weight:950}
 .smallCard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:10px}
 .smallTitle{font-size:23px;font-weight:950;margin-bottom:8px}
