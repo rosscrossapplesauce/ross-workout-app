@@ -170,7 +170,33 @@ Uncertainty:
 
 - Direct evidence for app-level exercise substitution rules is less standardized than volume or activity guidelines. Treat substitution logic as biomechanics-informed product policy requiring future expert review.
 
-## Principle 7: Generated Plan Validation
+## Principle 7: Exercise Selection Evidence
+
+Population: all generated plans, plan extensions, and exercise substitutions.
+
+Rule:
+
+- Specific exercises should be selected by evidence-backed constraints, not by claims that one movement is universally best.
+- Exercise choice must map to the intended movement pattern, primary target muscle or capacity, user skill level, equipment access, loadability, range of motion, fatigue cost, and consistency.
+- Prefer simple, common, loggable movements for beginners and returning users unless the user has experience, a sport-specific need, or a clear preference.
+- Exercise order should prioritize the day's most important adaptation first. If a strength goal depends on a specific lift or movement pattern, place that work before lower-priority assistance work when practical.
+- Machine, cable, free-weight, and bodyweight options can all be valid when they match the training intent. The app should avoid treating equipment type as inherently superior.
+- Alternatives generated for crowded equipment must preserve the original intent and immediately update set count, rep target, suggested weight, and logging fields for the chosen substitute.
+
+Avoid:
+
+- Do not describe individual exercises as scientifically proven best without a narrow, sourced context.
+- Do not substitute only by similar name; preserve the target, pattern, dose, equipment reality, and fatigue cost.
+- Do not use high-skill or high-fatigue exercises as defaults when a simpler option would satisfy the same intent for a beginner or returning user.
+- Do not present exercise selection as medical suitability.
+
+Evidence: S2, S3, S4, S20, S21, S22, S23, S24, S25
+
+Uncertainty:
+
+- The evidence is stronger for principles such as volume, effort, progression, exercise order, equipment specificity, and range of motion than for ranking every possible exercise. The app should use evidence-graded selection rules and avoid false certainty.
+
+## Principle 8: Generated Plan Validation
 
 Population: every AI-generated plan or plan extension.
 
@@ -277,3 +303,13 @@ S18. Herold F et al. The use of periodization in exercise prescriptions for inac
 S19. Bishop PA et al. Recovery from training: a brief review. J Strength Cond Res. 2008. PMID: 18438210. https://pubmed.ncbi.nlm.nih.gov/18438210/
 
 S20. Baz-Valle E et al. Does Varying Resistance Exercises Promote Superior Muscle Hypertrophy and Strength Gains? A Systematic Review. J Strength Cond Res. 2022. https://pubmed.ncbi.nlm.nih.gov/?term=Does+Varying+Resistance+Exercises+Promote+Superior+Muscle+Hypertrophy+and+Strength+Gains
+
+S21. Heidel KA et al. Machines and free weight exercises: a systematic review and meta-analysis comparing changes in muscle size, strength, and power. J Sports Med Phys Fitness. 2022. PMID: 34609100. https://pubmed.ncbi.nlm.nih.gov/34609100/
+
+S22. Haugen ME et al. Effect of free-weight vs. machine-based strength training on maximal strength, hypertrophy and jump performance - a systematic review and meta-analysis. BMC Sports Sci Med Rehabil. 2023. PMID: 37582807. https://pubmed.ncbi.nlm.nih.gov/37582807/
+
+S23. Nunes JP et al. What influence does resistance exercise order have on muscular strength gains and muscle hypertrophy? A systematic review and meta-analysis. Eur J Sport Sci. 2021. PMID: 32077380. https://pubmed.ncbi.nlm.nih.gov/32077380/
+
+S24. Schoenfeld BJ et al. Effects of range of motion on muscle development during resistance training interventions: A systematic review. SAGE Open Med. 2020. https://pmc.ncbi.nlm.nih.gov/articles/PMC6977096/
+
+S25. Gentil P et al. A Review of the Acute Effects and Long-Term Adaptations of Single- and Multi-Joint Exercises during Resistance Training. Sports Med. 2017. PMID: 27677913. https://pubmed.ncbi.nlm.nih.gov/27677913/
