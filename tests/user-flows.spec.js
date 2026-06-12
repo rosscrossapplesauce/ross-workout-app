@@ -142,14 +142,54 @@ test("workout menu reaches list, calendar, settings, and home", async ({ page })
 test("color settings can be changed from settings", async ({ page }) => {
   await page.getByRole("button", { name: "⚙" }).click();
   await page.getByRole("button", { name: "Color settings" }).click();
-  await page.getByText("Dark").click();
+  await expect(page.locator(".themeOption")).toHaveCount(4);
+  await expect(page.getByText("Sea glass")).toBeVisible();
+  await expect(page.getByText("Soft slate")).toBeVisible();
+  await expect(page.getByText("Midnight teal")).toBeVisible();
+  await expect(page.getByText("Black cherry")).toBeVisible();
+
+  const contrast = await page.evaluate(() => {
+    const parseRgb = value => {
+      const clean = String(value || "").trim();
+      if(clean.startsWith("#")){
+        const hex = clean.slice(1);
+        const full = hex.length === 3 ? hex.split("").map(char => char + char).join("") : hex;
+        return [0, 2, 4].map(index => parseInt(full.slice(index, index + 2), 16));
+      }
+      return clean.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number);
+    };
+    const luminance = ([r, g, b]) => {
+      const convert = channel => {
+        const next = channel / 255;
+        return next <= 0.03928 ? next / 12.92 : ((next + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * convert(r) + 0.7152 * convert(g) + 0.0722 * convert(b);
+    };
+    const ratio = (a, b) => {
+      const l1 = luminance(parseRgb(a));
+      const l2 = luminance(parseRgb(b));
+      return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+    };
+    return ["teal", "graphite", "dark", "ember"].map(theme => {
+      document.body.dataset.theme = theme;
+      const styles = getComputedStyle(document.body);
+      return {
+        theme,
+        panel: ratio(styles.getPropertyValue("--theme-ink"), styles.getPropertyValue("--theme-panel")),
+        action: ratio("#ffffff", styles.getPropertyValue("--theme-action"))
+      };
+    });
+  });
+  expect(contrast.every(item => item.panel >= 4.5 && item.action >= 3)).toBe(true);
+
+  await page.getByText("Midnight teal").click();
 
   await expect(page.locator("body")).toHaveAttribute("data-theme", "dark");
   const theme = await page.evaluate(() => localStorage.getItem("rossWorkout.v1.theme"));
   expect(theme).toBe("dark");
 
   await page.getByRole("button", { name: "Back to settings" }).click();
-  await expect(page.getByText("Dark")).toBeVisible();
+  await expect(page.getByText("Midnight teal")).toBeVisible();
 });
 
 test("today's list highlights the currently selected exercise", async ({ page }) => {

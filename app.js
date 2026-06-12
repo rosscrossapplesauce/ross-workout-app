@@ -33,10 +33,10 @@ const PLAN_ARCHIVE_KEY = "rossWorkout.v1.planArchive";
 const USER_STATS_KEY = "rossWorkout.v1.userStats";
 const THEME_KEY = "rossWorkout.v1.theme";
 const THEME_OPTIONS = [
-  {id:"teal", label:"Deep teal"},
-  {id:"graphite", label:"Graphite"},
-  {id:"forest", label:"Forest"},
-  {id:"dark", label:"Dark"}
+  {id:"teal", label:"Sea glass"},
+  {id:"graphite", label:"Soft slate"},
+  {id:"dark", label:"Midnight teal"},
+  {id:"ember", label:"Black cherry"}
 ];
 
 function setPlanMessage(message, scope = "all"){
@@ -136,7 +136,7 @@ function lockViewportHeight(){
   window.addEventListener("resize", setHeight);
   window.addEventListener("orientationchange", setHeight);
   document.addEventListener("touchmove", e => {
-    if(!e.target.closest || (!e.target.closest("input, textarea, select, main, .scrollPanel, .dayTrail, .exerciseMapGrid"))) e.preventDefault();
+    if(!e.target.closest || (!e.target.closest("input, textarea, select, main, .scrollPanel, .dayTrail, .weekFocusRail, .exerciseMapGrid"))) e.preventDefault();
   }, {passive:false});
 }
 function buildSelectors(){
@@ -516,6 +516,7 @@ function workoutCompassDockMarkup(day, items, state, completedCount, total){
   completionFlash = "";
   return `
     <section class="compassDock" aria-label="Day compass">
+      ${workoutWeekFocusRailMarkup()}
       <button type="button" class="compassSummary" onclick="openWorkoutList()">
         <span>
           <strong>Day compass</strong>
@@ -534,6 +535,28 @@ function workoutCompassDockMarkup(day, items, state, completedCount, total){
         }).join("") : `<span class="trailDot done current">R</span>`}
       </div>
     </section>`;
+}
+function workoutWeekFocusRailMarkup(){
+  const model = homeWeekOverview(getActivePlan());
+  if(!model || !model.days || model.days.length < 2) return "";
+  return `
+    <div class="weekFocusRail" aria-label="Drag to change workout day">
+      ${model.days.map(entry => workoutWeekFocusPill(entry)).join("")}
+    </div>`;
+}
+function workoutWeekFocusPill(entry){
+  const focus = dayFocus(entry.day);
+  const done = entry.items.length && entry.completed >= entry.items.length;
+  const partial = entry.completed > 0 && !done;
+  const date = planDate(entry.weekIndex, entry.dayIndex);
+  const label = date ? date.toLocaleDateString(undefined, {weekday:"short", month:"short", day:"numeric"}) : entry.day.day || `Day ${entry.dayIndex + 1}`;
+  const status = done ? "Done" : partial ? `${entry.completed}/${entry.items.length}` : entry.items.length ? "Open" : "Recovery";
+  return `
+    <button type="button" class="weekFocusPill ${entry.current ? "current" : ""} ${entry.today ? "today" : ""} ${done ? "done" : ""} ${partial ? "partial" : ""}" onclick="jumpToWorkoutDay(${entry.weekIndex}, ${entry.dayIndex})" ${entry.current ? 'aria-current="date"' : ""}>
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(focus)}</strong>
+      <small>${escapeHtml(status)}</small>
+    </button>`;
 }
 function compassItemTitle(item, index, state){
   return `${index + 1}. ${carouselItemTitle(item, index, state)}`;
@@ -2160,6 +2183,17 @@ function jumpToDay(nextWeekIndex, nextDayIndex){
   saveNav();
   render();
 }
+function jumpToWorkoutDay(nextWeekIndex, nextDayIndex){
+  weekIndex = nextWeekIndex;
+  dayIndex = nextDayIndex;
+  itemIndex = 0;
+  overviewMode = "list";
+  overviewOpen = false;
+  buildDaySelector();
+  saveNav();
+  render();
+  $("screen").focus({preventScroll:true});
+}
 function overviewRow(item, index, done, state, current = false){
   const id = itemId(item, index);
   const exercise = item.kind === "exercise" ? displayExercise(item, id, state) : item;
@@ -2195,8 +2229,9 @@ function jumpToItem(index){
 function attachWorkoutHoldMenu(){
   const screen = $("screen");
   if(!screen) return;
+  attachWeekFocusRail();
   screen.onpointerdown = event => {
-    if(screenMode !== "workout" || overviewOpen || event.target.closest("button,input,textarea,select,summary,details")) return;
+    if(screenMode !== "workout" || overviewOpen || event.target.closest("button,input,textarea,select,summary,details,.weekFocusRail")) return;
     clearTimeout(holdTimer);
     holdTimer = setTimeout(() => showWorkoutMenu("quick"), 650);
   };
@@ -2210,6 +2245,36 @@ function attachWorkoutHoldMenu(){
     if(screenMode !== "workout" || overviewOpen) return;
     event.preventDefault();
     showWorkoutMenu("quick");
+  };
+}
+function attachWeekFocusRail(){
+  const rail = document.querySelector(".weekFocusRail");
+  if(!rail) return;
+  const current = rail.querySelector(".weekFocusPill.current");
+  if(current) current.scrollIntoView({inline:"center", block:"nearest"});
+  let startX = 0;
+  let startScroll = 0;
+  let dragging = false;
+  rail.onpointerdown = event => {
+    if(event.target.closest("button")) return;
+    dragging = true;
+    startX = event.clientX;
+    startScroll = rail.scrollLeft;
+    rail.classList.add("dragging");
+    rail.setPointerCapture(event.pointerId);
+  };
+  rail.onpointermove = event => {
+    if(!dragging) return;
+    rail.scrollLeft = startScroll - (event.clientX - startX);
+  };
+  rail.onpointerup = event => {
+    dragging = false;
+    rail.classList.remove("dragging");
+    if(rail.hasPointerCapture(event.pointerId)) rail.releasePointerCapture(event.pointerId);
+  };
+  rail.onpointercancel = () => {
+    dragging = false;
+    rail.classList.remove("dragging");
   };
 }
 function clearWorkoutHold(){
