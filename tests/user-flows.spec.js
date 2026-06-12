@@ -192,5 +192,5 @@ test("exercise alternatives are reachable from workout mode", async ({ page }) =
   await alternatives.click();
 
   await expect(page.locator("#alternativesPanel")).toBeVisible();
-  await expect(page.locator("#alternativesPanel")).not.toContainText("Apps Script");
+  await expect(page.locator("#alternativesPanel")).not.toContainText(/Apps Script|backend/i);
 });

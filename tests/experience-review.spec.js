@@ -420,5 +420,6 @@ test("empty workout data should recover without a confusing dead end", async ({ 
   await page.goto("/");
 
   await expect(page.locator("main")).toContainText(/plan|workout|recover|settings|home/i);
+  await expect(page.getByText(/sync|backend|generation settings/i)).toHaveCount(0);
   await expect(page.locator("body")).not.toHaveText(/^$/);
 });

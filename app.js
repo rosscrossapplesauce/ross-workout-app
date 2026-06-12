@@ -241,7 +241,7 @@ function renderPlanRecovery(){
         <button class="primary continueBtn" onclick="location.reload()">Try again</button>
         <button class="textBtn" onclick="renderSettings()">Settings</button>
       </div>
-      <div class="planMessage">Next best action: retry the plan load, or open Settings if you need to check sync or plan setup.</div>
+      <div class="planMessage">Next best action: retry the plan load, or open Settings if you need to adjust your app preferences.</div>
     </section>`;
 }
 function getState(){
@@ -1590,12 +1590,12 @@ function generatePersonalPlan(){
   document.body.appendChild(script);
 }
 function planGenerationErrorMessage(error){
-  if(!error) return "Plan preview could not be created. Check generation settings, then try again.";
+  if(!error) return "Plan preview could not be created. Try again in a minute.";
   if(/planning checks|did not pass|validation|validator/i.test(error)){
     return "That preview did not meet your plan rules, so it was not shown. Adjust your setup or try again for a safer preview.";
   }
   if(/key|openai|property|backend|script|deploy/i.test(error)){
-    return "Plan preview could not be created. Check generation settings, then try again.";
+    return "Plan preview could not be created right now. Try again in a minute.";
   }
   return error;
 }
@@ -2802,7 +2802,7 @@ function loadAlternatives(){
   });
   script.src = `${getSyncUrl()}${separator}${params.toString()}`;
   script.onerror = () => {
-    renderAlternativesPanel("error", "Could not reach the alternatives backend.");
+    renderAlternativesPanel("error", "Could not reach alternatives right now.");
     cleanup();
   };
   document.body.appendChild(script);
