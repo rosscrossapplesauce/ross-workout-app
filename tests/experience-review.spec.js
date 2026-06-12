@@ -145,6 +145,12 @@ test("long workout cards scroll to reveal notes and actions", async ({ page }) =
     cardOverflow: getComputedStyle(document.querySelector(".workoutCard")).overflowY
   }));
   expect(scrollState).toEqual({ scrollable: true, cardOverflow: "visible" });
+  const touchMoveAllowed = await page.locator(".workoutCard").evaluate(card => {
+    const event = new Event("touchmove", { bubbles: true, cancelable: true });
+    card.dispatchEvent(event);
+    return !event.defaultPrevented;
+  });
+  expect(touchMoveAllowed).toBe(true);
 
   await page.locator("main").evaluate(main => {
     main.scrollTop = main.scrollHeight;
@@ -281,6 +287,33 @@ test("user can mark an exercise done without entering every set weight", async (
   const state = await page.evaluate(() => JSON.parse(localStorage.getItem("rossWorkout.v1.w0.d0")));
   expect(state.completed["exercise-0"]).toBe(true);
   expect(state.setWeights["exercise-0"].every(value => value === "")).toBe(true);
+});
+
+test("planned exercises use the last completed workout as the next suggestion", async ({ page }) => {
+  await makeFirstPlanDayToday(page);
+  await page.evaluate(() => {
+    localStorage.setItem("rossWorkout.v1.history", JSON.stringify([
+      {
+        exercise: "Chest Press Machine",
+        context: "original.w0.d2.exercise-0",
+        timestamp: new Date(Date.now() - 86400000).toISOString(),
+        completed: true,
+        completedWeight: "70 / 75 / 80",
+        setWeights: "70 / 75 / 80",
+        unit: "lb"
+      }
+    ]));
+  });
+  await page.getByRole("button", { name: "Continue today" }).click();
+
+  await expect(page.locator(".suggestedLine")).toContainText("From last time");
+  await expect(page.locator(".suggestedLine")).toContainText("80 lb");
+  await expect(page.locator(".lastWeek")).toContainText("Suggested from last completed");
+  await expect(page.locator(".setWeightInput").first()).toHaveAttribute("placeholder", "80");
+
+  await page.getByRole("button", { name: "Use suggested for all sets" }).click();
+  const values = await page.locator(".setWeightInput").evaluateAll(inputs => inputs.map(input => input.value));
+  expect(values).toEqual(["80", "80", "80"]);
 });
 
 test("equipment crowded opens alternatives and selected alternative resets set inputs", async ({ page }) => {

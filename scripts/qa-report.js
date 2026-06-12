@@ -12,6 +12,41 @@ const baseURL = `http://127.0.0.1:${port}`;
 
 const flowNotes = [
   {
+    match: /generated plan validator accepts/i,
+    flow: "plan generation rules / valid plan",
+    why: "Generated plans should pass conservative safety and structure checks before a user can adopt them.",
+    type: "plan quality",
+    owner: "apps-script.js validateGeneratedPlan"
+  },
+  {
+    match: /generated plan validator rejects/i,
+    flow: "plan generation rules / invalid plan",
+    why: "Generated plans that miss recovery or contradict limitations should be rejected before they reach the app.",
+    type: "plan quality",
+    owner: "apps-script.js validateGeneratedPlan"
+  },
+  {
+    match: /plan generation rules include exercise selection constraints/i,
+    flow: "plan generation rules / exercise quality",
+    why: "Plan generation should prefer useful exercises and avoid unsupported or unsafe substitutions.",
+    type: "plan quality",
+    owner: "apps-script.js ruleset"
+  },
+  {
+    match: /plan scaffold treats readiness as a modifier/i,
+    flow: "plan scaffold / readiness",
+    why: "Readiness should scale the plan without replacing the user's actual training goal.",
+    type: "plan quality",
+    owner: "apps-script.js buildPlanScaffold"
+  },
+  {
+    match: /scaffold validation rejects/i,
+    flow: "plan scaffold / structure validation",
+    why: "The generated plan should follow the scaffold instead of inventing a confusing weekly structure.",
+    type: "plan quality",
+    owner: "apps-script.js validateGeneratedPlan"
+  },
+  {
     match: /loads to the current plan/i,
     flow: "first app open / new user",
     why: "The app must be usable before sync, AI, or setup.",
@@ -26,23 +61,16 @@ const flowNotes = [
     owner: "app.js renderPlanStart"
   },
   {
-    match: /guided onboarding/i,
-    flow: "guided plan onboarding",
-    why: "The easiest setup path should stay calm, minimal, and low-decision.",
+    match: /new plan setup uses scaffold lists/i,
+    flow: "new plan scaffold setup",
+    why: "Plan creation should use one clear list choice per scaffold input and avoid redundant advanced controls.",
     type: "UX",
     owner: "app.js renderSetup"
   },
   {
-    match: /advanced onboarding/i,
-    flow: "advanced plan onboarding",
-    why: "Extra plan controls should appear only after the user chooses a detailed setup path.",
-    type: "UX",
-    owner: "app.js renderSetup"
-  },
-  {
-    match: /cross-training sport selectable/i,
-    flow: "advanced plan onboarding / sport context",
-    why: "Users should trust that sport context is a real plan input, not an ignored free-text box.",
+    match: /new plan setup saves scaffold choices/i,
+    flow: "new plan scaffold setup / sport context",
+    why: "Users should trust that sport, schedule, readiness, and workout length choices become real plan inputs without asking for starting weights.",
     type: "UX/state",
     owner: "app.js renderSetup/generatePlanBias"
   },
@@ -122,6 +150,55 @@ const flowNotes = [
     why: "Workout mode should stay obvious and uncluttered on a phone.",
     type: "UX",
     owner: "index.html/app.js/style.css"
+  },
+  {
+    match: /workout cards visually fit/i,
+    flow: "mobile workout visual fit",
+    why: "Default workout cards should not overlap, clip, or hide controls across the training day.",
+    type: "UX/visual",
+    owner: "style.css/app.js render"
+  },
+  {
+    match: /long workout cards scroll/i,
+    flow: "mobile workout visual fit",
+    why: "Long exercise cards should remain usable on short iPhone screens, including notes and action buttons.",
+    type: "UX/visual",
+    owner: "style.css/app.js render"
+  },
+  {
+    match: /workout compass shows/i,
+    flow: "workout orientation / day map",
+    why: "A user should know where they are in the workout and which exercises are already complete.",
+    type: "UX/visual",
+    owner: "app.js workoutCompassDockMarkup/renderOverview"
+  },
+  {
+    match: /hard rowing starts before lifting/i,
+    flow: "exercise order / technique priority",
+    why: "Technical or hard cardio should appear before lifting fatigue when form quality matters.",
+    type: "UX/plan quality",
+    owner: "app.js shouldStartWithCardio"
+  },
+  {
+    match: /mark an exercise done without entering every set weight/i,
+    flow: "forgiving workout completion",
+    why: "A user should be able to complete exercises out of order or without logging every set immediately.",
+    type: "UX/state",
+    owner: "app.js markDone/saveInputs"
+  },
+  {
+    match: /planned exercises use the last completed workout/i,
+    flow: "first logged weight to future suggestion",
+    why: "The app should learn suggested loads from completed workouts instead of asking for starting weights during setup.",
+    type: "UX/state",
+    owner: "app.js displayExercise/historySummary"
+  },
+  {
+    match: /add an unplanned exercise/i,
+    flow: "free gym / unplanned exercise",
+    why: "Users should be able to log useful work that was not part of the plan and still get future suggestions.",
+    type: "UX/state",
+    owner: "app.js addExerciseFromMenu"
   },
   {
     match: /does not require sync setup/i,

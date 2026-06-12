@@ -16,47 +16,62 @@ test("new plan onboarding presents clear paths", async ({ page }) => {
   await expect(page.locator("#dayTitle")).toContainText("Start");
   await expect(page.locator("#dayTitle")).toContainText("Training");
   await expect(page.locator("#progressText")).toContainText("Pick the path that fits");
-  await expect(page.getByRole("button", { name: /Build me a plan/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: /I know what I want/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Build a new plan/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /Modify current plan/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /I know what I want/i })).toHaveCount(0);
   await expect(page.locator("footer button:visible")).toHaveCount(0);
 });
 
-test("guided onboarding keeps advanced choices collapsed", async ({ page }) => {
+test("new plan setup uses scaffold lists and no starting weight inputs", async ({ page }) => {
   await openNewPlan(page);
-  await page.getByRole("button", { name: /Build me a plan/i }).click();
+  await page.getByRole("button", { name: /Build a new plan/i }).click();
 
-  await expect(page.locator("#progressText")).toContainText("Only answer what matters");
-  await expect(page.locator(".setupPanel > .setupHint")).toContainText("The app will fill in the rest");
+  await expect(page.locator("#progressText")).toContainText("Scaffold choices");
+  await expect(page.locator(".setupPanel > .setupHint")).toContainText("No starting weights here");
   await expect(page.getByRole("button", { name: "Create preview" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Back" })).toBeVisible();
-  await expect(page.locator("details.advancedSetup")).toHaveCount(2);
-  await expect(page.locator("details.advancedSetup[open]")).toHaveCount(0);
+  await expect(page.locator("details.advancedSetup")).toHaveCount(0);
+  await expect(page.locator(".strengthRow")).toHaveCount(0);
+  await expect(page.getByLabel("Workout length")).toHaveValue("45");
+  await expect(page.getByLabel("Workout length").locator("option")).toContainText(["30-45 min", "45-60 min", "60-75 min", "75-90 min"]);
+  await expect(page.getByLabel("Main goal").locator("option")).toContainText([
+    "General Fitness",
+    "Build Muscle",
+    "Build Strength",
+    "Improve Endurance",
+    "Lose Fat / Improve Body Composition",
+    "Hybrid Strength + Endurance",
+    "Support a Sport"
+  ]);
 });
 
-test("advanced onboarding opens extra controls only after explicit choice", async ({ page }) => {
+test("new plan setup saves scaffold choices without starting weights", async ({ page }) => {
   await openNewPlan(page);
-  await page.getByRole("button", { name: /I know what I want/i }).click();
+  await page.getByRole("button", { name: /Build a new plan/i }).click();
 
-  await expect(page.locator("#progressText")).toContainText("Add detail where it helps");
-  await expect(page.locator(".setupPanel > .setupHint")).toContainText("Use this only where you have a real preference");
-  await expect(page.locator("details.advancedSetup[open]")).toHaveCount(2);
-  await expect(page.getByText("Experience")).toBeVisible();
-  await expect(page.getByLabel("Cross-training sport")).toBeVisible();
-  await expect(page.getByText("Optional. Skip these if you do not know them yet.")).toBeVisible();
-});
-
-test("advanced onboarding makes cross-training sport selectable", async ({ page }) => {
-  await openNewPlan(page);
-  await page.getByRole("button", { name: /I know what I want/i }).click();
-
+  await page.getByLabel("Main goal").selectOption("Support a Sport");
+  await page.getByLabel("Experience").selectOption("Returning after time off");
+  await page.getByLabel("Emphasis").selectOption("Sport performance support");
+  await page.getByLabel("Days/week").selectOption("4");
+  await page.getByLabel("Workout length").selectOption("60");
+  await page.getByLabel("Gym access").selectOption("Limited gym");
+  await page.getByLabel("Rest days").selectOption("Wednesday, Sunday");
   await page.getByLabel("Cross-training sport").selectOption("Tennis");
-  await page.locator("#crossTrainingSportDetail").fill("Weekend doubles");
   await page.getByRole("button", { name: "Create preview" }).click();
 
   const settings = await page.evaluate(() => JSON.parse(localStorage.getItem("rossWorkout.v1.planSettings")));
-  expect(settings.crossTrainingSport).toBe("Tennis: Weekend doubles");
-  expect(settings.planBias.sport).toBe("Tennis: Weekend doubles");
+  expect(settings.mainGoal).toBe("Support a Sport");
+  expect(settings.goals).toEqual(["Support a Sport", "Cross training"]);
+  expect(settings.trainingExperience).toBe("Returning after time off");
+  expect(settings.trainingPace).toBe("Sport performance support");
+  expect(settings.daysPerWeek).toBe("4");
+  expect(settings.workoutLength).toBe("60");
+  expect(settings.gymAccess).toBe("Limited gym");
+  expect(settings.restDays).toBe("Wednesday, Sunday");
+  expect(settings.crossTrainingSport).toBe("Tennis");
+  expect(settings.strengthSamples).toEqual([]);
+  expect(settings.planBias.sport).toBe("Tennis");
+  expect(settings.planBias.startingWeights).toEqual([]);
 });
 
 test("unfinished plan generation can be checked after reopening", async ({ page }) => {
@@ -76,14 +91,14 @@ test("unfinished plan generation can be checked after reopening", async ({ page 
 
 test("guided preview does not surprise user with backend dependency", async ({ page }) => {
   await openNewPlan(page);
-  await page.getByRole("button", { name: /Build me a plan/i }).click();
+  await page.getByRole("button", { name: /Build a new plan/i }).click();
 
   await expect(page.getByText(/sync settings|Apps Script/i)).toHaveCount(0);
   await page.getByRole("button", { name: "Create preview" }).click();
 
   await expect(page.locator("#dayTitle")).not.toContainText("App");
   await expect(page.locator("#dayTitle")).not.toContainText("Settings");
-  await expect(page.locator("#progressText")).toContainText("Only answer what matters");
+  await expect(page.locator("#progressText")).toContainText("Scaffold choices");
   await expect(page.getByText("Setup saved. Connect generation in Settings")).toBeVisible();
   await expect(page.getByText("Add sync settings")).toHaveCount(0);
 });
@@ -105,7 +120,7 @@ test("validation rejection is explained in user language", async ({ page }) => {
     localStorage.setItem("rossWorkout.v1.syncUrl", "https://generator.test/exec");
   });
   await openNewPlan(page);
-  await page.getByRole("button", { name: /Build me a plan/i }).click();
+  await page.getByRole("button", { name: /Build a new plan/i }).click();
   await page.getByRole("button", { name: "Create preview" }).click();
 
   await expect(page.getByText("That preview did not meet your plan rules")).toBeVisible();
@@ -169,7 +184,7 @@ test("slow plan generation leaves 94 percent and still accepts a late preview", 
     localStorage.setItem("rossWorkout.v1.syncUrl", "https://generator.test/exec");
   });
   await openNewPlan(page);
-  await page.getByRole("button", { name: /Build me a plan/i }).click();
+  await page.getByRole("button", { name: /Build a new plan/i }).click();
   await page.getByRole("button", { name: "Create preview" }).click();
 
   await expect(page.getByText("The generator is still working")).toBeVisible();

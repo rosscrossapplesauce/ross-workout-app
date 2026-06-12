@@ -135,7 +135,7 @@ function lockViewportHeight(){
   window.addEventListener("resize", setHeight);
   window.addEventListener("orientationchange", setHeight);
   document.addEventListener("touchmove", e => {
-    if(!e.target.closest || (!e.target.closest("input, textarea, select") && !e.target.closest(".scrollPanel"))) e.preventDefault();
+    if(!e.target.closest || (!e.target.closest("input, textarea, select, main, .scrollPanel, .dayTrail, .exerciseMapGrid"))) e.preventDefault();
   }, {passive:false});
 }
 function buildSelectors(){
@@ -302,9 +302,34 @@ function getLastHistory(exName, currentContext){
     .filter(record => String(record.exercise || "").trim().toLowerCase() === name && record.context !== currentContext && record.completed && record.completedWeight !== "")
     .sort((a,b)=> new Date(b.timestamp) - new Date(a.timestamp))[0] || null;
 }
-function historySummary(item, id){
-  const state = getState();
+function historySuggestionForExercise(exercise, id){
+  const last = getLastHistory(exercise.name, getContextId(id));
+  if(!last) return "";
+  const lastDisplay = last.setWeights || last.completedWeight;
+  const lastWeight = finalWeight(lastDisplay);
+  if(!Number.isFinite(lastWeight)) return "";
+  return {
+    weight: lastWeight,
+    display: lastDisplay,
+    unit: last.unit || exercise.unit || "lb",
+    timestamp: last.timestamp
+  };
+}
+function displayExercise(item, id, state = getState()){
   const exercise = effectiveExercise(item, id, state);
+  const suggestion = historySuggestionForExercise(exercise, id);
+  if(!suggestion || item.source === "extra") return exercise;
+  return {
+    ...exercise,
+    suggestedWeight: suggestion.weight,
+    historySuggested: true,
+    historyDisplay: suggestion.display,
+    historyTimestamp: suggestion.timestamp
+  };
+}
+function historySummary(item, id, exerciseOverride){
+  const state = getState();
+  const exercise = exerciseOverride || effectiveExercise(item, id, state);
   const exerciseName = exercise.name;
   const last = getLastHistory(exerciseName, getContextId(id));
   if(!last) return "";
@@ -312,8 +337,9 @@ function historySummary(item, id){
   const lastWeight = finalWeight(lastDisplay);
   const currentTarget = Number(exercise.suggestedWeight);
   const change = Number.isFinite(lastWeight) && Number.isFinite(currentTarget) ? currentTarget - lastWeight : null;
-  const changeText = change === null ? "" : ` · ${change >= 0 ? "+" : ""}${change} ${exercise.unit}`;
-  return `<div class="lastWeek">Last completed: ${escapeHtml(lastDisplay)} ${escapeHtml(exercise.unit)} · ${formatDate(last.timestamp)}${changeText}</div>`;
+  const label = exercise.historySuggested ? "Suggested from last completed" : "Last completed";
+  const changeText = change === null || exercise.historySuggested ? "" : ` · ${change >= 0 ? "+" : ""}${change} ${exercise.unit}`;
+  return `<div class="lastWeek">${escapeHtml(label)}: ${escapeHtml(lastDisplay)} ${escapeHtml(exercise.unit)} · ${formatDate(last.timestamp)}${changeText}</div>`;
 }
 function render(){
   screenMode = "workout";
@@ -368,13 +394,13 @@ function render(){
   $("doneBtn").innerText = done ? "Undo Done" : "Done ✓";
 
   if(item.kind === "exercise"){
-    const exercise = effectiveExercise(item, id, state);
-    const history = historySummary(item, id);
+    const exercise = displayExercise(item, id, state);
+    const history = historySummary(item, id, exercise);
     const setWeights = getSetWeights(state, id, exercise);
     const notes = state.notes[id] || "";
     const originalName = exercise.name === item.name ? "" : `<div class="altApplied">Original: ${escapeHtml(item.name)}</div>`;
     const fitClass = setWeights.length >= 4 ? "manySets" : "";
-    const weightLabel = item.source === "extra" ? "Last logged" : "Suggested";
+    const weightLabel = item.source === "extra" ? "Last logged" : exercise.historySuggested ? "From last time" : "Suggested";
     $("screen").innerHTML = `
       <div class="workoutStack">
       ${workoutCompassDockMarkup(day, items, state, completedCount, total)}
@@ -456,7 +482,7 @@ function completedCueMarkup(){
 }
 function carouselItemTitle(item, index, state){
   if(!item) return "";
-  if(item.kind === "exercise") return effectiveExercise(item, itemId(item, index), state).name;
+  if(item.kind === "exercise") return displayExercise(item, itemId(item, index), state).name;
   if(item.kind === "row") return item.type || "Row";
   if(item.kind === "run") return item.type || "Run";
   if(item.kind === "rest") return "Rest";
@@ -788,9 +814,13 @@ function planSummary(settings){
   return `
     <div class="summaryTitle">Saved setup</div>
     <div>${escapeHtml(settings.mainGoal || (settings.goals || []).join(" + ") || "No goals selected")}</div>
-    <div>${escapeHtml(settings.daysPerWeek || "?")} days/week · ${escapeHtml(settings.workoutLength || "?")} min · starts ${escapeHtml(settings.startDate || "?")}</div>
+    <div>${escapeHtml(settings.daysPerWeek || "?")} days/week · ${escapeHtml(workoutLengthLabel(settings.workoutLength))} · starts ${escapeHtml(settings.startDate || "?")}</div>
     ${settings.trainingExperience ? `<div>${escapeHtml(settings.trainingExperience)} · ${escapeHtml(settings.trainingPace || "steady pace")}</div>` : ""}
     ${settings.crossTrainingSport ? `<div>Cross-training for ${escapeHtml(settings.crossTrainingSport)}</div>` : ""}`;
+}
+function workoutLengthLabel(value){
+  const match = setupWorkoutLengthOptions().find(option => String(option.value) === String(value));
+  return match ? match.label : `${value || "?"} min`;
 }
 function limitationOptions(){
   return [
@@ -1115,15 +1145,11 @@ function renderPlanStart(){
   $("overviewBtn").onclick = renderHome;
   $("screen").innerHTML = `
     <section class="setupPanel scrollPanel">
-      <div class="setupHint">Most people can use the first option. You can fine tune after the preview.</div>
+      <div class="setupHint">Plan setup now follows the scaffold: one clear choice per category, then weights adjust from what you actually log.</div>
       <div class="pathGrid">
         <button type="button" class="pathOption primaryPath" onclick="renderSetup('new','guided')">
-          <strong>Build me a plan</strong>
-          <span>Fastest path. Smart defaults, conservative weights, adjusts from your logs.</span>
-        </button>
-        <button type="button" class="pathOption" onclick="renderSetup('new','advanced')">
-          <strong>I know what I want</strong>
-          <span>Choose volume, focus, pace, and optional starting weights.</span>
+          <strong>Build a new plan</strong>
+          <span>Choose goal, readiness, schedule, length, and one emphasis. Starting weights come from your first logged workouts.</span>
         </button>
         <button type="button" class="pathOption" onclick="renderPlanTune()">
           <strong>Modify current plan</strong>
@@ -1204,7 +1230,7 @@ function selectPlanTune(id){
 }
 function renderSetup(mode, path = "guided"){
   screenMode = "setup";
-  activeSetupPath = path;
+  activeSetupPath = "guided";
   overviewOpen = false;
   document.body.dataset.mode = "setup";
   document.body.dataset.overview = "false";
@@ -1213,13 +1239,18 @@ function renderSetup(mode, path = "guided"){
   const sportValue = current.crossTrainingSport || "";
   const sportSelected = selectedCrossTrainingSport(sportValue);
   const startDefault = current.startDate || (mode === "new" ? todayInputDate() : "");
-  const daysDefault = current.daysPerWeek || (mode === "new" ? "5" : "");
-  const lengthDefault = current.workoutLength || (mode === "new" ? "45" : "");
+  const goalDefault = setupOptionValue(setupGoalOptions(), current.mainGoal || (current.goals || [])[0], "General Fitness");
+  const readinessDefault = setupOptionValue(setupReadinessOptions(), current.trainingExperience, "Currently active");
+  const emphasisDefault = setupOptionValue(setupEmphasisOptions(), current.trainingPace, "Balanced scaffold");
+  const daysDefault = setupOptionValue(setupDaysOptions(), current.daysPerWeek || (mode === "new" ? "5" : ""), "5");
+  const lengthDefault = setupOptionValue(setupWorkoutLengthOptions(), current.workoutLength || (mode === "new" ? "45" : ""), "45");
+  const gymDefault = setupOptionValue(setupGymOptions(), current.gymAccess, "Full gym");
+  const restDefault = setupOptionValue(setupRestDayOptions(), current.restDays, "");
   $("weekLabel").innerText = mode === "new" ? "New Plan" : "Plan Goals";
-  $("dayTitle").innerHTML = `<span>${path === "advanced" ? "Fine Tune" : "Build"}</span><span>Training Plan</span>`;
-  $("progressText").innerText = path === "advanced" ? "Add detail where it helps" : "Only answer what matters";
+  $("dayTitle").innerHTML = `<span>Build</span><span>Training Plan</span>`;
+  $("progressText").innerText = "Scaffold choices";
   $("scoreText").innerText = "";
-  $("progressBar").style.width = path === "advanced" ? "60%" : "40%";
+  $("progressBar").style.width = "55%";
   $("prevBtn").style.display = "none";
   $("nextBtn").style.display = "none";
   $("doneBtn").style.display = "block";
@@ -1234,81 +1265,159 @@ function renderSetup(mode, path = "guided"){
   $("screen").innerHTML = `
     <section class="setupPanel scrollPanel">
       ${planMessage && planMessageScope === "setup" ? `<div class="planMessage">${escapeHtml(planMessage)}</div>` : ""}
-      <div class="setupHint">${path === "advanced" ? "Use this only where you have a real preference. Blank fields are fine." : "The app will fill in the rest, start conservatively, and adjust from what you log."}</div>
+      <div class="setupHint">No starting weights here. The first time you do an exercise, log the sets, reps, and weights you actually completed; future workouts suggest from that history.</div>
       <div class="setupGroup">
         <div class="setupTitle">Plan basics</div>
         <div class="setupGrid">
           <label>Main goal<select id="mainGoal">
-            <option>Build muscle</option>
-            <option>Lose weight</option>
-            <option>Build endurance</option>
-            <option>Return from injury</option>
-            <option>General fitness</option>
-            <option>Hybrid strength + cardio</option>
+            ${optionMarkup(setupGoalOptions(), goalDefault)}
           </select></label>
           <label>Start date<input id="startDate" type="date" required value="${escapeHtml(startDefault)}"></label>
-          <label>Days/week<input id="daysPerWeek" type="number" inputmode="numeric" placeholder="5" value="${escapeHtml(daysDefault)}"></label>
-          <label>Workout length<input id="workoutLength" type="number" inputmode="numeric" placeholder="45" value="${escapeHtml(lengthDefault)}"></label>
+          <label>Days/week<select id="daysPerWeek">
+            ${optionMarkup(setupDaysOptions(), daysDefault)}
+          </select></label>
+          <label>Workout length<select id="workoutLength">
+            ${optionMarkup(setupWorkoutLengthOptions(), lengthDefault)}
+          </select></label>
         </div>
       </div>
-      <details class="advancedSetup" ${path === "advanced" ? "open" : ""}>
-        <summary>Fine tune</summary>
+      <div class="setupGroup">
+        <div class="setupTitle">Fine tune</div>
         <div class="setupGrid">
           <label>Experience<select id="trainingExperience">
-            <option>Athletic, new to gym</option>
-            <option>Beginner</option>
-            <option>Returning after time away</option>
-            <option>Intermediate</option>
-            <option>Advanced</option>
+            ${optionMarkup(setupReadinessOptions(), readinessDefault)}
           </select></label>
-          <label>Pace<select id="trainingPace">
-            <option>Conservative</option>
-            <option>Moderate</option>
-            <option>Ambitious</option>
+          <label>Emphasis<select id="trainingPace">
+            ${optionMarkup(setupEmphasisOptions(), emphasisDefault)}
           </select></label>
-          <label>Gym access<select id="gymAccess"><option>Yes</option><option>No</option></select></label>
-          <label>Rest days<input id="restDays" placeholder="Sunday, Thursday" value="${escapeHtml(current.restDays || "")}"></label>
-        </div>
-        <div class="checkGrid">${goalOptions().map(goal => checkOption("goal", goal, (current.goals || []).includes(goal))).join("")}</div>
-        <div class="setupGrid">
+          <label>Gym access<select id="gymAccess">
+            ${optionMarkup(setupGymOptions(), gymDefault)}
+          </select></label>
+          <label>Rest days<select id="restDays">
+            ${optionMarkup(setupRestDayOptions(), restDefault)}
+          </select></label>
           <label class="wideField">Cross-training sport<select id="crossTrainingSport">
-            <option></option>
-            ${crossTrainingSportOptions().map(option => `<option ${sportSelected === option ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}
+            ${optionMarkup(crossTrainingSportOptions(), sportSelected)}
           </select></label>
-          <input id="crossTrainingSportDetail" class="setupInput wideField" placeholder="Optional detail, team, event, or specific sport" value="${escapeHtml(crossTrainingSportDetail(sportValue, sportSelected))}">
         </div>
-      </details>
-      <details class="advancedSetup" ${path === "advanced" ? "open" : ""}>
-        <summary>Add starting weights</summary>
-        <div class="setupHint">Optional. Skip these if you do not know them yet.</div>
-        ${defaultStrengthSamples(current).map((sample,i) => strengthRow(i, sample)).join("")}
-      </details>
+      </div>
     </section>`;
-  if(current.gymAccess) $("gymAccess").value = current.gymAccess;
-  if(current.mainGoal) $("mainGoal").value = current.mainGoal;
-  if(current.trainingExperience) $("trainingExperience").value = current.trainingExperience;
-  if(current.trainingPace) $("trainingPace").value = current.trainingPace;
 }
-function goalOptions(){
-  return ["Returning to activity", "Maintenance", "Cross training", "Build endurance", "Build muscle", "Hybrid", "Weight loss"];
+function setupGoalOptions(){
+  return [
+    "General Fitness",
+    "Build Muscle",
+    "Build Strength",
+    "Improve Endurance",
+    "Lose Fat / Improve Body Composition",
+    "Hybrid Strength + Endurance",
+    "Support a Sport"
+  ];
+}
+function setupReadinessOptions(){
+  return [
+    "Currently active",
+    "New to structured training",
+    "Returning after time off",
+    "Training hard already",
+    "Working around pain or injury"
+  ];
+}
+function setupEmphasisOptions(){
+  return [
+    "Balanced scaffold",
+    "More strength emphasis",
+    "More endurance/cardio emphasis",
+    "More recovery buffer",
+    "Sport performance support"
+  ];
+}
+function setupDaysOptions(){
+  return [
+    {value:"3", label:"3 days/week"},
+    {value:"4", label:"4 days/week"},
+    {value:"5", label:"5 days/week"},
+    {value:"6", label:"6 days/week"}
+  ];
+}
+function setupWorkoutLengthOptions(){
+  return [
+    {value:"45", label:"30-45 min"},
+    {value:"60", label:"45-60 min"},
+    {value:"75", label:"60-75 min"},
+    {value:"90", label:"75-90 min"}
+  ];
+}
+function setupGymOptions(){
+  return ["Full gym", "Limited gym", "Home/basic equipment"];
+}
+function setupRestDayOptions(){
+  return [
+    {value:"", label:"No preference"},
+    {value:"Sunday", label:"Sunday"},
+    {value:"Saturday, Sunday", label:"Weekend"},
+    {value:"Wednesday, Sunday", label:"Midweek + Sunday"},
+    {value:"After hard days", label:"After hard days"}
+  ];
+}
+function optionMarkup(options, selectedValue){
+  return options.map(option => {
+    const value = typeof option === "string" ? option : option.value;
+    const label = typeof option === "string" ? option : option.label;
+    return `<option value="${escapeHtml(value)}" ${String(value) === String(selectedValue) ? "selected" : ""}>${escapeHtml(label)}</option>`;
+  }).join("");
+}
+function setupOptionValue(options, value, fallback){
+  const values = options.map(option => String(typeof option === "string" ? option : option.value));
+  const normalized = normalizeSetupValue(value);
+  const exact = values.find(candidate => candidate.toLowerCase() === normalized.toLowerCase());
+  if(exact) return exact;
+  const mapped = legacySetupValue(normalized);
+  const legacy = values.find(candidate => candidate.toLowerCase() === mapped.toLowerCase());
+  return legacy || fallback;
+}
+function normalizeSetupValue(value){
+  return String(value || "").trim();
+}
+function legacySetupValue(value){
+  const lower = String(value || "").toLowerCase();
+  if(!lower) return "";
+  if(lower === "hybrid" || lower.includes("hybrid strength") || lower.includes("strength + cardio")) return "Hybrid Strength + Endurance";
+  if(lower.includes("build endurance") || lower.includes("cardio")) return "Improve Endurance";
+  if(lower.includes("build muscle") || lower.includes("muscle")) return "Build Muscle";
+  if(lower.includes("strength")) return "Build Strength";
+  if(lower.includes("weight") || lower.includes("fat")) return "Lose Fat / Improve Body Composition";
+  if(lower.includes("general fitness") || lower.includes("maintenance")) return "General Fitness";
+  if(lower.includes("return") || lower.includes("time away")) return "Returning after time off";
+  if(lower.includes("beginner") || lower.includes("new")) return "New to structured training";
+  if(lower.includes("advanced") || lower.includes("ambitious") || lower.includes("hard")) return "Training hard already";
+  if(lower.includes("injury") || lower.includes("pain")) return "Working around pain or injury";
+  if(lower.includes("conservative") || lower.includes("recovery")) return "More recovery buffer";
+  if(lower.includes("moderate") || lower.includes("balanced")) return "Balanced scaffold";
+  if(lower === "yes") return "Full gym";
+  if(lower === "no") return "Home/basic equipment";
+  const numeric = lower.match(/\d+/);
+  if(numeric){
+    const valueNumber = Number(numeric[0]);
+    if(valueNumber <= 45) return "45";
+    if(valueNumber <= 60) return "60";
+    if(valueNumber <= 75) return "75";
+    return "90";
+  }
+  return value;
 }
 function crossTrainingSportOptions(){
-  return ["Running", "Rowing", "Cycling", "Swimming", "Tennis", "Basketball", "Soccer", "Golf", "Pickleball", "Other"];
+  return ["None", "Running", "Rowing", "Cycling", "Swimming", "Tennis", "Basketball", "Soccer", "Golf", "Pickleball", "Other sport"];
 }
 function selectedCrossTrainingSport(value){
-  if(!value) return "";
-  const match = crossTrainingSportOptions().find(option => option.toLowerCase() === String(value).toLowerCase());
-  return match || "Other";
-}
-function crossTrainingSportDetail(value, selected){
-  if(!value || (selected && selected !== "Other")) return "";
-  return value;
+  if(!value) return "None";
+  const cleanValue = String(value).split(":")[0].trim();
+  const match = crossTrainingSportOptions().find(option => option.toLowerCase() === cleanValue.toLowerCase());
+  return match || "Other sport";
 }
 function readCrossTrainingSport(){
   const selected = $("crossTrainingSport") ? $("crossTrainingSport").value : "";
-  const detail = $("crossTrainingSportDetail") ? $("crossTrainingSportDetail").value.trim() : "";
-  if(selected === "Other") return detail;
-  return [selected, detail].filter(Boolean).join(": ");
+  return selected && selected !== "None" ? selected : "";
 }
 function checkOption(name, value, checked){
   return `<label class="checkOption"><input type="checkbox" name="${name}" value="${escapeHtml(value)}" ${checked ? "checked" : ""}>${escapeHtml(value)}</label>`;
@@ -1336,32 +1445,30 @@ function savePlanSetup(mode){
     alert("Pick a starting date before saving your plan setup.");
     return;
   }
-  const goals = Array.from(document.querySelectorAll('input[name="goal"]:checked')).map(input => input.value);
-  const strengthSamples = Array.from(document.querySelectorAll(".strengthRow")).map(row => ({
-    name: row.querySelector(".strengthName").value.trim(),
-    weight: row.querySelector(".strengthWeight").value.trim(),
-    reps: row.querySelector(".strengthReps").value.trim(),
-    rpe: row.querySelector(".strengthRpe").value.trim()
-  })).filter(sample => sample.name || sample.weight || sample.reps);
+  const mainGoal = $("mainGoal").value;
+  const goals = [mainGoal];
+  const crossTrainingSport = readCrossTrainingSport();
+  if(crossTrainingSport) goals.push("Cross training");
+  const strengthSamples = [];
   const savedSettings = readObject(PLAN_SETTINGS_KEY, {});
   const settings = {
     ...savedSettings,
     mode,
     goals,
-    mainGoal: $("mainGoal").value,
+    mainGoal,
     trainingExperience: $("trainingExperience").value,
     trainingPace: $("trainingPace").value,
     startDate: $("startDate").value,
-    crossTrainingSport: readCrossTrainingSport(),
+    crossTrainingSport,
     gymAccess: $("gymAccess").value,
-    workoutLength: $("workoutLength").value.trim(),
-    daysPerWeek: $("daysPerWeek").value.trim(),
-    restDays: $("restDays").value.trim(),
+    workoutLength: $("workoutLength").value,
+    daysPerWeek: $("daysPerWeek").value,
+    restDays: $("restDays").value,
     strengthSamples,
     generatedAt: new Date().toISOString(),
     planBias: generatePlanBias({
       goals,
-      mainGoal:$("mainGoal").value,
+      mainGoal,
       trainingExperience:$("trainingExperience").value,
       trainingPace:$("trainingPace").value,
       limitationsEnabled: savedSettings.limitationsEnabled,
@@ -1369,7 +1476,7 @@ function savePlanSetup(mode){
       limitationTags: savedSettings.limitationTags,
       avoidMovements: savedSettings.avoidMovements,
       startDate:$("startDate").value,
-      crossTrainingSport:readCrossTrainingSport(),
+      crossTrainingSport,
       strengthSamples
     })
   };
@@ -1613,9 +1720,9 @@ function ensurePlanSettings(plan){
     ...(saved || {}),
     mode: saved && saved.mode ? saved.mode : "auto",
     goals: saved && Array.isArray(saved.goals) ? saved.goals : inferredGoals(plan),
-    mainGoal: saved && saved.mainGoal ? saved.mainGoal : "Continue current workout plan",
-    trainingExperience: saved && saved.trainingExperience ? saved.trainingExperience : "Returning after time away",
-    trainingPace: saved && saved.trainingPace ? saved.trainingPace : "Conservative",
+    mainGoal: saved && saved.mainGoal ? saved.mainGoal : (inferredGoals(plan)[0] || "General Fitness"),
+    trainingExperience: saved && saved.trainingExperience ? saved.trainingExperience : "Currently active",
+    trainingPace: saved && saved.trainingPace ? saved.trainingPace : "Balanced scaffold",
     avoidMovements: saved && saved.avoidMovements ? saved.avoidMovements : "",
     startDate: saved && saved.startDate ? saved.startDate : todayInputDate(),
     crossTrainingSport: saved && saved.crossTrainingSport ? saved.crossTrainingSport : "rowing and running",
@@ -1633,10 +1740,11 @@ function ensurePlanSettings(plan){
 function inferredGoals(plan){
   const text = `${plan.name || ""} ${plan.summary || ""}`.toLowerCase();
   const goals = [];
-  if(text.includes("endurance") || text.includes("row")) goals.push("Build endurance");
-  if(text.includes("muscle") || text.includes("strength")) goals.push("Build muscle");
-  if(text.includes("loss") || text.includes("fat")) goals.push("Weight loss");
-  return goals.length ? goals : ["Hybrid"];
+  if(text.includes("endurance") || text.includes("row")) goals.push("Improve Endurance");
+  if(text.includes("muscle")) goals.push("Build Muscle");
+  if(text.includes("strength")) goals.push("Build Strength");
+  if(text.includes("loss") || text.includes("fat")) goals.push("Lose Fat / Improve Body Composition");
+  return goals.length ? goals : ["Hybrid Strength + Endurance"];
 }
 function inferredWorkoutLength(plan){
   const firstDay = plan.weeks && plan.weeks[0] && plan.weeks[0].days && plan.weeks[0].days.find(day => day.row || day.run || (day.exercises && day.exercises.length));
@@ -1720,6 +1828,7 @@ function normalizeGeneratedPlan(plan){
 }
 function generatePlanBias(settings){
   const goals = settings.goals || [];
+  const goalText = `${goals.join(" ")} ${settings.mainGoal || ""} ${settings.crossTrainingSport || ""} ${settings.trainingPace || ""}`.toLowerCase();
   const limitations = activeLimitations(settings);
   return {
     mainGoal: settings.mainGoal || "",
@@ -1728,8 +1837,8 @@ function generatePlanBias(settings){
     avoidMovements: limitations,
     limitationDuration: limitations ? (settings.limitationDuration || "temporary") : "",
     startDate: settings.startDate || "",
-    conditioning: goals.includes("Build endurance") || goals.includes("Weight loss") || goals.includes("Hybrid") ? "rowing-forward aerobic base with one hard interval day" : "moderate conditioning",
-    strength: goals.includes("Build muscle") ? "progressive hypertrophy with conservative loading" : "maintenance-friendly strength progression",
+    conditioning: /endurance|cardio|conditioning|fat|weight|hybrid|sport|row|run/.test(goalText) ? "rowing-forward aerobic base with one hard interval day" : "moderate conditioning",
+    strength: /muscle|strength|hybrid|sport/.test(goalText) ? "progressive strength/hypertrophy with conservative loading" : "maintenance-friendly strength progression",
     sport: settings.crossTrainingSport || "",
     equipment: "standard gym equipment",
     startingWeights: estimateStartingWeights(settings.strengthSamples || [])
@@ -2047,11 +2156,11 @@ function jumpToDay(nextWeekIndex, nextDayIndex){
 }
 function overviewRow(item, index, done, state, current = false){
   const id = itemId(item, index);
-  const exercise = item.kind === "exercise" ? effectiveExercise(item, id, state) : item;
+  const exercise = item.kind === "exercise" ? displayExercise(item, id, state) : item;
   const title = item.kind === "exercise" ? exercise.name : (item.type || "Rest");
   const setWeights = item.kind === "exercise" ? compactSetWeights(getSetWeights(state, id, exercise)) : [];
   const detail = item.kind === "exercise"
-    ? `${exercise.sets} × ${exercise.reps} · ${item.source === "extra" ? "last" : "suggested"} ${exercise.suggestedWeight} ${exercise.unit}${setWeights.length ? ` · sets ${setWeights.join(" / ")} ${exercise.unit}` : ""}`
+    ? `${exercise.sets} × ${exercise.reps} · ${item.source === "extra" ? "last" : exercise.historySuggested ? "last time" : "suggested"} ${exercise.suggestedWeight} ${exercise.unit}${setWeights.length ? ` · sets ${setWeights.join(" / ")} ${exercise.unit}` : ""}`
     : item.kind === "row"
       ? `${item.duration} · ${item.intensity}${item.pace ? ` · ${item.pace}` : ""}`
       : item.kind === "run"
@@ -2405,7 +2514,7 @@ function saveInputs(){
 function useSuggested(){
   const item = getItems(getDay())[itemIndex];
   const id = itemId(item, itemIndex);
-  const exercise = effectiveExercise(item, id);
+  const exercise = displayExercise(item, id);
   document.querySelectorAll(".setWeightRow").forEach(row => {
     row.classList.remove("setMissed");
     row.querySelector(".missBtn").classList.remove("missed");
@@ -2418,7 +2527,7 @@ function useSuggested(){
 function adjustSetWeight(setIndex, delta){
   const item = getItems(getDay())[itemIndex];
   const id = itemId(item, itemIndex);
-  const exercise = effectiveExercise(item, id);
+  const exercise = displayExercise(item, id);
   const input = document.querySelector(`.setWeightInput[data-set-index="${setIndex}"]`);
   if(input.disabled){
     input.disabled = false;
@@ -2641,6 +2750,8 @@ function closeAlternatives(){
 function loadAlternatives(){
   const item = getItems(getDay())[itemIndex];
   if(item.kind !== "exercise") return;
+  const id = itemId(item, itemIndex);
+  const exercise = displayExercise(item, id);
   const cache = readAlternatives();
   const localKey = alternativesKey(item);
   if(cache[localKey]){
@@ -2648,11 +2759,11 @@ function loadAlternatives(){
     return;
   }
   if(!getSyncUrl()){
-    renderAlternativesPanel("ready", localAlternativesFor(item));
+    renderAlternativesPanel("ready", localAlternativesFor(exercise));
     return;
   }
   if(!navigator.onLine){
-    renderAlternativesPanel("ready", localAlternativesFor(item));
+    renderAlternativesPanel("ready", localAlternativesFor(exercise));
     return;
   }
   renderAlternativesPanel("loading");
@@ -2676,11 +2787,11 @@ function loadAlternatives(){
   const params = new URLSearchParams({
     action:"alternatives",
     callback,
-    exercise:item.name,
-    sets:String(item.sets),
-    reps:String(item.reps),
-    suggestedWeight:String(item.suggestedWeight),
-    unit:item.unit || "",
+    exercise:exercise.name,
+    sets:String(exercise.sets),
+    reps:String(exercise.reps),
+    suggestedWeight:String(exercise.suggestedWeight),
+    unit:exercise.unit || "",
     dayTitle:getDay().title || ""
   });
   script.src = `${getSyncUrl()}${separator}${params.toString()}`;
@@ -2695,7 +2806,7 @@ function makeLogRecord(item, id, completed){
   const state = getState();
   const plan = getActivePlan();
   const isExercise = item.kind === "exercise";
-  const exercise = isExercise ? effectiveExercise(item, id, state) : item;
+  const exercise = isExercise ? displayExercise(item, id, state) : item;
   return {
     id: `${Date.now()}-${weekIndex}-${dayIndex}-${id}`,
     context: getContextId(id),
@@ -2859,7 +2970,7 @@ function markDone(){
   $("screen").focus({preventScroll:true});
 }
 function completedItemLabel(item, id, state){
-  if(item.kind === "exercise") return effectiveExercise(item, id, state).name || "Exercise";
+  if(item.kind === "exercise") return displayExercise(item, id, state).name || "Exercise";
   return item.type || item.text || "Item";
 }
 function nextItem(){
@@ -2881,7 +2992,7 @@ function skipCurrentExercise(){
   if(!item || item.kind !== "exercise") return;
   const id = itemId(item, itemIndex);
   const state = getState();
-  const exercise = effectiveExercise(item, id, state);
+  const exercise = displayExercise(item, id, state);
   if(!state.setWeights) state.setWeights = {};
   if(!state.weights) state.weights = {};
   if(!state.notes) state.notes = {};
