@@ -135,7 +135,8 @@ test("workout menu reaches list, calendar, settings, and home", async ({ page })
   await page.getByRole("button", { name: "Back" }).click();
 
   await page.getByRole("button", { name: "Settings" }).click();
-  await expect(page.getByText("Sync settings")).toBeVisible();
+  await expect(page.getByText("Sync settings")).toHaveCount(0);
+  await expect(page.getByText("Apps Script")).toHaveCount(0);
 });
 
 test("color settings can be changed from settings", async ({ page }) => {

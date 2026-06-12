@@ -13,9 +13,9 @@ Live site: https://rosscrossapplesauce.github.io/ross-workout-app/
 - Supports swipe navigation plus large bottom buttons for gym use.
 - Auto-advances after marking an item done.
 - Shows last completed weight, previous completion date, and weight change when an exercise appears again.
-- Syncs workout history to Google Sheets when configured.
-- Suggests alternative exercises through a private Apps Script OpenAI proxy when configured.
-- Generates a private custom training plan from saved goals through Apps Script/OpenAI when configured.
+- Syncs workout history to Google Sheets through the configured app backend.
+- Suggests alternative exercises through a private Apps Script OpenAI proxy.
+- Generates a private custom training plan from saved goals through Apps Script/OpenAI.
 - Lets you switch between the original `workouts.json` plan and the generated plan.
 - Saves preferred alternative exercises for future generated plans.
 - Shows strength progress charts with actual progress and two projection lines.
@@ -110,17 +110,15 @@ Workout rows include both a `completedWeight` summary and a `setWeights` value f
 6. Approve the requested permissions.
 7. Copy the Web App URL.
 
-### 4. Connect the PWA
+### 4. Configure the PWA Backend
 
-1. Open the workout app on your iPhone.
-2. Tap the sync status pill in the top right.
-3. Paste the Apps Script Web App URL.
-4. Tap OK.
+The public app uses the Apps Script Web App URL configured in `app.js` as `APP_BACKEND_URL`.
+Users should not need to paste the Web App URL inside the app.
 
 The status pill shows:
 
 - `Synced` when all local records have been sent.
-- `Pending Sync` when records are queued or the Web App URL has not been added.
+- `Pending Sync` when records are queued.
 - `Offline` when the phone is offline.
 
 ### 5. Set Up Apps Script CLI Updates
@@ -239,11 +237,10 @@ Then redeploy:
 ### 5. Generate a Private Plan
 
 1. Open the workout app.
-2. Tap **Start a new plan** or **Change current plan's goals**.
-3. Save your goals, equipment, schedule, and optional strength starting points.
-4. Tap **Generate private plan** on the home screen.
-5. The app asks Apps Script to create a 4-week plan and saves it locally on your phone.
-6. Use **Use original plan** or **Use generated plan** to switch between plans.
+2. Tap **Create a new plan** or **Adjust current plan**.
+3. Choose the scaffold options for goal, readiness, schedule, length, equipment, and sport context.
+4. The app asks Apps Script to create a preview and saves it locally on your phone.
+5. Review the preview, then choose whether to use it.
 
 Generated plans do not edit `workouts.json`. The original plan remains the fallback plan in the repo.
 

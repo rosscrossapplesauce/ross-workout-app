@@ -58,6 +58,12 @@ Consider adding optional accounts so users can privately back up generated plans
 
 Also consider whether high-quality personalized plan generation needs a real backend or richer local planning rules. A simple local-only app can create useful template-based plans, but truly personalized plan generation may need more context, safer server-side AI calls, and persistent per-user history.
 
+Related architecture note:
+
+- The current static app can hide backend setup from users and use a configured Apps Script endpoint, but that endpoint is still visible to the browser because GitHub Pages is client-side.
+- A truly private backend would use a hosted API/proxy with auth, rate limits, per-user storage, and server-side secrets.
+- Treat "remove sync/generation settings from the app" as UX cleanup, not as the final private-backend architecture.
+
 ### Science-Backed Plan Principles
 
 Status: pulled forward into `product/PLAN_GENERATION_PRINCIPLES.md` as a draft product rulebook.
