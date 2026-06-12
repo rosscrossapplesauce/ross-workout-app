@@ -182,6 +182,30 @@ test("validation rejection is explained in user language", async ({ page }) => {
   await expect(page.getByText("planning checks")).toHaveCount(0);
 });
 
+test("plan service errors stay out of setup language", async ({ page }) => {
+  await page.route("https://generator.test/**", route => {
+    const url = new URL(route.request().url());
+    const callback = url.searchParams.get("callback");
+    route.fulfill({
+      contentType: "application/javascript",
+      body: `${callback}(${JSON.stringify({
+        ok: false,
+        error: "OpenAI key is not set in Apps Script properties."
+      })});`
+    });
+  });
+
+  await page.evaluate(() => {
+    localStorage.setItem("rossWorkout.v1.syncUrl", "https://generator.test/exec");
+  });
+  await openNewPlan(page);
+  await page.getByRole("button", { name: /Build a new plan/i }).click();
+  await page.getByRole("button", { name: "Create preview" }).click();
+
+  await expect(page.getByText("Plan preview could not be created right now")).toBeVisible();
+  await expect(page.getByText(/generation settings|backend|Apps Script|OpenAI/i)).toHaveCount(0);
+});
+
 test("slow plan generation leaves 94 percent and still accepts a late preview", async ({ page }) => {
   await page.route("https://generator.test/**", async route => {
     const url = new URL(route.request().url());
