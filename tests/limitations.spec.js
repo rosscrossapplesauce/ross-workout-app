@@ -6,6 +6,60 @@ async function openSettings(page) {
   await page.getByRole("button", { name: "Settings" }).click();
 }
 
+async function mockGenerator(page) {
+  await page.route("https://generator.test/**", route => {
+    const url = new URL(route.request().url());
+    const callback = url.searchParams.get("callback");
+    route.fulfill({
+      contentType: "application/javascript",
+      body: `${callback}(${JSON.stringify({
+        ok: true,
+        plan: {
+          name: "Shorter Workout Preview",
+          summary: "A shorter generated plan.",
+          changes: "Reduces daily volume while keeping the main training goal.",
+          notes: "Review before switching.",
+          units: "lb unless noted",
+          weeks: Array.from({ length: 4 }, (_, weekIndex) => ({
+            week: weekIndex + 1,
+            days: [
+              {
+                day: "Monday",
+                title: "Upper Strength",
+                row: null,
+                run: null,
+                recovery: "",
+                exercises: [
+                  { name: "Chest Press Machine", sets: 2, reps: "8", suggestedWeight: 80, unit: "lb", notes: "" }
+                ]
+              },
+              {
+                day: "Tuesday",
+                title: "Recovery",
+                row: null,
+                run: null,
+                recovery: "Easy walk and mobility.",
+                exercises: []
+              },
+              {
+                day: "Wednesday",
+                title: "Row Base",
+                row: { type: "Row", duration: "15 minutes", intensity: "Easy", pace: "Conversational" },
+                run: null,
+                recovery: "",
+                exercises: []
+              }
+            ]
+          }))
+        }
+      })});`
+    });
+  });
+  await page.evaluate(() => {
+    localStorage.setItem("rossWorkout.v1.syncUrl", "https://generator.test/exec");
+  });
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => localStorage.clear());
@@ -48,6 +102,7 @@ test("enabled limitations save temporary context for future plan previews", asyn
 });
 
 test("settings exposes current plan adjustment without a sync surprise", async ({ page }) => {
+  await mockGenerator(page);
   await openSettings(page);
 
   await expect(page.getByRole("button", { name: "Adjust current plan" })).toBeVisible();
@@ -59,10 +114,10 @@ test("settings exposes current plan adjustment without a sync surprise", async (
 
   await page.getByRole("button", { name: "Shorter workouts" }).click();
 
-  await expect(page.locator("#dayTitle")).toContainText("Edit");
-  await expect(page.locator("#dayTitle")).toContainText("Current Plan");
-  await expect(page.getByText("Plan edit saved. Connect generation in Settings")).toBeVisible();
-  await expect(page.getByText("Add sync settings")).toHaveCount(0);
+  await expect(page.getByText("Plan preview ready")).toBeVisible();
+  await expect(page.getByText("What changed:")).toBeVisible();
+  await expect(page.getByText("Reduces daily volume")).toBeVisible();
+  await expect(page.getByText(/Connect generation|Sync settings|Apps Script|Add sync settings/i)).toHaveCount(0);
 
   const settings = await page.evaluate(() => JSON.parse(localStorage.getItem("rossWorkout.v1.planSettings")));
   expect(settings.planAdjustment).toBe("Shorter workouts");

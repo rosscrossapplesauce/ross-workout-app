@@ -21,6 +21,7 @@ const key = () => stateKeyFor(weekIndex, dayIndex);
 const HISTORY_KEY = "rossWorkout.v1.history";
 const PENDING_KEY = "rossWorkout.v1.pendingSync";
 const SYNC_URL_KEY = "rossWorkout.v1.syncUrl";
+const APP_BACKEND_URL = "https://script.google.com/macros/s/AKfycbxa21SqDvaZHign7imzdMgzj6g_s9d211UfdUG8eExgPaklK_iMJA0FgFiui9p0ca4/exec";
 const ALTERNATIVES_KEY = "rossWorkout.v1.alternatives";
 const PLAN_SETTINGS_KEY = "rossWorkout.v1.planSettings";
 const EXERCISE_PREFS_KEY = "rossWorkout.v1.exercisePreferences";
@@ -753,7 +754,7 @@ function checkLatestPlanPreview(){
     return;
   }
   if(!getSyncUrl()){
-    setPlanMessage("Connect generation in Settings before checking for a preview.");
+    setPlanMessage("Plan generation is not available right now.");
     renderHome();
     return;
   }
@@ -882,7 +883,6 @@ function renderSettings(){
         <button onclick="renderThemeSettings()">Color settings</button>
         <button onclick="renderPlanTune()">Adjust current plan</button>
         <button onclick="renderProgress()">Progress</button>
-        <button onclick="configureSync()">Sync settings</button>
       </div>
       <div class="planSummary">
         <div class="summaryTitle">Current stats</div>
@@ -1223,8 +1223,11 @@ function selectPlanTune(id){
   if(getSyncUrl() && navigator.onLine){
     setPlanMessage(`Creating preview: ${option.label}.`);
     generatePersonalPlan();
+  } else if(!navigator.onLine){
+    setPlanMessage("Plan edit saved. Create the preview when your phone is back online.", "planTune");
+    renderPlanTune();
   } else {
-    setPlanMessage("Plan edit saved. Connect generation in Settings when you want a preview.", "planTune");
+    setPlanMessage("Plan edit saved. Plan generation is not available right now.", "planTune");
     renderPlanTune();
   }
 }
@@ -1485,8 +1488,11 @@ function savePlanSetup(mode){
   if(getSyncUrl() && navigator.onLine){
     setPlanMessage(mode === "new" ? "Creating your plan preview..." : "Updating your plan preview...");
     generatePersonalPlan();
+  } else if(!navigator.onLine){
+    setPlanMessage("Setup saved. Create the preview when your phone is back online.", "setup");
+    renderSetup(mode, activeSetupPath);
   } else {
-    setPlanMessage("Setup saved. Connect generation in Settings when you want a custom plan preview.", "setup");
+    setPlanMessage("Setup saved. Plan generation is not available right now.", "setup");
     renderSetup(mode, activeSetupPath);
   }
 }
@@ -1498,7 +1504,7 @@ function generatePersonalPlan(){
     return;
   }
   if(!getSyncUrl()){
-    setPlanMessage("Connect generation in Settings before creating a custom plan preview.", "setup");
+    setPlanMessage("Plan generation is not available right now.", "setup");
     renderSetup(settings.mode || "new", activeSetupPath);
     return;
   }
@@ -1637,7 +1643,7 @@ function addAnotherMonth(){
   const activePlan = getActivePlan();
   const settings = ensurePlanSettings(activePlan);
   if(!getSyncUrl()){
-    alert("Add your Apps Script Web App URL before adding another month.");
+    alert("Plan generation is not available right now.");
     return;
   }
   if(!navigator.onLine){
@@ -2837,21 +2843,10 @@ function saveLogRecord(record){
   syncPending();
 }
 function getSyncUrl(){
-  return localStorage.getItem(SYNC_URL_KEY) || "";
+  return localStorage.getItem(SYNC_URL_KEY) || defaultBackendUrl();
 }
-function configureSync(){
-  const existing = getSyncUrl();
-  const next = prompt("Paste your Google Apps Script Web App URL:", existing);
-  if(next === null) return;
-  const trimmed = next.trim();
-  if(trimmed){
-    localStorage.setItem(SYNC_URL_KEY, trimmed);
-  } else {
-    localStorage.removeItem(SYNC_URL_KEY);
-  }
-  updateSyncStatus();
-  loadRemoteHistory();
-  syncPending();
+function defaultBackendUrl(){
+  return /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(location.hostname) ? "" : APP_BACKEND_URL;
 }
 function updateSyncStatus(){
   const pending = readList(PENDING_KEY).length;

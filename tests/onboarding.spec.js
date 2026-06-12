@@ -4,6 +4,61 @@ async function openNewPlan(page) {
   await page.getByRole("button", { name: "Create a new plan" }).click();
 }
 
+async function mockGenerator(page, response = {}) {
+  await page.route("https://generator.test/**", route => {
+    const url = new URL(route.request().url());
+    const callback = url.searchParams.get("callback");
+    route.fulfill({
+      contentType: "application/javascript",
+      body: `${callback}(${JSON.stringify({
+        ok: true,
+        plan: {
+          name: "Mock Generated Plan",
+          summary: "A test generated plan.",
+          changes: "Initial generated plan.",
+          notes: "Review before switching.",
+          units: "lb unless noted",
+          weeks: Array.from({ length: 4 }, (_, weekIndex) => ({
+            week: weekIndex + 1,
+            days: [
+              {
+                day: "Monday",
+                title: "Upper Strength",
+                row: null,
+                run: null,
+                recovery: "",
+                exercises: [
+                  { name: "Chest Press Machine", sets: 3, reps: "8", suggestedWeight: 80, unit: "lb", notes: "" }
+                ]
+              },
+              {
+                day: "Tuesday",
+                title: "Recovery",
+                row: null,
+                run: null,
+                recovery: "Easy walk and mobility.",
+                exercises: []
+              },
+              {
+                day: "Wednesday",
+                title: "Row Base",
+                row: { type: "Row", duration: "20 minutes", intensity: "Easy", pace: "Conversational" },
+                run: null,
+                recovery: "",
+                exercises: []
+              }
+            ]
+          }))
+        },
+        ...response
+      })});`
+    });
+  });
+  await page.evaluate(() => {
+    localStorage.setItem("rossWorkout.v1.syncUrl", "https://generator.test/exec");
+  });
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => localStorage.clear());
@@ -46,6 +101,7 @@ test("new plan setup uses scaffold lists and no starting weight inputs", async (
 });
 
 test("new plan setup saves scaffold choices without starting weights", async ({ page }) => {
+  await mockGenerator(page);
   await openNewPlan(page);
   await page.getByRole("button", { name: /Build a new plan/i }).click();
 
@@ -89,18 +145,17 @@ test("unfinished plan generation can be checked after reopening", async ({ page 
   await expect(page.getByText("Your plan preview may still be finishing.")).toBeVisible();
 });
 
-test("guided preview does not surprise user with backend dependency", async ({ page }) => {
+test("plan preview uses the configured backend without user sync setup", async ({ page }) => {
+  await mockGenerator(page);
   await openNewPlan(page);
   await page.getByRole("button", { name: /Build a new plan/i }).click();
 
   await expect(page.getByText(/sync settings|Apps Script/i)).toHaveCount(0);
   await page.getByRole("button", { name: "Create preview" }).click();
 
-  await expect(page.locator("#dayTitle")).not.toContainText("App");
-  await expect(page.locator("#dayTitle")).not.toContainText("Settings");
-  await expect(page.locator("#progressText")).toContainText("Scaffold choices");
-  await expect(page.getByText("Setup saved. Connect generation in Settings")).toBeVisible();
-  await expect(page.getByText("Add sync settings")).toHaveCount(0);
+  await expect(page.getByText("Plan preview ready")).toBeVisible();
+  await expect(page.getByText("Mock Generated Plan")).toBeVisible();
+  await expect(page.getByText(/Connect generation|sync settings|Apps Script/i)).toHaveCount(0);
 });
 
 test("validation rejection is explained in user language", async ({ page }) => {
