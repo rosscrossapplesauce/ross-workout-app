@@ -112,6 +112,74 @@ test("validation rejection is explained in user language", async ({ page }) => {
   await expect(page.getByText("planning checks")).toHaveCount(0);
 });
 
+test("slow plan generation leaves 94 percent and still accepts a late preview", async ({ page }) => {
+  await page.route("https://generator.test/**", async route => {
+    const url = new URL(route.request().url());
+    const callback = url.searchParams.get("callback");
+    await new Promise(resolve => setTimeout(resolve, 250));
+    route.fulfill({
+      contentType: "application/javascript",
+      body: `${callback}(${JSON.stringify({
+        ok: true,
+        plan: {
+          name: "Late Preview Plan",
+          summary: "A delayed but valid generated plan.",
+          changes: "Initial generated plan.",
+          notes: "Review before switching.",
+          units: "lb unless noted",
+          weeks: Array.from({ length: 4 }, (_, weekIndex) => ({
+            week: weekIndex + 1,
+            days: [
+              {
+                day: "Monday",
+                title: "Upper Strength",
+                row: null,
+                run: null,
+                recovery: "",
+                exercises: [
+                  { name: "Chest Press Machine", sets: 3, reps: "8", suggestedWeight: 80, unit: "lb", notes: "" }
+                ]
+              },
+              {
+                day: "Tuesday",
+                title: "Recovery",
+                row: null,
+                run: null,
+                recovery: "Easy walk and mobility.",
+                exercises: []
+              },
+              {
+                day: "Wednesday",
+                title: "Row Base",
+                row: { type: "Row", duration: "20 minutes", intensity: "Easy", pace: "Conversational" },
+                run: null,
+                recovery: "",
+                exercises: []
+              }
+            ]
+          }))
+        }
+      })});`
+    });
+  });
+
+  await page.evaluate(() => {
+    window.__ROSS_PLAN_SOFT_TIMEOUT_MS = 50;
+    window.__ROSS_PLAN_HARD_TIMEOUT_MS = 2000;
+    localStorage.setItem("rossWorkout.v1.syncUrl", "https://generator.test/exec");
+  });
+  await openNewPlan(page);
+  await page.getByRole("button", { name: /Build me a plan/i }).click();
+  await page.getByRole("button", { name: "Create preview" }).click();
+
+  await expect(page.getByText("The generator is still working")).toBeVisible();
+  await expect(page.locator("#planProgressCard")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Check for preview" })).toBeVisible();
+  await expect(page.getByText("Plan preview ready")).toBeVisible();
+  await expect(page.getByText("Late Preview Plan")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Use this plan" })).toBeVisible();
+});
+
 test("maximum gains plan edit preview explains what changed", async ({ page }) => {
   await page.route("https://generator.test/**", async route => {
     const url = new URL(route.request().url());
