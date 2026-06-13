@@ -15,6 +15,7 @@ let planProgress = null;
 let planProgressTimer = null;
 let completionFlash = "";
 let homeDayDragSuppress = false;
+let homeReorderSource = null;
 
 const $ = id => document.getElementById(id);
 const stateKeyFor = (wIdx, dIdx) => getPlanSource() === "generated" ? `rossWorkout.v1.generated.w${wIdx}.d${dIdx}` : `rossWorkout.v1.w${wIdx}.d${dIdx}`;
@@ -719,8 +720,9 @@ function homeWeekDayMarkup(entry){
   const label = planDateLabel(entry.weekIndex, entry.dayIndex) || entry.day.day || `Day ${entry.dayIndex + 1}`;
   const shortLabel = label.replace(/,\s*/g, " ");
   const status = done ? "Done" : partial ? `${entry.completed}/${entry.items.length}` : entry.today ? "Today" : entry.items.length ? "Upcoming" : "Recovery";
+  const selected = homeReorderSource && homeReorderSource.weekIndex === entry.weekIndex && homeReorderSource.dayIndex === entry.dayIndex;
   return `
-    <button type="button" class="weekDay ${entry.today ? "today" : ""} ${done ? "done" : ""} ${partial ? "partial" : ""}" draggable="true" data-week-index="${entry.weekIndex}" data-day-index="${entry.dayIndex}" onclick="selectHomeDay(this, ${entry.weekIndex}, ${entry.dayIndex})">
+    <button type="button" class="weekDay ${entry.today ? "today" : ""} ${done ? "done" : ""} ${partial ? "partial" : ""} ${selected ? "selectedForSwap" : ""}" draggable="true" data-week-index="${entry.weekIndex}" data-day-index="${entry.dayIndex}" onclick="selectHomeDay(this, ${entry.weekIndex}, ${entry.dayIndex})" aria-pressed="${selected ? "true" : "false"}">
       <span class="weekDayLabel">${escapeHtml(entry.today ? `Today · ${shortLabel}` : shortLabel)}</span>
       <strong>${escapeHtml(focus)}</strong>
       <span class="weekDayCount">${escapeHtml(status)}</span>
@@ -729,6 +731,19 @@ function homeWeekDayMarkup(entry){
 function selectHomeDay(element, nextWeekIndex, nextDayIndex){
   if(homeDayDragSuppress){
     homeDayDragSuppress = false;
+    return;
+  }
+  if(homeReorderSource){
+    const sameDay = homeReorderSource.weekIndex === nextWeekIndex && homeReorderSource.dayIndex === nextDayIndex;
+    if(!sameDay){
+      swapDayFocuses(homeReorderSource.weekIndex, homeReorderSource.dayIndex, nextDayIndex);
+      weekIndex = homeReorderSource.weekIndex;
+      dayIndex = nextDayIndex;
+      buildDaySelector();
+      saveNav();
+    }
+    homeReorderSource = null;
+    renderHome();
     return;
   }
   jumpHomeToDay(nextWeekIndex, nextDayIndex);
@@ -784,6 +799,22 @@ function attachHomeDayReorder(){
   let startX = 0;
   let startY = 0;
   let pointerDragging = false;
+  let longPressTimer = null;
+  const clearLongPress = () => {
+    if(longPressTimer){
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  };
+  const selectSwapSource = button => {
+    homeReorderSource = {
+      weekIndex: Number(button.dataset.weekIndex),
+      dayIndex: Number(button.dataset.dayIndex)
+    };
+    rail.querySelectorAll(".weekDay").forEach(day => day.classList.remove("selectedForSwap"));
+    button.classList.add("selectedForSwap");
+    homeDayDragSuppress = true;
+  };
   const swapFromTarget = target => {
     const destination = target && target.closest && target.closest(".weekDay");
     if(!dragSource || !destination || destination === dragSource) return;
@@ -792,8 +823,8 @@ function attachHomeDayReorder(){
     const week = Number(dragSource.dataset.weekIndex);
     swapDayFocuses(week, from, to);
     dayIndex = to;
+    homeReorderSource = null;
     homeDayDragSuppress = true;
-    setTimeout(() => { homeDayDragSuppress = false; }, 0);
     renderHome();
   };
   rail.querySelectorAll(".weekDay").forEach(button => {
@@ -821,25 +852,33 @@ function attachHomeDayReorder(){
       startY = event.clientY;
       pointerDragging = false;
       button.setPointerCapture(event.pointerId);
+      clearLongPress();
+      longPressTimer = setTimeout(() => {
+        selectSwapSource(button);
+      }, 450);
     });
     button.addEventListener("pointermove", event => {
       if(dragSource !== button) return;
       if(Math.hypot(event.clientX - startX, event.clientY - startY) > 20){
+        clearLongPress();
         pointerDragging = true;
         rail.classList.add("dragging");
       }
     });
     button.addEventListener("pointerup", event => {
       rail.classList.remove("dragging");
-      if(!pointerDragging) return;
-      const target = document.elementFromPoint(event.clientX, event.clientY);
-      swapFromTarget(target);
+      clearLongPress();
+      if(pointerDragging){
+        const target = document.elementFromPoint(event.clientX, event.clientY);
+        swapFromTarget(target);
+      }
       if(button.hasPointerCapture(event.pointerId)) button.releasePointerCapture(event.pointerId);
       dragSource = null;
       pointerDragging = false;
     });
     button.addEventListener("pointercancel", event => {
       rail.classList.remove("dragging");
+      clearLongPress();
       if(button.hasPointerCapture(event.pointerId)) button.releasePointerCapture(event.pointerId);
       dragSource = null;
       pointerDragging = false;

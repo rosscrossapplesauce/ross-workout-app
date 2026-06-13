@@ -68,6 +68,29 @@ test("home week overview can swap day focuses without changing the plan file", a
   expect(stored["original.w0"][4]).toBe(0);
 });
 
+test("home week overview can swap focuses with long press then tap", async ({ page }) => {
+  const secondDay = page.locator(".weekDay").nth(1);
+  const sixthDay = page.locator(".weekDay").nth(5);
+  const secondFocus = await secondDay.locator("strong").innerText();
+  const sixthFocus = await sixthDay.locator("strong").innerText();
+
+  const box = await secondDay.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(520);
+  await page.mouse.up();
+
+  await expect(secondDay).toHaveClass(/selectedForSwap/);
+  await sixthDay.click();
+
+  await expect(page.locator(".weekDay").nth(1).locator("strong")).toHaveText(sixthFocus);
+  await expect(page.locator(".weekDay").nth(5).locator("strong")).toHaveText(secondFocus);
+
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("rossWorkout.v1.dayOrder")));
+  expect(stored["original.w0"][1]).toBe(5);
+  expect(stored["original.w0"][5]).toBe(1);
+});
+
 test("clicking a week overview day opens a clean selected workout", async ({ page }) => {
   await page.evaluate(() => {
     const date = new Date();
