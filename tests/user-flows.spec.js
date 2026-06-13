@@ -93,7 +93,8 @@ test("clicking a week overview day opens a clean selected workout", async ({ pag
               day: "Tuesday",
               row: { type: "Easy Row", duration: "20 minutes", intensity: "Zone 2" },
               run: null,
-              exercises: []
+              exercises: [],
+              recovery: "Keep the rest of the day easy."
             },
             { day: "Wednesday", title: "Rest Day", row: null, run: null, exercises: [], recovery: "Rest." },
             { day: "Thursday", title: "Strength", row: null, run: null, exercises: [{ name: "Row", sets: 3, reps: "10", suggestedWeight: 75, unit: "lb" }] },
@@ -113,6 +114,7 @@ test("clicking a week overview day opens a clean selected workout", async ({ pag
   await expect(page.locator("#dayTitle")).not.toContainText("undefined");
   await expect(page.locator("#dayTitle")).toContainText("20 minutes row");
   await expect(page.locator("#screen")).toContainText("Easy Row");
+  await expect(page.locator("#screen")).not.toContainText("Rest Day");
 });
 
 test("returning user lands in today's visual workout overview", async ({ page }) => {
