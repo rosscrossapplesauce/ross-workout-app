@@ -229,7 +229,7 @@ function getItems(day, state = getState()){
     if(day.row) arr.push({kind:"row", ...day.row});
     if(day.run) arr.push({kind:"run", ...day.run});
   }
-  if(day.recovery) arr.push({kind:"rest", text:day.recovery});
+  if(day.recovery && !arr.length) arr.push({kind:"rest", text:day.recovery});
   return arr;
 }
 function cardioText(day){
