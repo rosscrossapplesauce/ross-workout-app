@@ -324,6 +324,9 @@ body::before{display:none}
 .weekSnapshotTop{align-items:flex-start}
 .weekSnapshotTitle{font-family:inherit;font-size:28px;font-weight:850;letter-spacing:-.02em}
 .weekRouteMeta{margin-top:5px;color:var(--muted);font-size:13px;font-weight:850}
+.routeMoveBtn{align-self:flex-start;min-height:34px;border-radius:999px;padding:7px 12px;background:#182325;color:#fbfaf6;border:0;font-size:12px;font-weight:950}
+.routeMoveBtn[aria-pressed="true"]{background:var(--green);color:#fff}
+.routeMoveHint{font-size:13px;font-weight:900;color:var(--green);background:#e7f4ef;border-radius:14px;padding:9px 11px}
 .weekTodayCard{width:100%;min-height:82px;background:#182325;color:#fbfaf6;border:0;border-radius:24px;padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:5px 12px;align-items:center;text-align:left}
 .weekTodayCard span{display:flex;justify-content:space-between;grid-column:1/-1;color:#b9c7c3}
 .weekTodayCard span strong{color:#73d6c8;text-transform:uppercase;letter-spacing:.08em;font-size:11px}
@@ -349,6 +352,10 @@ body::before{display:none}
 .weekDayCount{font-size:12px;color:var(--muted);font-weight:950;min-width:0;width:100%;white-space:normal;text-align:left}
 .weekDay.done .weekDayCount{color:var(--green)}
 .weekDay.today .weekDayCount,.weekDay.partial .weekDayCount{color:#e85d4f}
+.weekRoute.moving .weekDay{cursor:pointer}
+.weekRoute.moving .weekDay.selectedForSwap{background:#d8eee7}
+.weekRoute.moving .weekDay.selectedForSwap::before{background:var(--green);border-color:var(--green);box-shadow:0 0 0 6px rgba(46,139,111,.16)}
+.weekRoute.moving .weekDay.selectedForSwap strong,.weekRoute.moving .weekDay.selectedForSwap .weekDayLabel,.weekRoute.moving .weekDay.selectedForSwap .weekDayCount{color:#12302a}
 .weekDayDots{display:none}
 .workoutStack{gap:10px}
 .compassDock{background:#f1f5f3;border:0;border-radius:999px;padding:7px 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;flex:0 0 auto;overflow:hidden}
@@ -464,6 +471,9 @@ body[data-theme] .overviewCard.compassMap{background:var(--theme-panel);border-c
 body[data-theme] .weekTodayCard{background:var(--theme-dark);color:#fff}
 body[data-theme] .weekTodayCard b{color:#fff}
 body[data-theme] .weekTodayCard em{background:var(--theme-warm);color:var(--theme-dark)}
+body[data-theme] .routeMoveBtn{background:var(--theme-dark);color:#fff}
+body[data-theme] .routeMoveBtn[aria-pressed="true"],
+body[data-theme] .routeMoveHint{background:var(--theme-accent);color:var(--theme-dark)}
 body[data-theme] .weekDay::before,
 body[data-theme] .trailDot,
 body[data-theme] .miniCompass,
@@ -501,6 +511,11 @@ body[data-theme] .suggestedBtn{color:var(--theme-dark)}
 body[data-theme] .trailDot.done,
 body[data-theme] .weekDay.done::before,
 body[data-theme] .mapItem.overviewDone .overviewCheck{background:var(--theme-accent);border-color:var(--theme-accent);color:var(--theme-panel)}
+body[data-theme] .weekRoute.moving .weekDay.selectedForSwap{background:var(--theme-done)}
+body[data-theme] .weekRoute.moving .weekDay.selectedForSwap::before{background:var(--theme-accent);border-color:var(--theme-accent)}
+body[data-theme] .weekRoute.moving .weekDay.selectedForSwap strong,
+body[data-theme] .weekRoute.moving .weekDay.selectedForSwap .weekDayLabel,
+body[data-theme] .weekRoute.moving .weekDay.selectedForSwap .weekDayCount{color:var(--theme-ink)}
 body[data-theme] .completed{background:var(--theme-done);border-color:var(--theme-accent);box-shadow:0 18px 42px rgba(0,0,0,.18),inset 0 0 0 2px rgba(123,216,200,.22)}
 body[data-theme] .completed .exerciseName,
 body[data-theme] .completed .prescription,

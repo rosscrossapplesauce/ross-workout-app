@@ -15,7 +15,10 @@ let planProgress = null;
 let planProgressTimer = null;
 let completionFlash = "";
 let homeDayDragSuppress = false;
+let homeDayDragSuppressTarget = null;
+let homeDayDragSuppressUntil = 0;
 let homeReorderSource = null;
+let homeReorderMode = false;
 
 const $ = id => document.getElementById(id);
 const stateKeyFor = (wIdx, dIdx) => getPlanSource() === "generated" ? `rossWorkout.v1.generated.w${wIdx}.d${dIdx}` : `rossWorkout.v1.w${wIdx}.d${dIdx}`;
@@ -670,15 +673,17 @@ function homeWeekMarkup(model){
   const trainingDays = model.days.filter(entry => entry.items.length).length;
   const todayEntry = model.days.find(entry => entry.today) || model.days.find(entry => entry.current) || model.days[0];
   return `
-    <section class="weekRoute" aria-label="This week's route">
+    <section class="weekRoute ${homeReorderMode ? "moving" : ""}" aria-label="This week's route">
       <div class="weekSnapshotTop">
         <div>
           <div class="summaryTitle">Week ${escapeHtml(model.week.week || model.weekIndex + 1)}</div>
           <div class="weekSnapshotTitle">Your route</div>
           <div class="weekRouteMeta">${doneDays} of ${trainingDays || model.days.length} training days complete</div>
         </div>
+        <button type="button" class="routeMoveBtn" id="homeMoveBtn" aria-pressed="${homeReorderMode ? "true" : "false"}">${homeReorderMode ? "Cancel" : "Move"}</button>
       </div>
       ${todayEntry ? homeWeekTodayCard(todayEntry) : ""}
+      ${homeReorderMode ? `<div class="routeMoveHint">${homeReorderSource ? "Tap the day to swap with." : "Tap the day focus you want to move."}</div>` : ""}
       <div class="weekRail reorderableWeekRail" aria-label="Drag days to swap workout focuses">
         ${model.days.map(entry => homeWeekDayMarkup(entry)).join("")}
       </div>
@@ -730,7 +735,15 @@ function homeWeekDayMarkup(entry){
 }
 function selectHomeDay(element, nextWeekIndex, nextDayIndex){
   if(homeDayDragSuppress){
+    const shouldSuppress = element === homeDayDragSuppressTarget && Date.now() < homeDayDragSuppressUntil;
     homeDayDragSuppress = false;
+    homeDayDragSuppressTarget = null;
+    homeDayDragSuppressUntil = 0;
+    if(shouldSuppress) return;
+  }
+  if(homeReorderMode && !homeReorderSource){
+    homeReorderSource = { weekIndex: nextWeekIndex, dayIndex: nextDayIndex };
+    renderHome();
     return;
   }
   if(homeReorderSource){
@@ -743,10 +756,19 @@ function selectHomeDay(element, nextWeekIndex, nextDayIndex){
       saveNav();
     }
     homeReorderSource = null;
+    homeReorderMode = false;
     renderHome();
     return;
   }
   jumpHomeToDay(nextWeekIndex, nextDayIndex);
+}
+function toggleHomeFocusMove(){
+  homeReorderMode = !homeReorderMode;
+  homeReorderSource = null;
+  homeDayDragSuppress = false;
+  homeDayDragSuppressTarget = null;
+  homeDayDragSuppressUntil = 0;
+  renderHome();
 }
 function jumpHomeToDay(nextWeekIndex, nextDayIndex){
   weekIndex = nextWeekIndex;
@@ -790,7 +812,12 @@ function renderHome(){
       ${pendingRequest && !pendingPlan ? planRequestRecoveryMarkup(pendingRequest) : ""}
       ${pendingPlan ? pendingPlanSummary(pendingPlan) : ""}
     </section>`;
+  attachHomeMoveControls();
   attachHomeDayReorder();
+}
+function attachHomeMoveControls(){
+  const moveBtn = $("homeMoveBtn");
+  if(moveBtn) moveBtn.addEventListener("click", toggleHomeFocusMove);
 }
 function attachHomeDayReorder(){
   const rail = document.querySelector(".reorderableWeekRail");
@@ -807,6 +834,7 @@ function attachHomeDayReorder(){
     }
   };
   const selectSwapSource = button => {
+    homeReorderMode = true;
     homeReorderSource = {
       weekIndex: Number(button.dataset.weekIndex),
       dayIndex: Number(button.dataset.dayIndex)
@@ -814,6 +842,8 @@ function attachHomeDayReorder(){
     rail.querySelectorAll(".weekDay").forEach(day => day.classList.remove("selectedForSwap"));
     button.classList.add("selectedForSwap");
     homeDayDragSuppress = true;
+    homeDayDragSuppressTarget = button;
+    homeDayDragSuppressUntil = Date.now() + 500;
   };
   const swapFromTarget = target => {
     const destination = target && target.closest && target.closest(".weekDay");
