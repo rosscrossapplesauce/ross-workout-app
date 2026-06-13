@@ -68,6 +68,27 @@ test("home week overview can swap day focuses without changing the plan file", a
   expect(stored["original.w0"][4]).toBe(0);
 });
 
+test("home week overview can swap focuses with move mode", async ({ page }) => {
+  const thirdDay = page.locator(".weekDay").nth(2);
+  const seventhDay = page.locator(".weekDay").nth(6);
+  const thirdFocus = await thirdDay.locator("strong").innerText();
+  const seventhFocus = await seventhDay.locator("strong").innerText();
+
+  await page.getByRole("button", { name: "Move" }).click();
+  await expect(page.locator(".routeMoveHint")).toContainText("Tap the day focus");
+  await thirdDay.click();
+  await expect(page.locator(".weekDay").nth(2)).toHaveClass(/selectedForSwap/);
+  await expect(page.locator(".routeMoveHint")).toContainText("Tap the day to swap");
+  await seventhDay.click();
+
+  await expect(page.locator(".weekDay").nth(2).locator("strong")).toHaveText(seventhFocus);
+  await expect(page.locator(".weekDay").nth(6).locator("strong")).toHaveText(thirdFocus);
+
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("rossWorkout.v1.dayOrder")));
+  expect(stored["original.w0"][2]).toBe(6);
+  expect(stored["original.w0"][6]).toBe(2);
+});
+
 test("home week overview can swap focuses with long press then tap", async ({ page }) => {
   const secondDay = page.locator(".weekDay").nth(1);
   const sixthDay = page.locator(".weekDay").nth(5);
