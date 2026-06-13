@@ -14,6 +14,7 @@ let holdTimer = null;
 let planProgress = null;
 let planProgressTimer = null;
 let completionFlash = "";
+let homeDayDragSuppress = false;
 
 const $ = id => document.getElementById(id);
 const stateKeyFor = (wIdx, dIdx) => getPlanSource() === "generated" ? `rossWorkout.v1.generated.w${wIdx}.d${dIdx}` : `rossWorkout.v1.w${wIdx}.d${dIdx}`;
@@ -32,6 +33,7 @@ const PLAN_SOURCE_KEY = "rossWorkout.v1.planSource";
 const PLAN_ARCHIVE_KEY = "rossWorkout.v1.planArchive";
 const USER_STATS_KEY = "rossWorkout.v1.userStats";
 const THEME_KEY = "rossWorkout.v1.theme";
+const DAY_ORDER_KEY = "rossWorkout.v1.dayOrder";
 const THEME_OPTIONS = [
   {id:"teal", label:"Sea glass"},
   {id:"graphite", label:"Soft slate"},
@@ -136,7 +138,7 @@ function lockViewportHeight(){
   window.addEventListener("resize", setHeight);
   window.addEventListener("orientationchange", setHeight);
   document.addEventListener("touchmove", e => {
-    if(!e.target.closest || (!e.target.closest("input, textarea, select, main, .scrollPanel, .dayTrail, .weekFocusRail, .exerciseMapGrid"))) e.preventDefault();
+    if(!e.target.closest || (!e.target.closest("input, textarea, select, main, .scrollPanel, .dayTrail, .exerciseFocusRail, .reorderableWeekRail, .exerciseMapGrid"))) e.preventDefault();
   }, {passive:false});
 }
 function buildSelectors(){
@@ -163,7 +165,8 @@ function buildDaySelector(){
   const plan = getActivePlan();
   weekIndex = Math.min(weekIndex, plan.weeks.length - 1);
   dayIndex = Math.min(dayIndex, plan.weeks[weekIndex].days.length - 1);
-  $("daySelect").innerHTML = plan.weeks[weekIndex].days.map((d,i)=>`<option value="${i}">${d.day}</option>`).join("");
+  const days = orderedWeekDays(plan, weekIndex);
+  $("daySelect").innerHTML = days.map((d,i)=>`<option value="${i}">${d.day}</option>`).join("");
   $("daySelect").value = dayIndex;
 }
 function saveNav(){
@@ -175,7 +178,32 @@ function getDay(){
   const plan = getActivePlan();
   weekIndex = Math.min(weekIndex, plan.weeks.length - 1);
   dayIndex = Math.min(dayIndex, plan.weeks[weekIndex].days.length - 1);
-  return plan.weeks[weekIndex].days[dayIndex];
+  return orderedWeekDays(plan, weekIndex)[dayIndex];
+}
+function allDayOrders(){
+  return readObject(DAY_ORDER_KEY, {});
+}
+function weekDayOrder(plan, wIdx){
+  const days = plan.weeks[wIdx] && plan.weeks[wIdx].days || [];
+  const stored = allDayOrders()[`${getPlanSource()}.w${wIdx}`];
+  const valid = Array.isArray(stored) && stored.length === days.length && stored.every(index => Number.isInteger(index) && index >= 0 && index < days.length);
+  return valid ? stored : days.map((_, index) => index);
+}
+function orderedWeekDays(plan, wIdx){
+  const days = plan.weeks[wIdx] && plan.weeks[wIdx].days || [];
+  return weekDayOrder(plan, wIdx).map(index => days[index]).filter(Boolean);
+}
+function swapDayFocuses(wIdx, fromIndex, toIndex){
+  const plan = getActivePlan();
+  const days = plan.weeks[wIdx] && plan.weeks[wIdx].days || [];
+  if(fromIndex === toIndex || !days[fromIndex] || !days[toIndex]) return;
+  const orders = allDayOrders();
+  const key = `${getPlanSource()}.w${wIdx}`;
+  const order = weekDayOrder(plan, wIdx);
+  const next = order.slice();
+  [next[fromIndex], next[toIndex]] = [next[toIndex], next[fromIndex]];
+  orders[key] = next;
+  writeObject(DAY_ORDER_KEY, orders);
 }
 function getPlanSource(){
   return hasGeneratedPlan() ? "generated" : "original";
@@ -516,10 +544,10 @@ function workoutCompassDockMarkup(day, items, state, completedCount, total){
   completionFlash = "";
   return `
     <section class="compassDock" aria-label="Day compass">
-      ${workoutWeekFocusRailMarkup()}
+      ${exerciseFocusRailMarkup(items, state)}
       <button type="button" class="compassSummary" onclick="openWorkoutList()">
         <span>
-          <strong>Day compass</strong>
+          <strong>View today's workout</strong>
           <small class="${flash ? "compassFlash" : ""}">${escapeHtml(flash || cue || "Open map · choose next")}</small>
         </span>
         <span class="miniCompass" aria-hidden="true">
@@ -536,26 +564,21 @@ function workoutCompassDockMarkup(day, items, state, completedCount, total){
       </div>
     </section>`;
 }
-function workoutWeekFocusRailMarkup(){
-  const model = homeWeekOverview(getActivePlan());
-  if(!model || !model.days || model.days.length < 2) return "";
+function exerciseFocusRailMarkup(items, state){
+  if(!items || items.length < 2) return "";
   return `
-    <div class="weekFocusRail" aria-label="Drag to change workout day">
-      ${model.days.map(entry => workoutWeekFocusPill(entry)).join("")}
+    <div class="exerciseFocusRail" aria-label="Drag to move around today's exercises">
+      ${items.map((item, index) => exerciseFocusPill(item, index, state)).join("")}
     </div>`;
 }
-function workoutWeekFocusPill(entry){
-  const focus = dayFocus(entry.day);
-  const done = entry.items.length && entry.completed >= entry.items.length;
-  const partial = entry.completed > 0 && !done;
-  const date = planDate(entry.weekIndex, entry.dayIndex);
-  const label = date ? date.toLocaleDateString(undefined, {weekday:"short", month:"short", day:"numeric"}) : entry.day.day || `Day ${entry.dayIndex + 1}`;
-  const status = done ? "Done" : partial ? `${entry.completed}/${entry.items.length}` : entry.items.length ? "Open" : "Recovery";
+function exerciseFocusPill(item, index, state){
+  const done = !!state.completed[itemId(item, index)];
+  const current = index === itemIndex;
+  const title = carouselItemTitle(item, index, state);
   return `
-    <button type="button" class="weekFocusPill ${entry.current ? "current" : ""} ${entry.today ? "today" : ""} ${done ? "done" : ""} ${partial ? "partial" : ""}" onclick="jumpToWorkoutDay(${entry.weekIndex}, ${entry.dayIndex})" ${entry.current ? 'aria-current="date"' : ""}>
-      <span>${escapeHtml(label)}</span>
-      <strong>${escapeHtml(focus)}</strong>
-      <small>${escapeHtml(status)}</small>
+    <button type="button" class="exerciseFocusPill ${current ? "current" : ""} ${done ? "done" : ""}" onclick="jumpToItem(${index})" ${current ? 'aria-current="true"' : ""} aria-label="${escapeHtml(compassItemTitle(item, index, state))}">
+      <span>${index + 1}</span>
+      <strong>${escapeHtml(title)}</strong>
     </button>`;
 }
 function compassItemTitle(item, index, state){
@@ -612,7 +635,8 @@ function homeWeekOverview(plan){
     });
   });
   const week = plan.weeks[activeWeek] || plan.weeks[0];
-  const days = (week.days || []).map((day, dIdx) => {
+  const orderedDays = orderedWeekDays(plan, activeWeek);
+  const days = orderedDays.map((day, dIdx) => {
     const state = readDayState(activeWeek, dIdx);
     const items = getItems(day, state);
     const completed = items.filter((item, index) => state.completed[itemId(item, index)]).length;
@@ -643,7 +667,7 @@ function homeWeekMarkup(model){
         </div>
       </div>
       ${todayEntry ? homeWeekTodayCard(todayEntry) : ""}
-      <div class="weekRail">
+      <div class="weekRail reorderableWeekRail" aria-label="Drag days to swap workout focuses">
         ${model.days.map(entry => homeWeekDayMarkup(entry)).join("")}
       </div>
     </section>`;
@@ -674,7 +698,7 @@ function homeTodayMarkup(model){
         <div class="todayTitle">${escapeHtml(focus)}</div>
         <div class="todayMeta">${escapeHtml(dateLabel)} · ${escapeHtml(itemLabel)}</div>
       </div>
-      <button class="primary continueBtn" onclick="continueCurrentPlan()">Continue today</button>
+      <button class="primary continueBtn" onclick="openTodayWorkoutOverview()">View today's workout</button>
     </section>`;
 }
 function homeWeekDayMarkup(entry){
@@ -685,11 +709,18 @@ function homeWeekDayMarkup(entry){
   const shortLabel = label.replace(/,\s*/g, " ");
   const status = done ? "Done" : partial ? `${entry.completed}/${entry.items.length}` : entry.today ? "Today" : entry.items.length ? "Upcoming" : "Recovery";
   return `
-    <button type="button" class="weekDay ${entry.today ? "today" : ""} ${done ? "done" : ""} ${partial ? "partial" : ""}" onclick="jumpHomeToDay(${entry.weekIndex}, ${entry.dayIndex})">
+    <button type="button" class="weekDay ${entry.today ? "today" : ""} ${done ? "done" : ""} ${partial ? "partial" : ""}" draggable="true" data-week-index="${entry.weekIndex}" data-day-index="${entry.dayIndex}" onclick="selectHomeDay(this, ${entry.weekIndex}, ${entry.dayIndex})">
       <span class="weekDayLabel">${escapeHtml(entry.today ? `Today · ${shortLabel}` : shortLabel)}</span>
       <strong>${escapeHtml(focus)}</strong>
       <span class="weekDayCount">${escapeHtml(status)}</span>
     </button>`;
+}
+function selectHomeDay(element, nextWeekIndex, nextDayIndex){
+  if(homeDayDragSuppress){
+    homeDayDragSuppress = false;
+    return;
+  }
+  jumpHomeToDay(nextWeekIndex, nextDayIndex);
 }
 function jumpHomeToDay(nextWeekIndex, nextDayIndex){
   weekIndex = nextWeekIndex;
@@ -733,6 +764,76 @@ function renderHome(){
       ${pendingRequest && !pendingPlan ? planRequestRecoveryMarkup(pendingRequest) : ""}
       ${pendingPlan ? pendingPlanSummary(pendingPlan) : ""}
     </section>`;
+  attachHomeDayReorder();
+}
+function attachHomeDayReorder(){
+  const rail = document.querySelector(".reorderableWeekRail");
+  if(!rail) return;
+  let dragSource = null;
+  let startX = 0;
+  let startY = 0;
+  let pointerDragging = false;
+  const swapFromTarget = target => {
+    const destination = target && target.closest && target.closest(".weekDay");
+    if(!dragSource || !destination || destination === dragSource) return;
+    const from = Number(dragSource.dataset.dayIndex);
+    const to = Number(destination.dataset.dayIndex);
+    const week = Number(dragSource.dataset.weekIndex);
+    swapDayFocuses(week, from, to);
+    dayIndex = to;
+    homeDayDragSuppress = true;
+    setTimeout(() => { homeDayDragSuppress = false; }, 0);
+    renderHome();
+  };
+  rail.querySelectorAll(".weekDay").forEach(button => {
+    button.addEventListener("dragstart", event => {
+      dragSource = button;
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", button.dataset.dayIndex || "");
+      button.classList.add("dragging");
+    });
+    button.addEventListener("dragover", event => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+    });
+    button.addEventListener("drop", event => {
+      event.preventDefault();
+      swapFromTarget(button);
+    });
+    button.addEventListener("dragend", () => {
+      button.classList.remove("dragging");
+      dragSource = null;
+    });
+    button.addEventListener("pointerdown", event => {
+      dragSource = button;
+      startX = event.clientX;
+      startY = event.clientY;
+      pointerDragging = false;
+      button.setPointerCapture(event.pointerId);
+    });
+    button.addEventListener("pointermove", event => {
+      if(dragSource !== button) return;
+      if(Math.hypot(event.clientX - startX, event.clientY - startY) > 20){
+        pointerDragging = true;
+        rail.classList.add("dragging");
+      }
+    });
+    button.addEventListener("pointerup", event => {
+      rail.classList.remove("dragging");
+      if(!pointerDragging) return;
+      const target = document.elementFromPoint(event.clientX, event.clientY);
+      swapFromTarget(target);
+      if(button.hasPointerCapture(event.pointerId)) button.releasePointerCapture(event.pointerId);
+      dragSource = null;
+      pointerDragging = false;
+    });
+    button.addEventListener("pointercancel", event => {
+      rail.classList.remove("dragging");
+      if(button.hasPointerCapture(event.pointerId)) button.releasePointerCapture(event.pointerId);
+      dragSource = null;
+      pointerDragging = false;
+    });
+  });
 }
 function planRequestRecoveryMarkup(request){
   return `
@@ -750,6 +851,15 @@ function continueCurrentPlan(){
   overviewOpen = false;
   overviewMode = "list";
   itemIndex = 0;
+  buildDaySelector();
+  saveNav();
+  render();
+}
+function openTodayWorkoutOverview(){
+  goToTodayInPlan();
+  overviewOpen = true;
+  overviewMode = "list";
+  itemIndex = nextRecommendedItemIndex(getItems(getDay()), getState());
   buildDaySelector();
   saveNav();
   render();
@@ -2014,6 +2124,7 @@ function fitnessChartSvg(model){
 function renderOverview(day, items){
   const state = getState();
   const completedCount = items.filter((item,i)=>state.completed[itemId(item, i)]).length;
+  const recommendedIndex = nextRecommendedItemIndex(items, state);
   $("progressText").innerText = items.length ? `${completedCount} of ${items.length} done` : "Rest day";
   $("scoreText").innerText = items.length ? `${Math.round(completedCount/items.length*100)}%` : "";
   $("progressBar").style.width = items.length ? `${completedCount/items.length*100}%` : "0%";
@@ -2050,22 +2161,83 @@ function renderOverview(day, items){
         <div>
           <div class="kicker">Day Compass</div>
           <div class="overviewTitle">Choose next</div>
-          <div class="overviewSubtitle">${escapeHtml(dayFocus(day))} · ${escapeHtml(workoutDayHeading(day))}</div>
+          <div class="overviewSubtitle">Recommendation: ${escapeHtml(recommendedWorkoutText(day, items, recommendedIndex, state))}</div>
         </div>
         <div class="overviewTools">
-          <div class="overviewCount">${completedCount}/${items.length}</div>
+          <button type="button" class="closeOverviewBtn" onclick="showOverview()">Close</button>
         </div>
-      </div>
-      <div class="overviewActions">
-        <button type="button" onclick="toggleOverviewMode()">Calendar view</button>
       </div>
       ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
       ${planProgressMarkup()}
-      <div class="overviewList exerciseMapGrid">
-        ${items.map((item,i)=>overviewRow(item, i, !!state.completed[itemId(item, i)], state, i === itemIndex)).join("")}
-      </div>
+      ${workoutCompassOrbitMarkup(day, items, state, recommendedIndex)}
+      ${recommendedActionMarkup(items, state, recommendedIndex)}
     </section>`;
   saveNav();
+}
+function nextRecommendedItemIndex(items, state){
+  const openIndex = items.findIndex((item, index) => !state.completed[itemId(item, index)]);
+  return openIndex >= 0 ? openIndex : Math.max(0, items.length - 1);
+}
+function recommendedWorkoutText(day, items, recommendedIndex, state){
+  const item = items[recommendedIndex];
+  if(!item) return dayFocus(day);
+  const title = carouselItemTitle(item, recommendedIndex, state);
+  const cue = workoutOrderCueText(day, items, recommendedIndex);
+  if(cue.includes("Technique first")) return `${title} before lifting fatigue`;
+  if(cue.includes("After technical cardio")) return `${title} after technical cardio`;
+  if(cue.includes("Lifting first")) return `${title} before easy cardio`;
+  return `${title} next`;
+}
+function recommendedActionMarkup(items, state, recommendedIndex){
+  const item = items[recommendedIndex];
+  if(!item) return "";
+  return `
+    <div class="recommendedNext">
+      <span>Recommended next</span>
+      <strong>${escapeHtml(recommendedWorkoutText(getDay(), items, recommendedIndex, state))}</strong>
+      <button type="button" onclick="jumpToItem(${recommendedIndex})">Go</button>
+    </div>`;
+}
+function workoutCompassOrbitMarkup(day, items, state, recommendedIndex){
+  const total = items.length || 1;
+  return `
+    <div class="compassOrbit" aria-label="Workout visual map" onclick="handleOrbitTap(event)">
+      <div class="orbitTrack" aria-hidden="true"></div>
+      ${items.map((item, index) => orbitItemMarkup(item, index, state, total)).join("")}
+      <button type="button" class="orbitCenter" onclick="jumpToItem(${itemIndex})">
+        <span>${itemIndex + 1}</span>
+        <strong>${escapeHtml(carouselItemTitle(items[itemIndex], itemIndex, state))}</strong>
+      </button>
+    </div>`;
+}
+function orbitItemMarkup(item, index, state, total){
+  const angle = -90 + (360 / total) * index;
+  const radians = angle * Math.PI / 180;
+  const x = 50 + Math.cos(radians) * 42;
+  const y = 50 + Math.sin(radians) * 42;
+  const done = !!state.completed[itemId(item, index)];
+  const current = index === itemIndex;
+  const title = carouselItemTitle(item, index, state);
+  return `
+    <button type="button" class="orbitItem ${done ? "done" : ""} ${current ? "current" : ""}" style="left:${x}%;top:${y}%" onclick="jumpToItem(${index})" aria-label="${escapeHtml(compassItemTitle(item, index, state))}">
+      <span>${done ? "✓" : index + 1}</span>
+      <strong>${escapeHtml(shortOrbitTitle(title))}</strong>
+    </button>`;
+}
+function handleOrbitTap(event){
+  if(event.target.closest(".orbitItem,.orbitCenter")) return;
+  const orbit = event.currentTarget;
+  const items = Array.from(orbit.querySelectorAll(".orbitItem"));
+  const nearest = items.map(button => {
+    const rect = button.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + Math.min(rect.width, rect.height) / 2;
+    return {button, distance: Math.hypot(event.clientX - x, event.clientY - y)};
+  }).sort((a, b) => a.distance - b.distance)[0];
+  if(nearest && nearest.distance < 86) nearest.button.click();
+}
+function shortOrbitTitle(title){
+  return String(title || "Move").replace(/\b(machine|press|dumbbell|cable)\b/ig, "").trim().split(/\s+/).slice(0, 2).join(" ") || title;
 }
 function renderCalendarOverview(){
   const plan = getActivePlan();
@@ -2183,17 +2355,6 @@ function jumpToDay(nextWeekIndex, nextDayIndex){
   saveNav();
   render();
 }
-function jumpToWorkoutDay(nextWeekIndex, nextDayIndex){
-  weekIndex = nextWeekIndex;
-  dayIndex = nextDayIndex;
-  itemIndex = 0;
-  overviewMode = "list";
-  overviewOpen = false;
-  buildDaySelector();
-  saveNav();
-  render();
-  $("screen").focus({preventScroll:true});
-}
 function overviewRow(item, index, done, state, current = false){
   const id = itemId(item, index);
   const exercise = item.kind === "exercise" ? displayExercise(item, id, state) : item;
@@ -2229,9 +2390,9 @@ function jumpToItem(index){
 function attachWorkoutHoldMenu(){
   const screen = $("screen");
   if(!screen) return;
-  attachWeekFocusRail();
+  attachExerciseFocusRail();
   screen.onpointerdown = event => {
-    if(screenMode !== "workout" || overviewOpen || event.target.closest("button,input,textarea,select,summary,details,.weekFocusRail")) return;
+    if(screenMode !== "workout" || overviewOpen || event.target.closest("button,input,textarea,select,summary,details,.exerciseFocusRail")) return;
     clearTimeout(holdTimer);
     holdTimer = setTimeout(() => showWorkoutMenu("quick"), 650);
   };
@@ -2247,10 +2408,10 @@ function attachWorkoutHoldMenu(){
     showWorkoutMenu("quick");
   };
 }
-function attachWeekFocusRail(){
-  const rail = document.querySelector(".weekFocusRail");
+function attachExerciseFocusRail(){
+  const rail = document.querySelector(".exerciseFocusRail");
   if(!rail) return;
-  const current = rail.querySelector(".weekFocusPill.current");
+  const current = rail.querySelector(".exerciseFocusPill.current");
   if(current) current.scrollIntoView({inline:"center", block:"nearest"});
   let startX = 0;
   let startScroll = 0;
