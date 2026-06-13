@@ -406,6 +406,7 @@ function render(){
   $("progressText").innerText = total ? `${itemIndex+1} of ${total} · ${completedCount} done` : "Rest day";
   $("scoreText").innerText = total ? `${Math.round(completedCount/total*100)}%` : "";
   $("progressBar").style.width = total ? `${completedCount/total*100}%` : "0%";
+  const compassButton = workoutCardCompassButton(total, completedCount);
 
   if(!items.length){
     $("screen").innerHTML = `
@@ -424,23 +425,24 @@ function render(){
 
   if(item.kind === "exercise"){
     const exercise = displayExercise(item, id, state);
-    const history = historySummary(item, id, exercise);
+    const history = exercise.historySuggested ? "" : historySummary(item, id, exercise);
     const setWeights = getSetWeights(state, id, exercise);
     const notes = state.notes[id] || "";
     const originalName = exercise.name === item.name ? "" : `<div class="altApplied">Original: ${escapeHtml(item.name)}</div>`;
     const fitClass = setWeights.length >= 4 ? "manySets" : "";
-    const weightLabel = item.source === "extra" ? "Last logged" : exercise.historySuggested ? "From last time" : "Suggested";
+    const suggested = suggestedWeightMarkup(item, exercise);
     $("screen").innerHTML = `
       <div class="workoutStack">
       ${workoutCompassDockMarkup(day, items, state, completedCount, total)}
       <section class="card workoutCard ${fitClass} ${done ? "completed":""}">
+        ${compassButton}
         ${done ? completedCueMarkup() : ""}
         <div>
           <div class="kicker"><span>Exercise ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
           <div class="exerciseName">${escapeHtml(exercise.name)}</div>
           ${originalName}
           <div class="prescription">${escapeHtml(exercise.sets)} × ${escapeHtml(exercise.reps)}</div>
-          <div class="suggestedLine"><span>${escapeHtml(weightLabel)}</span><strong>${escapeHtml(exercise.suggestedWeight)} ${escapeHtml(exercise.unit)}</strong></div>
+          ${suggested.line}
           ${workoutAdjustment ? `<div class="lastWeek">Today adjusted: ${escapeHtml(workoutAdjustment.label)}</div>` : ""}
           ${history}
         </div>
@@ -450,7 +452,7 @@ function render(){
             ${setWeights.map((weight,setIndex)=>setWeightRow(exercise, setIndex, weight)).join("")}
           </div>
           <div class="workoutCardActions">
-            <button class="suggestedBtn" onclick="useSuggested()">Use suggested for all sets</button>
+            ${suggested.button}
             <button class="notesBtn ${notes ? "hasNote" : ""}" onclick="showNotesSheet()">${notes ? "Note saved" : "Notes"}</button>
           </div>
         </div>
@@ -465,6 +467,7 @@ function render(){
       <div class="workoutStack">
       ${workoutCompassDockMarkup(day, items, state, completedCount, total)}
       <section class="card workoutCard ${done ? "completed":""}">
+        ${compassButton}
         ${done ? completedCueMarkup() : ""}
         <div>
           <div class="kicker"><span>Cardio ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
@@ -481,6 +484,7 @@ function render(){
       <div class="workoutStack">
       ${workoutCompassDockMarkup(day, items, state, completedCount, total)}
       <section class="card workoutCard ${done ? "completed":""}">
+        ${compassButton}
         ${done ? completedCueMarkup() : ""}
         <div>
           <div class="kicker"><span>Run ${itemIndex+1} of ${total}</span><span class="doneBadge">${done ? "Done ✓" : ""}</span></div>
@@ -495,7 +499,11 @@ function render(){
     $("screen").innerHTML = `
       <div class="workoutStack">
         ${workoutCompassDockMarkup(day, items, state, completedCount, total)}
-        <section class="card workoutCard rest ${done ? "completed":""}">${done ? completedCueMarkup() : ""}<div><div class="exerciseName">Rest Day</div><div class="hint">${item.text}</div></div></section>
+        <section class="card workoutCard rest ${done ? "completed":""}">
+          ${compassButton}
+          ${done ? completedCueMarkup() : ""}
+          <div><div class="exerciseName">Rest Day</div><div class="hint">${item.text}</div></div>
+        </section>
       </div>`;
     attachWorkoutHoldMenu();
   }
@@ -508,6 +516,30 @@ function setNavArrow(button, enabled){
 }
 function completedCueMarkup(){
   return `<div class="completedCue" aria-label="Completed">Completed</div>`;
+}
+function hasSuggestedWeight(exercise){
+  const weight = exercise && exercise.suggestedWeight;
+  if(weight === null || weight === undefined || weight === "") return false;
+  return !Number.isNaN(Number(weight));
+}
+function suggestedWeightMarkup(item, exercise){
+  if(!hasSuggestedWeight(exercise)) return {line:"", button:""};
+  const label = "Suggested";
+  const weight = `${exercise.suggestedWeight} ${exercise.unit || ""}`.trim();
+  return {
+    line:`<div class="suggestedLine"><span>${escapeHtml(label)}</span><strong>${escapeHtml(weight)}</strong></div>`,
+    button:`<button class="suggestedBtn" onclick="useSuggested()">Use suggested for all sets</button>`
+  };
+}
+function workoutCardCompassButton(total, completedCount){
+  const current = total ? itemIndex + 1 : "R";
+  return `
+    <button type="button" class="cardCompassBtn" onclick="openWorkoutList()" aria-label="Open day compass">
+      <span class="miniCompass" aria-hidden="true">
+        <i class="miniCompassDone" style="--pct:${total ? Math.max(8, completedCount / total * 100) : 100}%"></i>
+        <b>${escapeHtml(current)}</b>
+      </span>
+    </button>`;
 }
 function carouselItemTitle(item, index, state){
   if(!item) return "";
@@ -537,31 +569,10 @@ function workoutCarouselMarkup(items, state, cardMarkup){
     </div>`;
 }
 function workoutCompassDockMarkup(day, items, state, completedCount, total){
-  const current = total ? itemIndex + 1 : 0;
-  const label = total ? `${completedCount} of ${total} complete` : "Recovery day";
-  const cue = workoutOrderCueText(day, items, itemIndex);
-  const flash = completionFlash;
   completionFlash = "";
   return `
     <section class="compassDock" aria-label="Day compass">
       ${exerciseFocusRailMarkup(items, state)}
-      <button type="button" class="compassSummary" onclick="openWorkoutList()">
-        <span>
-          <strong>View today's workout</strong>
-          <small class="${flash ? "compassFlash" : ""}">${escapeHtml(flash || cue || "Open map · choose next")}</small>
-        </span>
-        <span class="miniCompass" aria-hidden="true">
-          <i class="miniCompassDone" style="--pct:${total ? Math.max(8, completedCount / total * 100) : 100}%"></i>
-          <b>${escapeHtml(current || "R")}</b>
-        </span>
-      </button>
-      <div class="dayTrail" aria-label="${escapeHtml(label)}">
-        ${total ? items.map((item, index) => {
-          const done = !!state.completed[itemId(item, index)];
-          const currentItem = index === itemIndex;
-          return `<button type="button" class="trailDot ${done ? "done" : ""} ${currentItem ? "current" : ""}" onclick="jumpToItem(${index})" aria-label="${escapeHtml(compassItemTitle(item, index, state))}">${index + 1}</button>`;
-        }).join("") : `<span class="trailDot done current">R</span>`}
-      </div>
     </section>`;
 }
 function exerciseFocusRailMarkup(items, state){
@@ -577,7 +588,7 @@ function exerciseFocusPill(item, index, state){
   const title = carouselItemTitle(item, index, state);
   return `
     <button type="button" class="exerciseFocusPill ${current ? "current" : ""} ${done ? "done" : ""}" onclick="jumpToItem(${index})" ${current ? 'aria-current="true"' : ""} aria-label="${escapeHtml(compassItemTitle(item, index, state))}">
-      <span>${index + 1}</span>
+      <span aria-hidden="true"></span>
       <strong>${escapeHtml(title)}</strong>
     </button>`;
 }
@@ -2170,7 +2181,6 @@ function renderOverview(day, items){
       ${monthMessage ? `<div class="planMessage">${escapeHtml(monthMessage)}</div>` : ""}
       ${planProgressMarkup()}
       ${workoutCompassOrbitMarkup(day, items, state, recommendedIndex)}
-      ${recommendedActionMarkup(items, state, recommendedIndex)}
     </section>`;
   saveNav();
 }
@@ -2188,38 +2198,29 @@ function recommendedWorkoutText(day, items, recommendedIndex, state){
   if(cue.includes("Lifting first")) return `${title} before easy cardio`;
   return `${title} next`;
 }
-function recommendedActionMarkup(items, state, recommendedIndex){
-  const item = items[recommendedIndex];
-  if(!item) return "";
-  return `
-    <div class="recommendedNext">
-      <span>Recommended next</span>
-      <strong>${escapeHtml(recommendedWorkoutText(getDay(), items, recommendedIndex, state))}</strong>
-      <button type="button" onclick="jumpToItem(${recommendedIndex})">Go</button>
-    </div>`;
-}
 function workoutCompassOrbitMarkup(day, items, state, recommendedIndex){
   const total = items.length || 1;
   return `
     <div class="compassOrbit" aria-label="Workout visual map" onclick="handleOrbitTap(event)">
       <div class="orbitTrack" aria-hidden="true"></div>
-      ${items.map((item, index) => orbitItemMarkup(item, index, state, total)).join("")}
+      ${items.map((item, index) => orbitItemMarkup(item, index, state, total, recommendedIndex)).join("")}
       <button type="button" class="orbitCenter" onclick="jumpToItem(${itemIndex})">
         <span>${itemIndex + 1}</span>
         <strong>${escapeHtml(carouselItemTitle(items[itemIndex], itemIndex, state))}</strong>
       </button>
     </div>`;
 }
-function orbitItemMarkup(item, index, state, total){
+function orbitItemMarkup(item, index, state, total, recommendedIndex){
   const angle = -90 + (360 / total) * index;
   const radians = angle * Math.PI / 180;
   const x = 50 + Math.cos(radians) * 42;
   const y = 50 + Math.sin(radians) * 42;
   const done = !!state.completed[itemId(item, index)];
   const current = index === itemIndex;
+  const recommended = index === recommendedIndex;
   const title = carouselItemTitle(item, index, state);
   return `
-    <button type="button" class="orbitItem ${done ? "done" : ""} ${current ? "current" : ""}" style="left:${x}%;top:${y}%" onclick="jumpToItem(${index})" aria-label="${escapeHtml(compassItemTitle(item, index, state))}">
+    <button type="button" class="orbitItem ${done ? "done" : ""} ${current ? "current" : ""} ${recommended ? "recommended" : ""}" style="--x:${x}%;--y:${y}%" onclick="jumpToItem(${index})" aria-label="${escapeHtml(compassItemTitle(item, index, state))}">
       <span>${done ? "✓" : index + 1}</span>
       <strong>${escapeHtml(shortOrbitTitle(title))}</strong>
     </button>`;

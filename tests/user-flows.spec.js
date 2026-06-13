@@ -21,7 +21,7 @@ async function openTodayOverview(page) {
 
 async function openFirstExercise(page) {
   await openTodayOverview(page);
-  await page.locator(".recommendedNext button").click();
+  await page.locator(".orbitItem.recommended").click();
 }
 
 test.beforeEach(async ({ page }) => {
@@ -119,9 +119,8 @@ test("returning user lands in today's visual workout overview", async ({ page })
   await openTodayOverview(page);
 
   await expect(page.getByRole("button", { name: "Workout", exact: true })).toBeVisible();
-  await expect(page.locator(".recommendedNext button")).toBeVisible();
   await expect(page.locator(".compassOrbit")).toBeVisible();
-  await expect(page.locator(".recommendedNext")).toBeVisible();
+  await expect(page.locator(".orbitItem.recommended")).toHaveCount(1);
   await expect(page.locator(".selector")).toBeHidden();
 
   const today = new Intl.DateTimeFormat("en-US", {
