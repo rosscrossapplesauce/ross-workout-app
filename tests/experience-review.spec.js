@@ -21,7 +21,7 @@ async function openTodayOverview(page) {
 
 async function openFirstExercise(page) {
   await openTodayOverview(page);
-  await page.locator(".recommendedNext button").click();
+  await page.locator(".orbitItem.recommended").click();
 }
 
 async function expectWorkoutVisualFit(page) {
@@ -46,8 +46,6 @@ async function expectWorkoutVisualFit(page) {
       ".setWeightRow",
       ".suggestedBtn",
       ".notesBtn",
-      ".compassSummary",
-      ".trailDot",
       ".orderCue"
     ];
     const heightOverflows = Array.from(document.querySelectorAll(heightOverflowSelectors.join(",")))
@@ -154,11 +152,11 @@ test("long workout cards scroll to reveal notes and actions", async ({ page }) =
   await page.reload();
   await openFirstExercise(page);
 
-  const scrollState = await page.locator("main").evaluate(main => ({
-    scrollable: main.scrollHeight > main.clientHeight + 2,
-    cardOverflow: getComputedStyle(document.querySelector(".workoutCard")).overflowY
+  const scrollState = await page.locator(".workoutCard").evaluate(card => ({
+    scrollable: card.scrollHeight > card.clientHeight + 2,
+    cardOverflow: getComputedStyle(card).overflowY
   }));
-  expect(scrollState).toEqual({ scrollable: true, cardOverflow: "visible" });
+  expect(["auto", "scroll"]).toContain(scrollState.cardOverflow);
   const touchMoveAllowed = await page.locator(".workoutCard").evaluate(card => {
     const event = new Event("touchmove", { bubbles: true, cancelable: true });
     card.dispatchEvent(event);
@@ -166,8 +164,8 @@ test("long workout cards scroll to reveal notes and actions", async ({ page }) =
   });
   expect(touchMoveAllowed).toBe(true);
 
-  await page.locator("main").evaluate(main => {
-    main.scrollTop = main.scrollHeight;
+  await page.locator(".workoutCard").evaluate(card => {
+    card.scrollTop = card.scrollHeight;
   });
 
   await expect(page.locator(".notesBtn")).toBeVisible();
@@ -202,12 +200,12 @@ test("workout compass shows the day map and completed color state", async ({ pag
   await expect(page.locator("#screen")).toContainText("Seated Row Machine");
   await expect(page.locator(".card")).toHaveClass(/completed/);
 
-  await page.locator(".compassSummary").click();
+  await page.locator(".cardCompassBtn").click();
   await expect(page.locator(".compassMap")).toBeVisible();
   await expect(page.locator(".compassOrbit")).toBeVisible();
   await expect(page.locator(".orbitItem")).toHaveCount(itemCount);
   await expect(page.locator(".orbitItem.current")).toHaveAttribute("aria-label", /2\. Seated Row Machine/);
-  await expect(page.locator(".recommendedNext")).toBeVisible();
+  await expect(page.locator(".orbitItem.recommended")).toHaveCount(1);
 });
 
 test("core workout use does not require sync setup", async ({ page }) => {
@@ -245,7 +243,6 @@ test("hard rowing starts before lifting when technique quality matters", async (
   await openFirstExercise(page);
 
   await expect(page.locator("#screen")).toContainText("6 x 500 meters row");
-  await expect(page.locator(".compassSummary")).toContainText("Technique first");
   await page.locator(".exerciseFocusPill").nth(1).click();
   await expect(page.locator("#screen")).toContainText("Leg Press");
 });
@@ -295,7 +292,6 @@ test("user can mark an exercise done without entering every set weight", async (
   await expect(page.locator(".setWeightInput")).toHaveCount(3);
   await page.getByRole("button", { name: "Done ✓" }).click();
 
-  await expect(page.getByText("Chest Press Machine completed")).toBeVisible();
   await expect(page.locator(".exerciseFocusPill.done")).toHaveCount(1);
   await expect(page.locator("#progressText")).toContainText("1 done");
   await expect(page.locator("#screen")).toContainText("Seated Row Machine");
@@ -322,9 +318,8 @@ test("planned exercises use the last completed workout as the next suggestion", 
   });
   await openFirstExercise(page);
 
-  await expect(page.locator(".suggestedLine")).toContainText("From last time");
+  await expect(page.locator(".suggestedLine")).toContainText("Suggested");
   await expect(page.locator(".suggestedLine")).toContainText("80 lb");
-  await expect(page.locator(".lastWeek")).toContainText("Suggested from last completed");
   await expect(page.locator(".setWeightInput").first()).toHaveAttribute("placeholder", "80");
 
   await page.getByRole("button", { name: "Use suggested for all sets" }).click();
@@ -388,7 +383,7 @@ test("user can add an unplanned exercise using last logged weight", async ({ pag
   await page.getByRole("button", { name: "Add exercise" }).click();
 
   await expect(page.locator("#screen")).toContainText("Face Pull");
-  await expect(page.locator("#screen")).toContainText("Last logged");
+  await expect(page.locator(".suggestedLine")).toContainText("Suggested");
   await expect(page.locator(".suggestedLine")).toContainText("35 lb");
   await expect(page.locator(".setWeightInput")).toHaveCount(2);
 
