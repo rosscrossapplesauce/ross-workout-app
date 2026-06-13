@@ -347,6 +347,18 @@ body::before{display:none}
 .weekDayDots{display:none}
 .workoutStack{gap:10px}
 .compassDock{background:#f1f5f3;border:0;border-radius:28px;padding:10px;display:flex;flex-direction:column;gap:9px;flex:0 0 auto}
+.weekFocusRail{display:flex;gap:7px;overflow-x:auto;overflow-y:hidden;touch-action:pan-x;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;padding:0 1px 2px;cursor:grab}
+.weekFocusRail.dragging{cursor:grabbing;scroll-snap-type:none}
+.weekFocusRail::-webkit-scrollbar,.dayTrail::-webkit-scrollbar,.exerciseMapGrid::-webkit-scrollbar{display:none}
+.weekFocusPill{position:relative;flex:0 0 min(44%,158px);min-height:48px;border:0;border-radius:18px;background:#fbfaf6;color:var(--ink);padding:8px 10px;display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;text-align:left;scroll-snap-align:center;box-shadow:inset 0 0 0 1px var(--line)}
+.weekFocusPill span{font-size:10px;font-weight:950;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.weekFocusPill strong{grid-column:1/-1;font-size:13px;line-height:1.05;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.weekFocusPill small{position:absolute;right:9px;top:7px;font-size:10px;font-weight:950;color:var(--muted)}
+.weekFocusPill.current{background:#ffe2dd;box-shadow:inset 0 0 0 2px var(--coral)}
+.weekFocusPill.today:not(.current){box-shadow:inset 0 0 0 2px var(--teal)}
+.weekFocusPill.done{background:#d8eee7}
+.weekFocusPill.done strong,.weekFocusPill.done small{color:var(--green)}
+.weekFocusPill.partial{background:#fff5df}
 .compassSummary{width:100%;background:transparent;border:0;min-height:58px;padding:6px 8px;display:grid;grid-template-columns:1fr 62px;gap:10px;align-items:center;text-align:left}
 .compassSummary span:first-child{display:flex;flex-direction:column;gap:4px}
 .compassSummary strong{text-transform:uppercase;letter-spacing:.08em;font-size:11px;color:var(--muted)}
@@ -412,8 +424,13 @@ body[data-theme="forest"]{
 }
 body[data-theme="dark"]{
   --theme-page:#101615; --theme-panel:#18211f; --theme-soft:#202c29; --theme-line:#30413d;
-  --theme-ink:#f3f4ed; --theme-muted:#a4b1ad; --theme-accent:#7bd8c8; --theme-action:#ff7568;
+  --theme-ink:#f3f4ed; --theme-muted:#a4b1ad; --theme-accent:#7bd8c8; --theme-action:#d94c61;
   --theme-warm:#f2b84b; --theme-done:#21443f; --theme-current:#472623; --theme-dark:#0d1211;
+}
+body[data-theme="ember"]{
+  --theme-page:#151114; --theme-panel:#211920; --theme-soft:#2e242c; --theme-line:#483944;
+  --theme-ink:#fff4f7; --theme-muted:#c8b7c0; --theme-accent:#ffb86b; --theme-action:#c9485d;
+  --theme-warm:#8fe0d3; --theme-done:#3c3322; --theme-current:#4a2430; --theme-dark:#0f0b0e;
 }
 body[data-theme]{
   --ivory:var(--theme-panel); --panel:var(--theme-panel); --soft:var(--theme-soft); --line:var(--theme-line);
@@ -431,11 +448,13 @@ body[data-theme] .weekTodayCard em{background:var(--theme-warm);color:var(--them
 body[data-theme] .weekDay::before,
 body[data-theme] .trailDot,
 body[data-theme] .miniCompass,
-body[data-theme] .mapItem .overviewCheck{background:var(--theme-panel);border-color:var(--theme-line)}
+body[data-theme] .mapItem .overviewCheck,
+body[data-theme] .weekFocusPill{background:var(--theme-panel);border-color:var(--theme-line)}
 body[data-theme] .weekRail::before{background:var(--theme-line)}
 body[data-theme] .weekDay.today,
 body[data-theme] .weekDay.partial,
-body[data-theme] .mapItem.overviewCurrent{background:var(--theme-current)}
+body[data-theme] .mapItem.overviewCurrent,
+body[data-theme] .weekFocusPill.current{background:var(--theme-current)}
 body[data-theme] .weekDay.today::before,
 body[data-theme] .weekDay.partial::before,
 body[data-theme] .trailDot.current,
@@ -449,7 +468,8 @@ body[data-theme] .status,
 body[data-theme] .notesBtn{background:var(--theme-soft)}
 body[data-theme] .suggestedLine,
 body[data-theme] .suggestedBtn,
-body[data-theme] .mapItem.overviewDone{background:var(--theme-done);color:var(--theme-accent)}
+body[data-theme] .mapItem.overviewDone,
+body[data-theme] .weekFocusPill.done{background:var(--theme-done);color:var(--theme-accent)}
 body[data-theme] .trailDot.done,
 body[data-theme] .weekDay.done::before,
 body[data-theme] .mapItem.overviewDone .overviewCheck{background:var(--theme-accent);border-color:var(--theme-accent);color:var(--theme-panel)}
@@ -464,9 +484,11 @@ body[data-mode="workout"] .workoutStack{height:auto;min-height:100%;padding-bott
 body[data-mode="workout"] .exerciseCarousel{flex:0 0 auto;min-height:auto;align-items:flex-start}
 body[data-mode="workout"] .exerciseCarousel .card{flex:0 0 auto}
 body[data-mode="workout"] .progressWrap{margin-bottom:6px}
-body[data-mode="workout"] .app{padding-bottom:calc(164px + env(safe-area-inset-bottom))}
-body[data-mode="workout"] .nav{gap:7px}
-body[data-mode="workout"] #resetBtn{display:flex;min-height:42px;background:var(--theme-soft);border:0;border-radius:16px;color:var(--theme-ink);font-size:15px}
+body[data-mode="workout"] .app{padding-bottom:calc(58px + env(safe-area-inset-bottom))}
+body[data-mode="workout"] .nav{display:grid;grid-template-columns:minmax(0,1fr) 84px;gap:8px;align-items:center;padding:6px 12px calc(6px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(238,241,240,0),rgba(238,241,240,.94) 30%);backdrop-filter:blur(12px)}
+body[data-mode="workout"] .navControls{display:block;min-width:0}
+body[data-mode="workout"] #doneBtn{width:100%;min-height:40px;border-radius:999px;font-size:16px}
+body[data-mode="workout"] #resetBtn{display:flex;min-height:40px;background:var(--theme-soft);border:0;border-radius:999px;color:var(--theme-ink);font-size:13px;padding:8px 10px}
 .themeGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .themeOption{display:block;text-transform:none;letter-spacing:0;color:var(--ink)}
 .themeOption input{position:absolute;opacity:0;pointer-events:none}
@@ -475,8 +497,8 @@ body[data-mode="workout"] #resetBtn{display:flex;min-height:42px;background:var(
 .themeOption input:checked+span{border-color:var(--green);background:var(--panel)}
 .themeOption-teal{--swatch-a:#0f766e;--swatch-b:#e0a21a;--swatch-c:#e85d4f}
 .themeOption-graphite{--swatch-a:#3f6f79;--swatch-b:#c99528;--swatch-c:#b95f4f}
-.themeOption-forest{--swatch-a:#2f6f46;--swatch-b:#c49a2b;--swatch-c:#c65f46}
-.themeOption-dark{--swatch-a:#7bd8c8;--swatch-b:#f2b84b;--swatch-c:#ff7568}
+.themeOption-dark{--swatch-a:#7bd8c8;--swatch-b:#f2b84b;--swatch-c:#d94c61}
+.themeOption-ember{--swatch-a:#ffb86b;--swatch-b:#8fe0d3;--swatch-c:#c9485d}
 .exerciseMapGrid{display:flex;flex-direction:row;gap:10px;overflow-x:auto;overflow-y:hidden;touch-action:pan-x;padding-bottom:4px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
 .mapItem{min-width:min(76%,270px);min-height:154px;scroll-snap-align:center;display:grid}
 .mapItem .overviewName{font-size:18px}
@@ -487,6 +509,8 @@ body[data-mode="workout"] #resetBtn{display:flex;min-height:42px;background:var(
   .weekDay{min-height:48px;padding-top:5px;padding-bottom:5px}
   .weekDay strong{font-size:15px}
   .compassDock{padding:8px;gap:6px;border-radius:24px}
+  .weekFocusPill{flex-basis:min(48%,150px);min-height:42px;padding:7px 9px}
+  .weekFocusPill strong{font-size:12px}
   .compassSummary{min-height:42px;padding:4px 6px;grid-template-columns:1fr 44px;gap:7px}
   .compassSummary strong{font-size:10px}
   .compassSummary small{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -513,6 +537,9 @@ body[data-mode="workout"] #resetBtn{display:flex;min-height:42px;background:var(
   .suggestedBtn{min-height:31px;font-size:12px}
   body[data-mode="workout"] h1{font-size:22px}
   body[data-mode="workout"] .progressWrap{margin-bottom:3px}
-  body[data-mode="workout"] .app{padding-bottom:calc(148px + env(safe-area-inset-bottom))}
+  body[data-mode="workout"] .app{padding-bottom:calc(56px + env(safe-area-inset-bottom))}
+  body[data-mode="workout"] .nav{grid-template-columns:minmax(0,1fr) 78px;padding-top:5px;padding-bottom:calc(5px + env(safe-area-inset-bottom))}
+  body[data-mode="workout"] #doneBtn,
+  body[data-mode="workout"] #resetBtn{min-height:38px}
   .mapItem{min-width:min(82%,250px)}
 }

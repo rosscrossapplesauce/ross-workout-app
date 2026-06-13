@@ -64,6 +64,7 @@ async function expectWorkoutVisualFit(page) {
     const cardRect = card && card.getBoundingClientRect();
     const footerRect = footer && footer.getBoundingClientRect();
     const cardHiddenBehindFooter = !!(cardRect && footerRect && cardRect.bottom > footerRect.top + 1);
+    const footerShare = footerRect ? footerRect.height / window.innerHeight : 0;
     const clippedChildren = card ? Array.from(card.querySelectorAll("*"))
       .filter(visible)
       .filter(node => {
@@ -74,9 +75,13 @@ async function expectWorkoutVisualFit(page) {
         selector: node.className || node.tagName,
         text: node.textContent.trim().replace(/\s+/g, " ").slice(0, 80)
       })) : [];
-    return { heightOverflows, widthOverflows, clippedChildren, cardHiddenBehindFooter };
+    return { heightOverflows, widthOverflows, clippedChildren, cardHiddenBehindFooter, footerShare };
   });
-  expect(fit).toEqual({ heightOverflows: [], widthOverflows: [], clippedChildren: [], cardHiddenBehindFooter: false });
+  expect(fit.heightOverflows).toEqual([]);
+  expect(fit.widthOverflows).toEqual([]);
+  expect(fit.clippedChildren).toEqual([]);
+  expect(fit.cardHiddenBehindFooter).toBe(false);
+  expect(fit.footerShare).toBeLessThan(0.1);
 }
 
 test.beforeEach(async ({ page }) => {
@@ -173,6 +178,12 @@ test("workout compass shows the day map and completed color state", async ({ pag
   await page.getByRole("button", { name: "Continue today" }).click();
 
   await expect(page.locator(".compassDock")).toBeVisible();
+  await expect(page.locator(".weekFocusRail")).toBeVisible();
+  await expect(page.locator(".weekFocusPill")).toHaveCount(7);
+  await page.locator(".weekFocusPill").nth(1).click();
+  await expect(page.locator(".weekFocusPill").nth(1)).toHaveClass(/current/);
+  await page.locator(".weekFocusPill").first().click();
+  await expect(page.locator(".weekFocusPill").first()).toHaveClass(/current/);
   const itemCount = await page.evaluate(() => getItems(getDay()).length);
   await expect(page.locator(".trailDot")).toHaveCount(itemCount);
   await expect(page.locator(".trailDot").nth(1)).toHaveAttribute("aria-label", /Seated Row Machine/);
