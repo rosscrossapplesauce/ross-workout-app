@@ -15,6 +15,15 @@ async function makeFirstPlanDayToday(page) {
   await page.reload();
 }
 
+async function openTodayOverview(page) {
+  await page.getByRole("button", { name: "View today's workout" }).click();
+}
+
+async function openFirstExercise(page) {
+  await openTodayOverview(page);
+  await page.locator(".recommendedNext button").click();
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => localStorage.clear());
@@ -26,7 +35,7 @@ test("app loads to the current plan without requiring sync or AI", async ({ page
   await expect(page.locator(".weekRoute")).toContainText("Your route");
   await expect(page.locator(".weekDay")).toHaveCount(7);
   await expect(page.locator(".todaySnapshot")).toContainText("Today");
-  await expect(page.getByRole("button", { name: "Continue today" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "View today's workout" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Create a new plan" })).toBeVisible();
   await expect(page.getByText("Add sync settings")).toHaveCount(0);
 });
@@ -38,6 +47,25 @@ test("home week overview text fits without horizontal clipping", async ({ page }
     nodes.some(node => node.scrollWidth > node.clientWidth + 1)
   );
   expect(clipped).toBe(false);
+});
+
+test("home week overview can swap day focuses without changing the plan file", async ({ page }) => {
+  const firstDay = page.locator(".weekDay").first();
+  const fifthDay = page.locator(".weekDay").nth(4);
+  const firstFocus = await firstDay.locator("strong").innerText();
+  const fifthFocus = await fifthDay.locator("strong").innerText();
+
+  const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
+  await page.locator(".weekDay").first().dispatchEvent("dragstart", { dataTransfer });
+  await page.locator(".weekDay").nth(4).dispatchEvent("dragover", { dataTransfer });
+  await page.locator(".weekDay").nth(4).dispatchEvent("drop", { dataTransfer });
+
+  await expect(page.locator(".weekDay").first().locator("strong")).toHaveText(fifthFocus);
+  await expect(page.locator(".weekDay").nth(4).locator("strong")).toHaveText(firstFocus);
+
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("rossWorkout.v1.dayOrder")));
+  expect(stored["original.w0"][0]).toBe(4);
+  expect(stored["original.w0"][4]).toBe(0);
 });
 
 test("clicking a week overview day opens a clean selected workout", async ({ page }) => {
@@ -87,14 +115,14 @@ test("clicking a week overview day opens a clean selected workout", async ({ pag
   await expect(page.locator("#screen")).toContainText("Easy Row");
 });
 
-test("returning user can continue directly into today's workout", async ({ page }) => {
-  await page.getByRole("button", { name: "Continue today" }).click();
+test("returning user lands in today's visual workout overview", async ({ page }) => {
+  await openTodayOverview(page);
 
-  await expect(page.getByRole("button", { name: "Menu" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Done ✓" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Workout", exact: true })).toBeVisible();
+  await expect(page.locator(".recommendedNext button")).toBeVisible();
+  await expect(page.locator(".compassOrbit")).toBeVisible();
+  await expect(page.locator(".recommendedNext")).toBeVisible();
   await expect(page.locator(".selector")).toBeHidden();
-  await expect(page.locator(".compassDock")).toBeVisible();
-  await expect(page.locator(".trailDot").first()).toBeVisible();
 
   const today = new Intl.DateTimeFormat("en-US", {
     weekday: "short",
@@ -105,7 +133,7 @@ test("returning user can continue directly into today's workout", async ({ page 
 });
 
 test("user can complete an item and advance through the workout", async ({ page }) => {
-  await page.getByRole("button", { name: "Continue today" }).click();
+  await openFirstExercise(page);
 
   const firstProgress = await page.locator("#progressText").innerText();
   await page.getByRole("button", { name: "Done ✓" }).click();
@@ -116,7 +144,7 @@ test("user can complete an item and advance through the workout", async ({ page 
 
 test("workout menu reaches list, calendar, settings, and home", async ({ page }) => {
   await makeFirstPlanDayToday(page);
-  await page.getByRole("button", { name: "Continue today" }).click();
+  await openFirstExercise(page);
   await page.getByRole("button", { name: "Menu" }).click();
 
   await expect(page.getByRole("button", { name: "Choose exercise" })).toBeVisible();
@@ -194,23 +222,32 @@ test("color settings can be changed from settings", async ({ page }) => {
 
 test("today's list highlights the currently selected exercise", async ({ page }) => {
   await makeFirstPlanDayToday(page);
-  await page.getByRole("button", { name: "Continue today" }).click();
+  await openFirstExercise(page);
   await page.getByRole("button", { name: "Menu" }).click();
   await page.getByRole("button", { name: "Choose exercise" }).click();
 
-  await expect(page.locator(".overviewCurrent")).toHaveCount(1);
-  await expect(page.locator(".overviewCurrent")).toContainText("Chest Press Machine");
+  await expect(page.locator(".orbitItem.current")).toHaveCount(1);
+  await expect(page.locator(".orbitItem.current")).toHaveAttribute("aria-label", /Chest Press Machine/);
 
-  await page.getByRole("button", { name: /2 Seated Row Machine/ }).click();
+  const secondNode = await page.locator(".compassOrbit").evaluate(orbit => {
+    const item = orbit.querySelectorAll(".orbitItem")[1];
+    const orbitRect = orbit.getBoundingClientRect();
+    const itemRect = item.getBoundingClientRect();
+    return {
+      x: itemRect.left - orbitRect.left + itemRect.width / 2,
+      y: itemRect.top - orbitRect.top + Math.min(itemRect.width, itemRect.height) / 2
+    };
+  });
+  await page.locator(".compassOrbit").click({ position: secondNode });
   await page.getByRole("button", { name: "Menu" }).click();
   await page.getByRole("button", { name: "Choose exercise" }).click();
 
-  await expect(page.locator(".overviewCurrent")).toHaveCount(1);
-  await expect(page.locator(".overviewCurrent")).toContainText("Seated Row Machine");
+  await expect(page.locator(".orbitItem.current")).toHaveCount(1);
+  await expect(page.locator(".orbitItem.current")).toHaveAttribute("aria-label", /Seated Row Machine/);
 });
 
 test("calendar highlights today and offers a path back to workout", async ({ page }) => {
-  await page.getByRole("button", { name: "Continue today" }).click();
+  await openFirstExercise(page);
   await page.getByRole("button", { name: "Menu" }).click();
   await page.getByRole("button", { name: "Change day" }).click();
 
@@ -222,7 +259,7 @@ test("calendar highlights today and offers a path back to workout", async ({ pag
 
 test("exercise alternatives are reachable from workout mode", async ({ page }) => {
   await makeFirstPlanDayToday(page);
-  await page.getByRole("button", { name: "Continue today" }).click();
+  await openFirstExercise(page);
 
   await expect(page.locator(".card").getByRole("button", { name: "Alternatives" })).toHaveCount(0);
   await page.getByRole("button", { name: "Menu" }).click();

@@ -15,6 +15,15 @@ async function makeFirstPlanDayToday(page) {
   await page.reload();
 }
 
+async function openTodayOverview(page) {
+  await page.getByRole("button", { name: "View today's workout" }).click();
+}
+
+async function openFirstExercise(page) {
+  await openTodayOverview(page);
+  await page.locator(".recommendedNext button").click();
+}
+
 async function expectWorkoutVisualFit(page) {
   const fit = await page.evaluate(() => {
     const visible = element => {
@@ -91,7 +100,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("mobile workout screen keeps the primary action visible and uncluttered", async ({ page }) => {
-  await page.getByRole("button", { name: "Continue today" }).click();
+  await openFirstExercise(page);
 
   const visibleHeaderButtons = await page.locator("header button:visible").allTextContents();
   const visibleFooterButtons = await page.locator("footer button:visible").allTextContents();
@@ -103,7 +112,7 @@ test("mobile workout screen keeps the primary action visible and uncluttered", a
 test("workout cards visually fit across the default training day", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 667 });
   await makeFirstPlanDayToday(page);
-  await page.getByRole("button", { name: "Continue today" }).click();
+  await openFirstExercise(page);
 
   const itemCount = await page.evaluate(() => getItems(getDay()).length);
   for(let index = 0; index < itemCount; index += 1) {
@@ -143,7 +152,7 @@ test("long workout cards scroll to reveal notes and actions", async ({ page }) =
     }));
   });
   await page.reload();
-  await page.getByRole("button", { name: "Continue today" }).click();
+  await openFirstExercise(page);
 
   const scrollState = await page.locator("main").evaluate(main => ({
     scrollable: main.scrollHeight > main.clientHeight + 2,
@@ -175,38 +184,34 @@ test("long workout cards scroll to reveal notes and actions", async ({ page }) =
 
 test("workout compass shows the day map and completed color state", async ({ page }) => {
   await makeFirstPlanDayToday(page);
-  await page.getByRole("button", { name: "Continue today" }).click();
+  await openFirstExercise(page);
 
   await expect(page.locator(".compassDock")).toBeVisible();
-  await expect(page.locator(".weekFocusRail")).toBeVisible();
-  await expect(page.locator(".weekFocusPill")).toHaveCount(7);
-  await page.locator(".weekFocusPill").nth(1).click();
-  await expect(page.locator(".weekFocusPill").nth(1)).toHaveClass(/current/);
-  await page.locator(".weekFocusPill").first().click();
-  await expect(page.locator(".weekFocusPill").first()).toHaveClass(/current/);
   const itemCount = await page.evaluate(() => getItems(getDay()).length);
-  await expect(page.locator(".trailDot")).toHaveCount(itemCount);
-  await expect(page.locator(".trailDot").nth(1)).toHaveAttribute("aria-label", /Seated Row Machine/);
-  await page.locator(".trailDot").nth(1).click();
+  await expect(page.locator(".exerciseFocusRail")).toBeVisible();
+  await expect(page.locator(".exerciseFocusPill")).toHaveCount(itemCount);
+  await expect(page.locator(".exerciseFocusPill").nth(1)).toHaveAttribute("aria-label", /Seated Row Machine/);
+  await page.locator(".exerciseFocusPill").nth(1).click();
+  await expect(page.locator(".exerciseFocusPill").nth(1)).toHaveClass(/current/);
   await expect(page.locator(".card")).toContainText("Seated Row Machine");
 
   await page.getByRole("button", { name: "Done ✓" }).click();
-  await expect(page.locator(".trailDot").nth(1)).toHaveClass(/done/);
+  await expect(page.locator(".exerciseFocusPill").nth(1)).toHaveClass(/done/);
 
-  await page.locator(".trailDot").nth(1).click();
+  await page.locator(".exerciseFocusPill").nth(1).click();
   await expect(page.locator("#screen")).toContainText("Seated Row Machine");
   await expect(page.locator(".card")).toHaveClass(/completed/);
 
   await page.locator(".compassSummary").click();
   await expect(page.locator(".compassMap")).toBeVisible();
-  await expect(page.locator(".mapItem")).toHaveCount(itemCount);
-  await expect(page.locator(".overviewCurrent")).toContainText("Seated Row Machine");
-  await expect(page.locator(".exerciseMapGrid")).toHaveCSS("display", "flex");
-  await expect(page.locator(".exerciseMapGrid")).toHaveCSS("flex-direction", "row");
+  await expect(page.locator(".compassOrbit")).toBeVisible();
+  await expect(page.locator(".orbitItem")).toHaveCount(itemCount);
+  await expect(page.locator(".orbitItem.current")).toHaveAttribute("aria-label", /2\. Seated Row Machine/);
+  await expect(page.locator(".recommendedNext")).toBeVisible();
 });
 
 test("core workout use does not require sync setup", async ({ page }) => {
-  await page.getByRole("button", { name: "Continue today" }).click();
+  await openFirstExercise(page);
   await page.getByRole("button", { name: "Done ✓" }).click();
 
   await expect(page.getByText("Add sync settings")).toHaveCount(0);
@@ -237,17 +242,17 @@ test("hard rowing starts before lifting when technique quality matters", async (
     }));
   });
   await page.reload();
-  await page.getByRole("button", { name: "Continue today" }).click();
+  await openFirstExercise(page);
 
   await expect(page.locator("#screen")).toContainText("6 x 500 meters row");
   await expect(page.locator(".compassSummary")).toContainText("Technique first");
-  await page.locator(".trailDot").nth(1).click();
+  await page.locator(".exerciseFocusPill").nth(1).click();
   await expect(page.locator("#screen")).toContainText("Leg Press");
 });
 
 test("quick action menu exposes recovery paths without cluttering the page", async ({ page }) => {
   await makeFirstPlanDayToday(page);
-  await page.getByRole("button", { name: "Continue today" }).click();
+  await openFirstExercise(page);
   await page.locator("main").click({ button: "right" });
 
   await expect(page.getByRole("button", { name: "Choose exercise" })).toBeVisible();
@@ -264,7 +269,7 @@ test("quick action menu exposes recovery paths without cluttering the page", asy
 
 test("user can temporarily shorten today's lifting work", async ({ page }) => {
   await makeFirstPlanDayToday(page);
-  await page.getByRole("button", { name: "Continue today" }).click();
+  await openFirstExercise(page);
 
   await expect(page.locator(".prescription")).not.toContainText("2 ×");
   await page.locator("main").click({ button: "right" });
@@ -285,13 +290,13 @@ test("user can temporarily shorten today's lifting work", async ({ page }) => {
 
 test("user can mark an exercise done without entering every set weight", async ({ page }) => {
   await makeFirstPlanDayToday(page);
-  await page.getByRole("button", { name: "Continue today" }).click();
+  await openFirstExercise(page);
 
   await expect(page.locator(".setWeightInput")).toHaveCount(3);
   await page.getByRole("button", { name: "Done ✓" }).click();
 
   await expect(page.getByText("Chest Press Machine completed")).toBeVisible();
-  await expect(page.locator(".trailDot.done")).toHaveCount(1);
+  await expect(page.locator(".exerciseFocusPill.done")).toHaveCount(1);
   await expect(page.locator("#progressText")).toContainText("1 done");
   await expect(page.locator("#screen")).toContainText("Seated Row Machine");
 
@@ -315,7 +320,7 @@ test("planned exercises use the last completed workout as the next suggestion", 
       }
     ]));
   });
-  await page.getByRole("button", { name: "Continue today" }).click();
+  await openFirstExercise(page);
 
   await expect(page.locator(".suggestedLine")).toContainText("From last time");
   await expect(page.locator(".suggestedLine")).toContainText("80 lb");
@@ -344,7 +349,7 @@ test("equipment crowded opens alternatives and selected alternative resets set i
       ]
     }));
   });
-  await page.getByRole("button", { name: "Continue today" }).click();
+  await openFirstExercise(page);
 
   await page.getByRole("button", { name: "Menu" }).click();
   await page.getByRole("button", { name: "Adjust today" }).click();
@@ -377,7 +382,7 @@ test("user can add an unplanned exercise using last logged weight", async ({ pag
   const answers = ["Face Pull", "2", "12"];
   page.on("dialog", dialog => dialog.accept(answers.shift() || ""));
 
-  await page.getByRole("button", { name: "Continue today" }).click();
+  await openFirstExercise(page);
   await page.getByRole("button", { name: "Menu" }).click();
   await page.getByRole("button", { name: "More actions" }).click();
   await page.getByRole("button", { name: "Add exercise" }).click();
@@ -394,7 +399,7 @@ test("user can add an unplanned exercise using last logged weight", async ({ pag
 
 test("user can skip an exercise from the quick menu and keep moving", async ({ page }) => {
   await makeFirstPlanDayToday(page);
-  await page.getByRole("button", { name: "Continue today" }).click();
+  await openFirstExercise(page);
 
   const firstProgress = await page.locator("#progressText").innerText();
   await page.locator("main").click({ button: "right" });
