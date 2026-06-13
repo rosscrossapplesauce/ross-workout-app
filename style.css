@@ -334,6 +334,8 @@ body::before{display:none}
 .reorderableWeekRail.dragging .weekDay{cursor:grabbing}
 .reorderableWeekRail .weekDay{cursor:grab}
 .weekDay.dragging{opacity:.7;transform:scale(.99)}
+.weekDay.selectedForSwap{background:#d8eee7;box-shadow:inset 0 0 0 2px var(--green)}
+.weekDay.selectedForSwap::before{background:var(--green);border-color:var(--green)}
 .weekRail::before{content:"";position:absolute;left:20px;top:22px;bottom:22px;width:8px;border-radius:999px;background:#d8d2c7}
 .weekDay{position:relative;min-height:56px;background:transparent;border:0;border-radius:16px;padding:7px 8px 7px 52px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;box-shadow:none}
 .weekDay::before{content:"";position:absolute;left:0;top:50%;width:34px;height:34px;border-radius:999px;background:#fbfaf6;border:2px solid #d8d2c7;transform:translateY(-50%);z-index:1}
