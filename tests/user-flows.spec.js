@@ -68,18 +68,19 @@ test("home week overview can swap day focuses without changing the plan file", a
   expect(stored["original.w0"][4]).toBe(0);
 });
 
-test("home week overview can swap focuses with move mode", async ({ page }) => {
+test("home week overview can swap focuses by holding and dragging", async ({ page }) => {
   const thirdDay = page.locator(".weekDay").nth(2);
   const seventhDay = page.locator(".weekDay").nth(6);
   const thirdFocus = await thirdDay.locator("strong").innerText();
   const seventhFocus = await seventhDay.locator("strong").innerText();
 
-  await page.getByRole("button", { name: "Move" }).click();
-  await expect(page.locator(".routeMoveHint")).toContainText("Tap the day focus");
-  await thirdDay.click();
-  await expect(page.locator(".weekDay").nth(2)).toHaveClass(/selectedForSwap/);
-  await expect(page.locator(".routeMoveHint")).toContainText("Tap the day to swap");
-  await seventhDay.click();
+  const fromBox = await thirdDay.boundingBox();
+  const toBox = await seventhDay.boundingBox();
+  await page.mouse.move(fromBox.x + fromBox.width / 2, fromBox.y + fromBox.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(240);
+  await page.mouse.move(toBox.x + toBox.width / 2, toBox.y + toBox.height / 2, { steps: 8 });
+  await page.mouse.up();
 
   await expect(page.locator(".weekDay").nth(2).locator("strong")).toHaveText(seventhFocus);
   await expect(page.locator(".weekDay").nth(6).locator("strong")).toHaveText(thirdFocus);
