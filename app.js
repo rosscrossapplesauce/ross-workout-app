@@ -671,11 +671,16 @@ function homeWeekMarkup(model){
   if(!model || !model.week) return "";
   const doneDays = model.days.filter(entry => entry.items.length && entry.completed >= entry.items.length).length;
   const trainingDays = model.days.filter(entry => entry.items.length).length;
+  const todayEntry = model.days.find(entry => entry.today) || model.days.find(entry => entry.current) || model.days[0];
   return `
     <section class="weekRoute ${homeReorderMode ? "moving" : ""}" aria-label="This week's route">
       <div class="weekSnapshotTop">
-        <div class="weekRouteMeta">${doneDays} of ${trainingDays || model.days.length} training days complete this week</div>
+        <div>
+          <div class="summaryTitle">This week</div>
+          <div class="weekRouteMeta">${doneDays} of ${trainingDays || model.days.length} training days complete</div>
+        </div>
       </div>
+      ${todayEntry ? homeWeekTodayCard(todayEntry) : ""}
       <div class="weekRail reorderableWeekRail" aria-label="Drag days to swap workout focuses">
         ${model.days.map(entry => homeWeekDayMarkup(entry)).join("")}
       </div>
@@ -927,11 +932,6 @@ function attachHomeDayReorder(){
       const distance = Math.hypot(event.clientX - startX, event.clientY - startY);
       if(!pointerDragging && distance > 12){
         clearLongPress();
-        if(Math.abs(event.clientY - startY) > Math.abs(event.clientX - startX)){
-          if(button.hasPointerCapture(event.pointerId)) button.releasePointerCapture(event.pointerId);
-          resetPointerDrag(button);
-          return;
-        }
         armPointerDrag(button, event.pointerId);
       }
       if(pointerDragging){

@@ -34,7 +34,8 @@ test("app loads to the current plan without requiring sync or AI", async ({ page
   await expect(page.locator(".weekRoute")).toBeVisible();
   await expect(page.locator("#dayTitle")).toHaveText("Workout");
   await expect(page.locator("#weekLabel")).toHaveText("");
-  await expect(page.locator(".weekRoute")).toContainText("training days complete this week");
+  await expect(page.locator(".weekRoute")).toContainText("This week");
+  await expect(page.locator(".weekRoute")).toContainText("training days complete");
   await expect(page.locator(".weekRoute")).not.toContainText("Week 1");
   await expect(page.locator(".weekRoute")).not.toContainText("Your route");
   await expect(page.locator(".weekDay")).toHaveCount(7);
