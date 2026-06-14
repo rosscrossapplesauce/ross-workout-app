@@ -680,10 +680,8 @@ function homeWeekMarkup(model){
           <div class="weekSnapshotTitle">Your route</div>
           <div class="weekRouteMeta">${doneDays} of ${trainingDays || model.days.length} training days complete</div>
         </div>
-        <button type="button" class="routeMoveBtn" id="homeMoveBtn" aria-pressed="${homeReorderMode ? "true" : "false"}">${homeReorderMode ? "Cancel" : "Move"}</button>
       </div>
       ${todayEntry ? homeWeekTodayCard(todayEntry) : ""}
-      ${homeReorderMode ? `<div class="routeMoveHint">${homeReorderSource ? "Tap the day to swap with." : "Tap the day focus you want to move."}</div>` : ""}
       <div class="weekRail reorderableWeekRail" aria-label="Drag days to swap workout focuses">
         ${model.days.map(entry => homeWeekDayMarkup(entry)).join("")}
       </div>
@@ -727,7 +725,7 @@ function homeWeekDayMarkup(entry){
   const status = done ? "Done" : partial ? `${entry.completed}/${entry.items.length}` : entry.today ? "Today" : entry.items.length ? "Upcoming" : "Recovery";
   const selected = homeReorderSource && homeReorderSource.weekIndex === entry.weekIndex && homeReorderSource.dayIndex === entry.dayIndex;
   return `
-    <button type="button" class="weekDay ${entry.today ? "today" : ""} ${done ? "done" : ""} ${partial ? "partial" : ""} ${selected ? "selectedForSwap" : ""}" draggable="true" data-week-index="${entry.weekIndex}" data-day-index="${entry.dayIndex}" onclick="selectHomeDay(this, ${entry.weekIndex}, ${entry.dayIndex})" aria-pressed="${selected ? "true" : "false"}">
+    <button type="button" class="weekDay ${entry.today ? "today" : ""} ${done ? "done" : ""} ${partial ? "partial" : ""} ${selected ? "selectedForSwap" : ""}" data-week-index="${entry.weekIndex}" data-day-index="${entry.dayIndex}" onclick="selectHomeDay(this, ${entry.weekIndex}, ${entry.dayIndex})" aria-pressed="${selected ? "true" : "false"}">
       <span class="weekDayLabel">${escapeHtml(entry.today ? `Today · ${shortLabel}` : shortLabel)}</span>
       <strong>${escapeHtml(focus)}</strong>
       <span class="weekDayCount">${escapeHtml(status)}</span>
@@ -761,14 +759,6 @@ function selectHomeDay(element, nextWeekIndex, nextDayIndex){
     return;
   }
   jumpHomeToDay(nextWeekIndex, nextDayIndex);
-}
-function toggleHomeFocusMove(){
-  homeReorderMode = !homeReorderMode;
-  homeReorderSource = null;
-  homeDayDragSuppress = false;
-  homeDayDragSuppressTarget = null;
-  homeDayDragSuppressUntil = 0;
-  renderHome();
 }
 function jumpHomeToDay(nextWeekIndex, nextDayIndex){
   weekIndex = nextWeekIndex;
@@ -812,12 +802,7 @@ function renderHome(){
       ${pendingRequest && !pendingPlan ? planRequestRecoveryMarkup(pendingRequest) : ""}
       ${pendingPlan ? pendingPlanSummary(pendingPlan) : ""}
     </section>`;
-  attachHomeMoveControls();
   attachHomeDayReorder();
-}
-function attachHomeMoveControls(){
-  const moveBtn = $("homeMoveBtn");
-  if(moveBtn) moveBtn.addEventListener("click", toggleHomeFocusMove);
 }
 function attachHomeDayReorder(){
   const rail = document.querySelector(".reorderableWeekRail");
@@ -826,6 +811,7 @@ function attachHomeDayReorder(){
   let startX = 0;
   let startY = 0;
   let pointerDragging = false;
+  let dropTarget = null;
   let longPressTimer = null;
   const clearLongPress = () => {
     if(longPressTimer){
@@ -845,6 +831,24 @@ function attachHomeDayReorder(){
     homeDayDragSuppressTarget = button;
     homeDayDragSuppressUntil = Date.now() + 500;
   };
+  const setDropTarget = target => {
+    const nextTarget = target && target.closest && target.closest(".weekDay");
+    if(nextTarget === dropTarget) return;
+    if(dropTarget) dropTarget.classList.remove("dropTarget");
+    dropTarget = nextTarget && nextTarget !== dragSource ? nextTarget : null;
+    if(dropTarget) dropTarget.classList.add("dropTarget");
+  };
+  const armPointerDrag = (button, pointerId) => {
+    selectSwapSource(button);
+    pointerDragging = true;
+    rail.classList.add("dragging");
+    button.classList.add("dragging");
+    try{
+      button.setPointerCapture(pointerId);
+    }catch(error){
+      // Pointer capture may already be gone if the gesture was cancelled by the browser.
+    }
+  };
   const swapFromTarget = target => {
     const destination = target && target.closest && target.closest(".weekDay");
     if(!dragSource || !destination || destination === dragSource) return;
@@ -854,8 +858,19 @@ function attachHomeDayReorder(){
     swapDayFocuses(week, from, to);
     dayIndex = to;
     homeReorderSource = null;
+    homeReorderMode = false;
     homeDayDragSuppress = true;
+    homeDayDragSuppressTarget = dragSource;
+    homeDayDragSuppressUntil = Date.now() + 500;
     renderHome();
+  };
+  const resetPointerDrag = button => {
+    rail.classList.remove("dragging");
+    if(dropTarget) dropTarget.classList.remove("dropTarget");
+    dropTarget = null;
+    if(button) button.classList.remove("dragging");
+    dragSource = null;
+    pointerDragging = false;
   };
   rail.querySelectorAll(".weekDay").forEach(button => {
     button.addEventListener("dragstart", event => {
@@ -877,41 +892,47 @@ function attachHomeDayReorder(){
       dragSource = null;
     });
     button.addEventListener("pointerdown", event => {
+      if(event.button !== undefined && event.button !== 0) return;
       dragSource = button;
       startX = event.clientX;
       startY = event.clientY;
       pointerDragging = false;
-      button.setPointerCapture(event.pointerId);
+      button.dataset.pointerId = String(event.pointerId);
       clearLongPress();
       longPressTimer = setTimeout(() => {
-        selectSwapSource(button);
-      }, 450);
+        armPointerDrag(button, event.pointerId);
+      }, 180);
     });
     button.addEventListener("pointermove", event => {
       if(dragSource !== button) return;
-      if(Math.hypot(event.clientX - startX, event.clientY - startY) > 20){
+      const distance = Math.hypot(event.clientX - startX, event.clientY - startY);
+      if(!pointerDragging && distance > 12){
         clearLongPress();
-        pointerDragging = true;
-        rail.classList.add("dragging");
+        if(Math.abs(event.clientY - startY) > Math.abs(event.clientX - startX)){
+          if(button.hasPointerCapture(event.pointerId)) button.releasePointerCapture(event.pointerId);
+          resetPointerDrag(button);
+          return;
+        }
+        armPointerDrag(button, event.pointerId);
+      }
+      if(pointerDragging){
+        event.preventDefault();
+        setDropTarget(document.elementFromPoint(event.clientX, event.clientY));
       }
     });
     button.addEventListener("pointerup", event => {
-      rail.classList.remove("dragging");
       clearLongPress();
       if(pointerDragging){
         const target = document.elementFromPoint(event.clientX, event.clientY);
         swapFromTarget(target);
       }
       if(button.hasPointerCapture(event.pointerId)) button.releasePointerCapture(event.pointerId);
-      dragSource = null;
-      pointerDragging = false;
+      resetPointerDrag(button);
     });
     button.addEventListener("pointercancel", event => {
-      rail.classList.remove("dragging");
       clearLongPress();
       if(button.hasPointerCapture(event.pointerId)) button.releasePointerCapture(event.pointerId);
-      dragSource = null;
-      pointerDragging = false;
+      resetPointerDrag(button);
     });
   });
 }
