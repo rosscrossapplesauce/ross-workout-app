@@ -16,7 +16,7 @@ async function makeFirstPlanDayToday(page) {
 }
 
 async function openTodayOverview(page) {
-  await page.getByRole("button", { name: "View today's workout" }).click();
+  await page.evaluate(() => openTodayWorkoutOverview());
 }
 
 async function openFirstExercise(page) {
@@ -32,10 +32,13 @@ test.beforeEach(async ({ page }) => {
 
 test("app loads to the current plan without requiring sync or AI", async ({ page }) => {
   await expect(page.locator(".weekRoute")).toBeVisible();
-  await expect(page.locator(".weekRoute")).toContainText("Your route");
+  await expect(page.locator("#dayTitle")).toHaveText("Workout");
+  await expect(page.locator("#weekLabel")).toHaveText("");
+  await expect(page.locator(".weekRoute")).toContainText("training days complete this week");
+  await expect(page.locator(".weekRoute")).not.toContainText("Week 1");
+  await expect(page.locator(".weekRoute")).not.toContainText("Your route");
   await expect(page.locator(".weekDay")).toHaveCount(7);
-  await expect(page.locator(".todaySnapshot")).toContainText("Today");
-  await expect(page.getByRole("button", { name: "View today's workout" })).toBeVisible();
+  await expect(page.locator(".todaySnapshot")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Create a new plan" })).toBeVisible();
   await expect(page.getByText("Add sync settings")).toHaveCount(0);
 });
@@ -218,7 +221,7 @@ test("workout menu reaches list, calendar, settings, and home", async ({ page })
 });
 
 test("color settings can be changed from settings", async ({ page }) => {
-  await page.getByRole("button", { name: "⚙" }).click();
+  await page.locator("#overviewBtn").click();
   await page.getByRole("button", { name: "Color settings" }).click();
   await expect(page.locator(".themeOption")).toHaveCount(4);
   await expect(page.getByText("Sea glass")).toBeVisible();

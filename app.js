@@ -671,17 +671,11 @@ function homeWeekMarkup(model){
   if(!model || !model.week) return "";
   const doneDays = model.days.filter(entry => entry.items.length && entry.completed >= entry.items.length).length;
   const trainingDays = model.days.filter(entry => entry.items.length).length;
-  const todayEntry = model.days.find(entry => entry.today) || model.days.find(entry => entry.current) || model.days[0];
   return `
     <section class="weekRoute ${homeReorderMode ? "moving" : ""}" aria-label="This week's route">
       <div class="weekSnapshotTop">
-        <div>
-          <div class="summaryTitle">Week ${escapeHtml(model.week.week || model.weekIndex + 1)}</div>
-          <div class="weekSnapshotTitle">Your route</div>
-          <div class="weekRouteMeta">${doneDays} of ${trainingDays || model.days.length} training days complete</div>
-        </div>
+        <div class="weekRouteMeta">${doneDays} of ${trainingDays || model.days.length} training days complete this week</div>
       </div>
-      ${todayEntry ? homeWeekTodayCard(todayEntry) : ""}
       <div class="weekRail reorderableWeekRail" aria-label="Drag days to swap workout focuses">
         ${model.days.map(entry => homeWeekDayMarkup(entry)).join("")}
       </div>
@@ -779,8 +773,8 @@ function renderHome(){
   const pendingRequest = readObject(PLAN_REQUEST_KEY, null);
   const activePlan = getActivePlan();
   const homeWeek = homeWeekOverview(activePlan);
-  $("weekLabel").innerText = "Workout";
-  $("dayTitle").innerHTML = `<span>Ross Workout</span><span>Coach</span>`;
+  $("weekLabel").innerText = "";
+  $("dayTitle").innerHTML = `<span>Workout</span>`;
   $("progressText").innerText = hasGeneratedPlan() ? "Current plan active" : "Starter plan active";
   $("scoreText").innerText = "";
   $("progressBar").style.width = "100%";
@@ -788,12 +782,11 @@ function renderHome(){
   $("nextBtn").style.display = "none";
   $("doneBtn").style.display = "none";
   $("homeBtn").style.display = "none";
-  $("overviewBtn").innerText = "⚙";
+  $("overviewBtn").innerText = "-";
   $("overviewBtn").onclick = renderSettings;
   $("screen").innerHTML = `
     <section class="homePanel scrollPanel">
       ${homeWeekMarkup(homeWeek)}
-      ${homeTodayMarkup(homeWeek)}
       <div class="homeActions">
         <button class="textBtn" onclick="renderPlanStart()">Create a new plan</button>
       </div>

@@ -16,7 +16,7 @@ async function makeFirstPlanDayToday(page) {
 }
 
 async function openTodayOverview(page) {
-  await page.getByRole("button", { name: "View today's workout" }).click();
+  await page.evaluate(() => openTodayWorkoutOverview());
 }
 
 async function openFirstExercise(page) {

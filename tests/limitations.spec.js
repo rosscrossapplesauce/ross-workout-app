@@ -1,7 +1,7 @@
 const { test, expect } = require("@playwright/test");
 
 async function openSettings(page) {
-  await page.getByRole("button", { name: "⚙" }).click();
+  await page.locator("#overviewBtn").click();
 }
 
 async function mockGenerator(page) {
