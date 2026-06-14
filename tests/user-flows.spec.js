@@ -79,8 +79,12 @@ test("home week overview can swap focuses by holding and dragging", async ({ pag
   await page.mouse.move(fromBox.x + fromBox.width / 2, fromBox.y + fromBox.height / 2);
   await page.mouse.down();
   await page.waitForTimeout(240);
+  await expect(page.locator(".dragGhost")).toBeVisible();
   await page.mouse.move(toBox.x + toBox.width / 2, toBox.y + toBox.height / 2, { steps: 8 });
+  const ghostMoved = await page.locator(".dragGhost").evaluate(node => getComputedStyle(node).transform !== "none");
+  expect(ghostMoved).toBe(true);
   await page.mouse.up();
+  await expect(page.locator(".dragGhost")).toHaveCount(0);
 
   await expect(page.locator(".weekDay").nth(2).locator("strong")).toHaveText(seventhFocus);
   await expect(page.locator(".weekDay").nth(6).locator("strong")).toHaveText(thirdFocus);

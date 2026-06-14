@@ -812,6 +812,7 @@ function attachHomeDayReorder(){
   let startY = 0;
   let pointerDragging = false;
   let dropTarget = null;
+  let dragGhost = null;
   let longPressTimer = null;
   const clearLongPress = () => {
     if(longPressTimer){
@@ -838,11 +839,35 @@ function attachHomeDayReorder(){
     dropTarget = nextTarget && nextTarget !== dragSource ? nextTarget : null;
     if(dropTarget) dropTarget.classList.add("dropTarget");
   };
+  const moveDragGhost = (x, y) => {
+    if(!dragGhost) return;
+    dragGhost.style.transform = `translate(${Math.round(x - startX)}px, ${Math.round(y - startY)}px) scale(1.02)`;
+  };
+  const removeDragGhost = () => {
+    if(dragGhost) dragGhost.remove();
+    dragGhost = null;
+  };
+  const createDragGhost = button => {
+    removeDragGhost();
+    const rect = button.getBoundingClientRect();
+    dragGhost = button.cloneNode(true);
+    dragGhost.classList.add("dragGhost");
+    dragGhost.classList.remove("dragging", "dropTarget");
+    dragGhost.removeAttribute("onclick");
+    dragGhost.removeAttribute("aria-pressed");
+    dragGhost.style.left = `${Math.round(rect.left)}px`;
+    dragGhost.style.top = `${Math.round(rect.top)}px`;
+    dragGhost.style.width = `${Math.round(rect.width)}px`;
+    dragGhost.style.height = `${Math.round(rect.height)}px`;
+    document.body.appendChild(dragGhost);
+    moveDragGhost(startX, startY);
+  };
   const armPointerDrag = (button, pointerId) => {
     selectSwapSource(button);
     pointerDragging = true;
     rail.classList.add("dragging");
     button.classList.add("dragging");
+    createDragGhost(button);
     try{
       button.setPointerCapture(pointerId);
     }catch(error){
@@ -869,6 +894,7 @@ function attachHomeDayReorder(){
     if(dropTarget) dropTarget.classList.remove("dropTarget");
     dropTarget = null;
     if(button) button.classList.remove("dragging");
+    removeDragGhost();
     dragSource = null;
     pointerDragging = false;
   };
@@ -917,6 +943,7 @@ function attachHomeDayReorder(){
       }
       if(pointerDragging){
         event.preventDefault();
+        moveDragGhost(event.clientX, event.clientY);
         setDropTarget(document.elementFromPoint(event.clientX, event.clientY));
       }
     });
